@@ -1,3 +1,4 @@
+.DS_Store
 .gitignore
 .pre-commit-config.yaml
 .python-version
@@ -8,8 +9,11 @@ LICENSE
 LICENSE_MODEL
 README.md
 pyproject.toml
+pyvenv.cfg
 requirements.in
 requirements.txt
+start_backend.sh
+start_frontend.sh
 data/teaser.jpg
 src/sharp/__init__.py
 src/sharp.egg-info/PKG-INFO

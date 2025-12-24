@@ -19,7 +19,7 @@ function App() {
     formData.append('device', options.device);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/predict', formData, {
+      const response = await axios.post('http://localhost:5001/api/predict', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -41,7 +41,7 @@ function App() {
     formData.append('file', file);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/render', formData, {
+      const response = await axios.post('http://localhost:5001/api/render', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -106,7 +106,7 @@ function App() {
               {output.output_files.map((file: string) => (
                 <li key={file}>
                   <a 
-                    href={`http://localhost:5000/api/download/${output.job_id}/${file}`}
+                    href={`http://localhost:5001/api/download/${output.job_id}/${file}`}
                     className="text-blue-600 hover:underline"
                     target="_blank"
                     rel="noreferrer"

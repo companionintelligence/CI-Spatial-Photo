@@ -7,7 +7,7 @@ import uuid
 import shutil
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 UPLOAD_FOLDER = '/tmp/ml-sharp-uploads'
 OUTPUT_FOLDER = '/tmp/ml-sharp-outputs'
@@ -106,4 +106,4 @@ def download_file(job_id, filename):
     return send_from_directory(os.path.join(app.config['OUTPUT_FOLDER'], job_id), filename)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5001)

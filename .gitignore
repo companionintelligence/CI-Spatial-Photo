@@ -9,13 +9,13 @@ __pycache__/
 /splats
 /images
 
-/frontend/node_modules
-/frontend/build
-/frontend/.env.local
-/frontend/backend/node_modules
-/frontend/backend/.env.local
-/frontend/backend/build
+/web-server/node_modules
+/web-server/build
+/web-server/.env.local
+/web-server/backend/node_modules
+/web-server/backend/.env.local
+/web-server/backend/build
 
-/frontend/client/node_modules
-/frontend/client/.env.local
-/frontend/client/build  
+/web-server/client/node_modules
+/web-server/client/.env.local
+/web-server/client/build  
