@@ -1,4 +1,4 @@
-# ML Sharp Web Server
+# TIME MACHINE PLAYGROUND - WEB INTERFACE
 
 This project provides a web-based interface for the ML Sharp CLI tool, allowing users to upload data, run predictions/renders, and view the results in an interactive 3D viewer with XR capabilities.
 
