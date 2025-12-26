@@ -20,4 +20,4 @@ __pycache__/
 /web-server/client/.env.local
 /web-server/client/build  
 
-/node_mo
+/node_modules
