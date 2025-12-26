@@ -1,4 +1,4 @@
-# ML Sharp Frontend
+# XRTM Frontend
 
 This directory contains the web frontend for ML Sharp.
 

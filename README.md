@@ -1,95 +1,102 @@
-# Sharp Monocular View Synthesis in Less Than a Second
+# ML Sharp Web Server
 
-[![Project Page](https://img.shields.io/badge/Project-Page-green)](https://apple.github.io/ml-sharp/)
-[![arXiv](https://img.shields.io/badge/arXiv-2512.10685-b31b1b.svg)](https://arxiv.org/abs/2512.10685)
+This project provides a web-based interface for the ML Sharp CLI tool, allowing users to upload data, run predictions/renders, and view the results in an interactive 3D viewer with XR capabilities.
 
-This software project accompanies the research paper: _Sharp Monocular View Synthesis in Less Than a Second_
-by _Lars Mescheder, Wei Dong, Shiwei Li, Xuyang Bai, Marcel Santos, Peiyun Hu, Bruno Lecouat, Mingmin Zhen, Amaël Delaunoy,
-Tian Fang, Yanghai Tsin, Stephan Richter and Vladlen Koltun_.
+## Features
 
-![](data/teaser.jpg)
+- **Full-Stack Architecture**: Flask backend for CLI integration, React frontend for the UI.
+- **Interactive 3D Viewer**: Built with Three.js and `@sparkjsdev/spark` to render Gaussian Splats (`.ply` files).
+- **XR Head Tracking**: Uses MediaPipe to track the user's head via webcam, adjusting the 3D camera perspective in real-time for a holographic effect.
+- **Responsive Design**: Full-screen immersive view with a floating controls panel that adapts to mobile devices.
+- **Theme Support**: Toggle between Light and Dark modes.
 
-We present SHARP, an approach to photorealistic view synthesis from a single image. Given a single photograph, SHARP regresses the parameters of a 3D Gaussian representation of the depicted scene. This is done in less than a second on a standard GPU via a single feedforward pass through a neural network. The 3D Gaussian representation produced by SHARP can then be rendered in real time, yielding high-resolution photorealistic images for nearby views. The representation is metric, with absolute scale, supporting metric camera movements. Experimental results demonstrate that SHARP delivers robust zero-shot generalization across datasets. It sets a new state of the art on multiple datasets, reducing LPIPS by 25–34% and DISTS by 21–43% versus the best prior model, while lowering the synthesis time by three orders of magnitude.
+## Project Structure
 
-## Getting started
+- `backend/`: Flask application serving the API.
+  - `app.py`: Main entry point.
+  - `tests/`: Backend tests.
+- `client/`: React frontend application.
+  - `src/components/`: UI components (`SplatViewer`, `ControlsPanel`, `TopBar`).
+  - `src/hooks/`: Custom hooks (e.g., `useHeadTracking`).
+  - `src/utils/`: Helper functions for 3D math and file parsing.
 
-We recommend to first create a python environment:
+## Setup & Installation
 
-```
-conda create -n sharp python=3.13
-```
+### Quick Start
 
-Afterwards, you can install the project using
+The easiest way to get up and running is to use the provided helper script. This will install all dependencies and start both the backend and frontend servers.
 
-```
-pip install -r requirements.txt
-```
+1. Ensure you have your conda environment active:
 
-To test the installation, run
+   ```bash
+   conda activate sharp
+   ```
 
-```
-sharp --help
-```
+2. Run the setup script:
 
-## Using the CLI
+   ```bash
+   ./run.sh
+   ```
 
-To run prediction:
+### Manual Setup
 
-```
-sharp predict -i /path/to/input/images -o /path/to/output/gaussians
-```
+If you prefer to run the services manually:
 
-The model checkpoint will be downloaded automatically on first run and cached locally at `~/.cache/torch/hub/checkpoints/`.
+#### Backend Setup
 
-Alternatively, you can download the model directly:
+1. Navigate to the backend directory:
 
-```
-wget https://ml-site.cdn-apple.com/models/sharp/sharp_2572gikvuh.pt
-```
+   ```bash
+   cd backend
+   ```
 
-To use a manually downloaded checkpoint, specify it with the `-c` flag:
+2. Install Python dependencies:
 
-```
-sharp predict -i /path/to/input/images -o /path/to/output/gaussians -c sharp_2572gikvuh.pt
-```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-The results will be 3D gaussian splats (3DGS) in the output folder. The 3DGS `.ply` files are compatible to various public 3DGS renderers. We follow the OpenCV coordinate convention (x right, y down, z forward). The 3DGS scene center is roughly at (0, 0, +z). When dealing with 3rdparty renderers, please scale and rotate to re-center the scene accordingly.
+3. Run the server:
 
-### Rendering trajectories (CUDA GPU only)
+   ```bash
+   python app.py
+   ```
 
-Additionally you can render videos with a camera trajectory. While the gaussians prediction works for all CPU, CUDA, and MPS, rendering videos via the `--render` option currently requires a CUDA GPU. The gsplat renderer takes a while to initialize at the first launch.
+   The backend runs on `http://localhost:5001`.
 
-```
-sharp predict -i /path/to/input/images -o /path/to/output/gaussians --render
+### Frontend Setup
 
-# Or from the intermediate gaussians:
-sharp render -i /path/to/output/gaussians -o /path/to/output/renderings
-```
+1. Navigate to the client directory:
 
-## Evaluation
+   ```bash
+   cd client
+   ```
 
-Please refer to the paper for both quantitative and qualitative evaluations.
-Additionally, please check out this [qualitative examples page](https://apple.github.io/ml-sharp/) containing several video comparisons against related work.
+2. Install Node dependencies:
 
-## Citation
+   ```bash
+   npm install
+   ```
 
-If you find our work useful, please cite the following paper:
+3. Start the development server:
 
-```bibtex
-@inproceedings{Sharp2025:arxiv,
-  title      = {Sharp Monocular View Synthesis in Less Than a Second},
-  author     = {Lars Mescheder and Wei Dong and Shiwei Li and Xuyang Bai and Marcel Santos and Peiyun Hu and Bruno Lecouat and Mingmin Zhen and Ama\"{e}l Delaunoy and Tian Fang and Yanghai Tsin and Stephan R. Richter and Vladlen Koltun},
-  journal    = {arXiv preprint arXiv:2512.10685},
-  year       = {2025},
-  url        = {https://arxiv.org/abs/2512.10685},
-}
-```
+   ```bash
+   npm start
+   ```
 
-## Acknowledgements
+   The frontend runs on `http://localhost:3000`.
 
-Our codebase is built using multiple opensource contributions, please see [ACKNOWLEDGEMENTS](ACKNOWLEDGEMENTS) for more details.
+## Usage
 
-## License
+1. Open `http://localhost:3000` in your browser.
+2. **Predict**: Upload a video or images to run the Gaussian Splatting prediction pipeline.
+3. **Render**: Upload a `.ply` file to render a video.
+4. **View**: The generated `.ply` file will automatically load in the background viewer.
+5. **XR Mode**: Click the "Enable XR" (Eye icon) button to turn on webcam-based head tracking. Move your head to see the perspective change!
 
-Please check out the repository [LICENSE](LICENSE) before using the provided code and
-[LICENSE_MODEL](LICENSE_MODEL) for the released models.
+## Testing
+
+- **Backend**: Run `pytest` in the `backend/` directory.
+- **Frontend**: Run `npm test` in the `client/` directory.
+
+
