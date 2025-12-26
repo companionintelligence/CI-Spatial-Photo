@@ -6,6 +6,7 @@ import { SparkRenderer } from '@sparkjsdev/spark';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 // @ts-ignore
 import { getFormatHandler } from '../formats/index.js';
+import { makeAxisFlipCvToGl, computeMlSharpDepthFocus, makeProjectionFromIntrinsics } from '../utils/cameraUtils';
 
 interface SplatViewerProps {
   fileUrl?: string;
@@ -76,8 +77,49 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className }) =
       if (!containerRef.current || !renderer || !camera) return;
       const { clientWidth, clientHeight } = containerRef.current;
       renderer.setSize(clientWidth, clientHeight, false);
-      camera.aspect = clientWidth / clientHeight;
-      camera.updateProjectionMatrix();
+      
+      // If we have active camera metadata, re-apply projection
+      if (currentMeshRef.current && currentMeshRef.current.userData.cameraMetadata) {
+          const meta = currentMeshRef.current.userData.cameraMetadata;
+          const { intrinsics, near, far } = meta;
+          
+          // Logic from browser-sharp applyCameraProjection
+          const sx = clientWidth / intrinsics.imageWidth;
+          const sy = clientHeight / intrinsics.imageHeight;
+          const s = Math.min(sx, sy);
+          const scaledWidth = intrinsics.imageWidth * s;
+          const scaledHeight = intrinsics.imageHeight * s;
+          const offsetX = (clientWidth - scaledWidth) * 0.5;
+          const offsetY = (clientHeight - scaledHeight) * 0.5;
+
+          const fx = intrinsics.fx * s;
+          const fy = intrinsics.fy * s;
+          const cx = intrinsics.cx * s + offsetX;
+          const cy = intrinsics.cy * s + offsetY;
+
+          camera.aspect = clientWidth / clientHeight;
+          camera.fov = THREE.MathUtils.radToDeg(
+            2 * Math.atan(clientHeight / (2 * Math.max(1e-6, fy))),
+          );
+          camera.near = near || 0.01;
+          camera.far = far || 1000;
+
+          const projection = makeProjectionFromIntrinsics({
+            fx,
+            fy,
+            cx,
+            cy,
+            width: clientWidth,
+            height: clientHeight,
+            near: camera.near,
+            far: camera.far,
+          });
+          camera.projectionMatrix.copy(projection);
+          camera.projectionMatrixInverse.copy(projection).invert();
+      } else {
+          camera.aspect = clientWidth / clientHeight;
+          camera.updateProjectionMatrix();
+      }
     };
 
     const container = containerRef.current;
@@ -125,9 +167,23 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className }) =
 
         const bytes = new Uint8Array(await fileObj.arrayBuffer());
         
+        // Load Metadata
+        let cameraMetadata = null;
+        try {
+            // @ts-ignore
+            cameraMetadata = await formatHandler.loadMetadata({ file: fileObj, bytes });
+        } catch (e) {
+            console.warn('Failed to load metadata', e);
+        }
+
         // Load Mesh
         // @ts-ignore
         const mesh = await formatHandler.loadData({ file: fileObj, bytes });
+
+        // Apply OpenCV to OpenGL flip (ml-sharp uses OpenCV coordinates)
+        const cvToThree = makeAxisFlipCvToGl();
+        mesh.applyMatrix4(cvToThree);
+        mesh.updateMatrixWorld(true);
 
         if (currentMeshRef.current) {
             sceneRef.current.remove(currentMeshRef.current);
@@ -135,23 +191,95 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className }) =
         currentMeshRef.current = mesh;
         sceneRef.current.add(mesh);
 
-        // Fit view
-        if (mesh.getBoundingBox && cameraRef.current && controlsRef.current) {
+        // Setup Camera
+        if (cameraMetadata && cameraRef.current && controlsRef.current) {
+             // Store metadata for resize
+             mesh.userData.cameraMetadata = cameraMetadata;
+
+             // Use metadata if available
+             const { intrinsics, extrinsicCv } = cameraMetadata;
+             
+             // Apply extrinsic
+             const e = extrinsicCv;
+             const extrinsicCvMat = new THREE.Matrix4().set(
+                e[0], e[1], e[2], e[3],
+                e[4], e[5], e[6], e[7],
+                e[8], e[9], e[10], e[11],
+                e[12], e[13], e[14], e[15],
+             );
+
+             // view = cvToThree * extrinsicCv * cvToThree
+             const view = new THREE.Matrix4()
+                .multiplyMatrices(cvToThree, extrinsicCvMat)
+                .multiply(cvToThree);
+             
+             const cameraWorld = new THREE.Matrix4().copy(view).invert();
+             
+             cameraRef.current.matrixAutoUpdate = true;
+             cameraRef.current.matrixWorld.copy(cameraWorld);
+             cameraRef.current.matrixWorld.decompose(cameraRef.current.position, cameraRef.current.quaternion, cameraRef.current.scale);
+             cameraRef.current.updateMatrix();
+             cameraRef.current.updateMatrixWorld(true);
+             
+             // Calculate lookAt depth
+             const depthFocusCv = computeMlSharpDepthFocus(mesh);
+             const lookAtCv = new THREE.Vector3(0, 0, depthFocusCv);
+             const lookAtThree = lookAtCv.applyMatrix4(mesh.matrixWorld);
+             controlsRef.current.target.copy(lookAtThree);
+             
+             // Calculate near/far based on bounding box if available
+             if (mesh.getBoundingBox) {
+                const box = mesh.getBoundingBox();
+                const worldBox = box.clone().applyMatrix4(mesh.matrixWorld);
+                const size = new THREE.Vector3();
+                const center = new THREE.Vector3();
+                worldBox.getSize(size);
+                worldBox.getCenter(center);
+                const radius = Math.max(size.length() * 0.5, 0.25);
+
+                const camPos = cameraRef.current.position.clone();
+                const dist = camPos.distanceTo(center);
+
+                const near = Math.max(0.01, dist - radius * 2.0);
+                const far = Math.max(near + 1.0, dist + radius * 6.0);
+                
+                // Update metadata with calculated near/far
+                mesh.userData.cameraMetadata.near = near;
+                mesh.userData.cameraMetadata.far = far;
+             }
+
+             controlsRef.current.enabled = true;
+             controlsRef.current.update();
+             
+             // Trigger resize to apply projection
+             window.dispatchEvent(new Event('resize'));
+
+        } else if (mesh.getBoundingBox && cameraRef.current && controlsRef.current) {
+            // Fallback to fitting view
             const box = mesh.getBoundingBox();
             const size = new THREE.Vector3();
             const center = new THREE.Vector3();
             box.getSize(size);
             box.getCenter(center);
+            
+            // Apply the transform to the bounding box center for correct camera targeting
+            const worldCenter = center.clone().applyMatrix4(mesh.matrixWorld);
 
             const radius = Math.max(size.length() * 0.5, 0.5);
             const dist = radius / Math.tan((cameraRef.current.fov * Math.PI) / 360);
 
-            cameraRef.current.position.copy(center).add(new THREE.Vector3(dist, dist, dist));
+            // Position camera relative to the new center
+            // We want to look at the center.
+            // Since we flipped Y and Z, "up" is Y.
+            
+            cameraRef.current.position.copy(worldCenter).add(new THREE.Vector3(0, 0, dist));
+            cameraRef.current.lookAt(worldCenter);
+            
             cameraRef.current.near = Math.max(0.01, radius * 0.01);
             cameraRef.current.far = Math.max(dist * 4, radius * 8);
             cameraRef.current.updateProjectionMatrix();
 
-            controlsRef.current.target.copy(center);
+            controlsRef.current.target.copy(worldCenter);
             controlsRef.current.update();
         }
 
