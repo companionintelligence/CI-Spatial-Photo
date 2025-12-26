@@ -19,3 +19,5 @@ __pycache__/
 /web-server/client/node_modules
 /web-server/client/.env.local
 /web-server/client/build  
+
+/
