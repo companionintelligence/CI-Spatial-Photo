@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import CommandForm from './components/CommandForm';
+import SplatViewer from './components/SplatViewer';
 import axios from 'axios';
 
 function App() {
@@ -7,11 +8,13 @@ function App() {
   const [output, setOutput] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [plyUrl, setPlyUrl] = useState<string | null>(null);
 
   const handlePredict = async (file: File, options: any) => {
     setLoading(true);
     setError(null);
     setOutput(null);
+    setPlyUrl(null);
     
     const formData = new FormData();
     formData.append('file', file);
@@ -25,6 +28,12 @@ function App() {
         },
       });
       setOutput(response.data);
+
+      // Check for PLY file
+      const plyFile = response.data.output_files.find((f: string) => f.endsWith('.ply'));
+      if (plyFile) {
+        setPlyUrl(`http://localhost:5001/api/download/${response.data.job_id}/${plyFile}`);
+      }
     } catch (err: any) {
       setError(err.response?.data?.stderr || err.message);
     } finally {
@@ -101,6 +110,14 @@ function App() {
           <div className="mt-6 p-4 bg-green-50 text-green-800 rounded">
             <h3 className="font-bold">Success!</h3>
             <p>Job ID: {output.job_id}</p>
+            
+            {plyUrl && (
+              <div className="mt-4 mb-4">
+                <h4 className="font-semibold mb-2">3D Preview:</h4>
+                <SplatViewer fileUrl={plyUrl} className="w-full h-[600px] border rounded" />
+              </div>
+            )}
+
             <h4 className="font-semibold mt-2">Output Files:</h4>
             <ul className="list-disc pl-5">
               {output.output_files.map((file: string) => (
