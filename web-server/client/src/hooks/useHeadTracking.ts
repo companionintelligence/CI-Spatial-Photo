@@ -99,5 +99,5 @@ export const useHeadTracking = (enabled: boolean) => {
     };
   }, [enabled]);
 
-  return { headPosition, isReady, videoRef };
+  return { headPosition, isReady };
 };
