@@ -1,6 +1,98 @@
 import { PlyReader } from "@sparkjsdev/spark";
 import { buildCameraMetadata } from "./cameraMetadata.js";
 
+// Fallback if PlyReader is not available
+const MockPlyReader = class {
+    constructor(buffer) {
+        this.buffer = buffer;
+        this.header = this.parseHeader();
+    }
+    
+    parseHeader() {
+        const textDecoder = new TextDecoder();
+        const headerText = textDecoder.decode(this.buffer.slice(0, 10000)); // Read first 10KB
+        const headerEnd = headerText.indexOf('end_header');
+        if (headerEnd === -1) throw new Error('Invalid PLY header');
+        
+        const lines = headerText.slice(0, headerEnd).split('\n');
+        const elements = [];
+        let currentElement = null;
+        
+        for (const line of lines) {
+            const parts = line.trim().split(/\s+/);
+            if (parts[0] === 'element') {
+                currentElement = { name: parts[1], count: parseInt(parts[2]), properties: [] };
+                elements.push(currentElement);
+            } else if (parts[0] === 'property') {
+                if (currentElement) {
+                    if (parts[1] === 'list') {
+                         currentElement.properties.push({ name: parts[4], type: parts[3], isList: true, countType: parts[2] });
+                    } else {
+                         currentElement.properties.push({ name: parts[2], type: parts[1], isList: false });
+                    }
+                }
+            }
+        }
+        return { elements, headerLength: headerEnd + 11 }; // +11 for "end_header\n"
+    }
+    
+    readElementData(elementName) {
+        // This is a very basic reader, might not support all PLY features (like binary/ascii distinction properly)
+        // Assuming binary little endian for now as that's what ml-sharp produces
+        
+        const element = this.header.elements.find(e => e.name === elementName);
+        if (!element) return null;
+        
+        // We need to skip previous elements
+        let offset = this.header.headerLength;
+        const dataView = new DataView(this.buffer);
+        
+        for (const el of this.header.elements) {
+            if (el.name === elementName) {
+                // Read this element
+                const items = [];
+                for (let i = 0; i < el.count; i++) {
+                    const item = {};
+                    for (const prop of el.properties) {
+                        if (prop.isList) {
+                            // Read list count
+                            const count = readScalar(dataView, offset, prop.countType, true);
+                            offset += FIELD_BYTES[prop.countType];
+                            const list = [];
+                            for (let j = 0; j < count; j++) {
+                                list.push(readScalar(dataView, offset, prop.type, true));
+                                offset += FIELD_BYTES[prop.type];
+                            }
+                            item[prop.name] = list;
+                        } else {
+                            item[prop.name] = readScalar(dataView, offset, prop.type, true);
+                            offset += FIELD_BYTES[prop.type];
+                        }
+                    }
+                    items.push(item);
+                }
+                return items;
+            } else {
+                // Skip this element
+                for (let i = 0; i < el.count; i++) {
+                    for (const prop of el.properties) {
+                        if (prop.isList) {
+                             const count = readScalar(dataView, offset, prop.countType, true);
+                             offset += FIELD_BYTES[prop.countType];
+                             offset += count * FIELD_BYTES[prop.type];
+                        } else {
+                             offset += FIELD_BYTES[prop.type];
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+};
+
+const Reader = PlyReader || MockPlyReader;
+
 const FIELD_BYTES = {
   char: 1,
   uchar: 1,
@@ -150,30 +242,30 @@ const readSinglePropertyElement = (element, dataView, elementOffset, littleEndia
 };
 
 export const readPlyCamera = async (fileBytes) => {
-  const ply = new PlyReader({ fileBytes });
-  await ply.parseHeader();
-
-  if (!ply.data) return null;
-
-  const wanted = new Set(["intrinsic", "extrinsic", "image_size", "color_space"]);
-  const raw = {};
-
-  let offset = 0;
-  for (const [elementName, element] of Object.entries(ply.elements)) {
-    if (wanted.has(elementName)) {
-      const read = readSinglePropertyElement(element, ply.data, offset, ply.littleEndian);
-      if (read) {
-        raw[elementName] = read.values;
-        offset = read.nextOffset;
-        continue;
+  const buffer = fileBytes instanceof Uint8Array ? fileBytes.buffer : fileBytes;
+  const reader = new MockPlyReader(buffer);
+  
+  const readFlat = (name) => {
+      const items = reader.readElementData(name);
+      if (!items) return undefined;
+      const result = [];
+      for (const item of items) {
+          const values = Object.values(item);
+          if (values.length > 0) {
+              result.push(values[0]);
+          }
       }
-    }
+      return result;
+  };
 
-    offset = skipElement(element, ply.data, offset, ply.littleEndian);
-  }
+  const raw = {};
+  raw.intrinsic = readFlat("intrinsic");
+  raw.extrinsic = readFlat("extrinsic");
+  raw.image_size = readFlat("image_size");
+  raw.color_space = readFlat("color_space");
 
   return buildCameraMetadata({
     ...raw,
-    headerComments: ply.comments ?? [],
+    headerComments: [],
   });
 };

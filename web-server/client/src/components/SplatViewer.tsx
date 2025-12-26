@@ -7,14 +7,16 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 // @ts-ignore
 import { getFormatHandler } from '../formats/index.js';
 import { makeAxisFlipCvToGl, computeMlSharpDepthFocus, makeProjectionFromIntrinsics } from '../utils/cameraUtils';
+import { HeadPosition } from '../hooks/useHeadTracking';
 
 interface SplatViewerProps {
   fileUrl?: string;
   file?: File;
   className?: string;
+  headPosition?: HeadPosition | null;
 }
 
-const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className }) => {
+const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, headPosition }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -137,6 +139,27 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className }) =
     };
   }, []);
 
+  // Handle Head Tracking
+  useEffect(() => {
+    if (!cameraRef.current || !headPosition) return;
+
+    const camera = cameraRef.current;
+    
+    // Scale factors - tune these for better feel
+    const movementScale = 2.0; 
+    const depthScale = 5.0;
+    const baseDistance = 2.5;
+
+    // Update position
+    const x = headPosition.x * movementScale;
+    const y = headPosition.y * movementScale;
+    const z = baseDistance + (headPosition.z * depthScale);
+
+    camera.position.set(x, y, Math.max(0.5, z));
+    camera.lookAt(0, 0, 0);
+    
+  }, [headPosition]);
+
   // Load File
   useEffect(() => {
     const load = async () => {
@@ -255,24 +278,20 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className }) =
              window.dispatchEvent(new Event('resize'));
 
         } else if (mesh.getBoundingBox && cameraRef.current && controlsRef.current) {
-            // Fallback to fitting view
+            // Fallback to fitting view (match browser-sharp behavior)
             const box = mesh.getBoundingBox();
             const size = new THREE.Vector3();
             const center = new THREE.Vector3();
             box.getSize(size);
             box.getCenter(center);
             
-            // Apply the transform to the bounding box center for correct camera targeting
             const worldCenter = center.clone().applyMatrix4(mesh.matrixWorld);
 
             const radius = Math.max(size.length() * 0.5, 0.5);
             const dist = radius / Math.tan((cameraRef.current.fov * Math.PI) / 360);
 
-            // Position camera relative to the new center
-            // We want to look at the center.
-            // Since we flipped Y and Z, "up" is Y.
-            
-            cameraRef.current.position.copy(worldCenter).add(new THREE.Vector3(0, 0, dist));
+            // browser-sharp uses (dist, dist, dist) offset
+            cameraRef.current.position.copy(worldCenter).add(new THREE.Vector3(dist, dist, dist));
             cameraRef.current.lookAt(worldCenter);
             
             cameraRef.current.near = Math.max(0.01, radius * 0.01);
