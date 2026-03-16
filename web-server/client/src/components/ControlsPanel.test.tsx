@@ -46,4 +46,11 @@ describe('ControlsPanel', () => {
     expect(screen.getByText('Job ID: 123')).toBeInTheDocument();
     expect(screen.getByText('test.ply')).toBeInTheDocument();
   });
+
+  it('shows the app 2.0 redesign plan', () => {
+    render(<ControlsPanel {...defaultProps} />);
+    expect(screen.getByText('App 2.0 redesign plan')).toBeInTheDocument();
+    expect(screen.getByText(/4DGS-Video-Generator/)).toBeInTheDocument();
+    expect(screen.getByText(/AR magic portal viewer/)).toBeInTheDocument();
+  });
 });

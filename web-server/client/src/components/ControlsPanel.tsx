@@ -1,6 +1,31 @@
 import React, { useState } from 'react';
 import CommandForm from './CommandForm';
 
+const appRedesignReviews = [
+  {
+    name: 'ml-sharp',
+    focus: 'single-scene Gaussian Splatting baseline and viewer integration'
+  },
+  {
+    name: 'ml-sharp web setup',
+    focus: 'one-click packaging reference for capture, processing, and download flows'
+  },
+  {
+    name: '4DGS-Video-Generator',
+    focus: 'dynamic 4D reconstruction for motion-heavy clips and temporal playback'
+  },
+  {
+    name: 'video-3d-reconstruction-gsplat',
+    focus: 'video-to-3D reconstruction path for richer scene recovery and export'
+  }
+];
+
+const appRedesignStrategy = [
+  'Route single-image inputs through SHARP, multi-view/static video through gsplat reconstruction, and dynamic footage through a 4DGS pipeline.',
+  'Standardize outputs as splats, preview videos, and camera metadata so the same assets can feed both the web viewer and a desktop creator workflow.',
+  'Extend the XR viewer into an AR magic portal mode that combines head tracking, portal framing, and timeline controls for 4D playback.'
+];
+
 interface ControlsPanelProps {
   isDarkMode: boolean;
   onPredict: (file: File, options: any) => Promise<void>;
@@ -59,6 +84,37 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
           loading={loading}
         />
       )}
+
+      <section
+        aria-label="App 2.0 redesign plan"
+        className={`mt-6 rounded-lg border p-4 text-sm ${
+          isDarkMode
+            ? 'border-blue-500/30 bg-blue-950/40 text-blue-50'
+            : 'border-blue-200 bg-blue-50 text-slate-800'
+        }`}
+      >
+        <h3 className="font-bold">App 2.0 redesign plan</h3>
+        <p className="mt-2 leading-6">
+          Reviewed 3D/4D pipelines for a web and desktop media workflow that can evolve into an
+          AR magic portal viewer.
+        </p>
+
+        <h4 className="mt-4 font-semibold">Reviewed systems</h4>
+        <ul className="mt-2 space-y-2">
+          {appRedesignReviews.map((review) => (
+            <li key={review.name}>
+              <span className="font-semibold">{review.name}:</span> {review.focus}
+            </li>
+          ))}
+        </ul>
+
+        <h4 className="mt-4 font-semibold">Recommended strategy</h4>
+        <ol className="mt-2 space-y-2 list-decimal pl-5">
+          {appRedesignStrategy.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ol>
+      </section>
 
       {error && (
         <div className="p-4 mt-6 text-sm text-red-200 border border-red-700 rounded bg-red-900/50">
