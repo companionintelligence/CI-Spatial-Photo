@@ -153,6 +153,29 @@ support a `/view/:assetId` share route.
 
 ---
 
+## 5b. Blender‑based creation & editing (desktop authoring path)
+
+Several splat workflows live inside Blender. They matter here as an **optional desktop
+authoring/cleanup path** that complements the headless container — and as confirmation that our
+recommended reconstruction stack (COLMAP → Brush) is the same one practitioners reach for.
+
+| Tool | What it is | License | Relevance |
+| --- | --- | --- | --- |
+| **skysplat_blender** | Blender addon that runs the *full* pipeline: video (+SRT) → frame extraction → **COLMAP** SfM → **Brush** training → animated cameras → `.ply` | **MIT** (Brush Apache‑2.0) | Validates our headless `ffmpeg → COLMAP → Brush → .ply` photogrammetry engine; the container is the server‑side equivalent, Blender is the desktop equivalent. |
+| **BlendSplat** (Gumroad) | Paid Blender addon for importing/working with Gaussian splats | Commercial (paid) | Reference for Blender‑side splat editing UX. |
+| KIRI 3DGS Render Addon | Blender addon to render/visualize `.ply` splats | Proprietary/free | Where skysplat output is often viewed. |
+
+**Takeaway:** the container ships the reconstruction pipeline headless (no Blender dependency);
+users who want manual cleanup, camera animation, or compositing can round‑trip the same `.ply`
+through Blender via skysplat_blender. We standardize on `.ply` precisely so this round‑trip works.
+There is broad community interest in — but friction around — Blender GS workflows, which is
+exactly the gap a one‑click containerized service fills.
+
+### Reference indexes worth tracking
+- **awesome‑3D‑gaussian‑splatting** (MrNeRF) — the canonical, continuously‑updated index of GS
+  papers, code, viewers, and tools. Primary place to discover new engines/viewers as they land.
+- **Awesome‑Gaussian‑Skills** (jaccen) — curated GS tooling/skills list.
+
 ## 6. Net recommendation for CI Photo Time Machine
 
 1. **Default engine = TripoSplat** (MIT, object‑centric, tiny deps, Spark‑compatible).
@@ -176,3 +199,6 @@ support a `/view/:assetId` share route.
 - PlayCanvas SuperSplat — https://github.com/playcanvas/supersplat
 - `<model-viewer>` — https://modelviewer.dev
 - Niantic `.spz` — https://github.com/nianticlabs/spz • PlayCanvas SOGS — https://github.com/playcanvas/sogs
+- skysplat_blender — https://github.com/kyjohnso/skysplat_blender • BlendSplat — https://soerensc.gumroad.com/l/BlendSplat
+- awesome‑3D‑gaussian‑splatting — https://github.com/MrNeRF/awesome-3D-gaussian-splatting
+- Awesome‑Gaussian‑Skills — https://github.com/jaccen/Awesome-Gaussian-Skills

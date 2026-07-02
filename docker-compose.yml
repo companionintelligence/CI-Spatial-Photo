@@ -1,0 +1,49 @@
+# CI Photo Time Machine — viewer + processing server.
+#
+#   cp .env.example .env && docker compose up --build
+#
+# The server exposes the REST API (/api/v1) and the MCP server (/mcp) on :8000.
+# The viewer is served on :3000 and deep-links (/view/:assetId) resolve to the SPA.
+services:
+  server:
+    build:
+      context: ./server
+    image: ci-photo-time-machine-server
+    ports:
+      - "8000:8000"
+    environment:
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+      AUTH_DISABLED: ${AUTH_DISABLED:-1}
+      COMPANION_OIDC_ISSUER: ${COMPANION_OIDC_ISSUER:-}
+      COMPANION_OIDC_AUDIENCE: ${COMPANION_OIDC_AUDIENCE:-}
+      CI_MEMORY_MCP_URL: ${CI_MEMORY_MCP_URL:-}
+      DEFAULT_ENGINE: ${DEFAULT_ENGINE:-triposplat}
+      SHARP_ENABLE_RESEARCH: ${SHARP_ENABLE_RESEARCH:-0}
+      ASSET_DIR: /data/assets
+      MODEL_WEIGHTS_DIR: /models
+    volumes:
+      - assets:/data
+      - model-weights:/models
+    # For GPU engines (TripoSplat/SHARP/photogrammetry), build a CUDA image and uncomment:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  viewer:
+    build:
+      context: ./web-server/client
+      args:
+        REACT_APP_API_BASE: ${PUBLIC_API_BASE:-http://localhost:8000}
+    image: ci-photo-time-machine-viewer
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server
+
+volumes:
+  assets:
+  model-weights:
