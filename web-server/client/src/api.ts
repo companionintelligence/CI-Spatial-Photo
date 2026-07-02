@@ -134,9 +134,9 @@ export function bestFormat(asset: Asset): { format: string; url: string } {
   return { format: fmt, url: api.assetFileUrl(asset.asset_id, fmt) };
 }
 
-// Format the Spark viewer's format registry can currently parse (ply/sog).
+// Format the Spark viewer's format registry can parse, smallest-on-the-wire first.
 export function viewerSplatFormat(asset: Asset): string {
-  return ["ply", "sog"].find((f) => asset.formats[f]) || Object.keys(asset.formats)[0];
+  return ["spz", "sog", "ply"].find((f) => asset.formats[f]) || Object.keys(asset.formats)[0];
 }
 
 // Download an asset artifact as a named File (so the viewer's extension-based format

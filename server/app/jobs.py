@@ -16,8 +16,9 @@ from pathlib import Path
 from .config import Settings
 from .engines import EngineError, get_registry
 from .memory import MemoryClient
-from .models import Asset, Job, JobInput
+from .models import Asset, EngineResult, Job, JobInput
 from .storage import Store
+from .transcode import ply_to_spz
 
 log = logging.getLogger("ptm.jobs")
 
@@ -52,6 +53,17 @@ class JobManager:
         job.updated_at = datetime.now(timezone.utc)
         self.store.save_job(job)
 
+    def _transcode(self, result: EngineResult, workdir: Path) -> None:
+        """Produce compressed delivery formats next to the master. Best-effort: a transcode
+        failure must never fail the job — the master format is always served."""
+        if result.kind == "splat" and result.master_format == "ply" and "spz" not in result.extra_files:
+            try:
+                spz = workdir / "model.spz"
+                ply_to_spz(result.master_path, spz)
+                result.extra_files["spz"] = spz
+            except Exception as e:  # noqa: BLE001
+                log.warning("spz transcode failed: %s", e)
+
     async def _run(self, job_id: str) -> None:
         job = self.store.get_job(job_id)
         job_input = self._inputs.get(job_id)
@@ -74,6 +86,9 @@ class JobManager:
             self._touch(job, engine=engine.name, message=f"running {engine.name}")
 
             result = await asyncio.to_thread(engine.run, job_input, workdir, self.settings)
+
+            self._touch(job, message="transcoding")
+            await asyncio.to_thread(self._transcode, result, workdir)
 
             asset = Asset(
                 asset_id=_new_id("a"),

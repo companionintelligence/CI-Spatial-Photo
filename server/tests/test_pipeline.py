@@ -43,7 +43,11 @@ async def test_image_to_splat_pipeline(tmp_path: Path):
     assert asset is not None
     assert asset.kind == "splat"
     assert "ply" in asset.formats
+    assert "spz" in asset.formats, "splat assets should get a compressed spz for sharing"
     assert asset.share_url.endswith(f"/view/{asset.asset_id}")
     assert store.asset_file(asset.asset_id, "ply").exists()
+    spz_file = store.asset_file(asset.asset_id, "spz")
+    assert spz_file.exists()
+    assert spz_file.stat().st_size < store.asset_file(asset.asset_id, "ply").stat().st_size
     # listed for the owner
     assert any(a.asset_id == asset.asset_id for a in store.list_assets("dev@local"))

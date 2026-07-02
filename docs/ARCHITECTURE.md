@@ -180,7 +180,9 @@ Jobs carry `{ job_id, owner, status, engine, error?, asset_id? }` and a progress
   Photogrammetry (COLMAP→gsplat) — each with a clean `Engine` interface and clear GPU/weights
   boundaries.
 - Docker + compose + marketplace manifest; viewer share route + mesh support.
-- Tests for the router, job lifecycle, and API contract (no GPU needed).
+- `.spz` transcode (`server/app/transcode.py`): every splat's master `.ply` is compressed to
+  Niantic spz (~10× smaller) after the engine runs; the viewer prefers spz on the wire.
+- Tests for the router, job lifecycle, API contract, and spz round-trip (no GPU needed).
 
 **Later:** in‑process → external queue (RQ/Celery) for multi‑GPU; `.sog` transcode; TRELLIS/
 Hunyuan mesh engines; 4DGS temporal splats; VGGT pose init; SuperSplat‑style in‑browser cleanup.
