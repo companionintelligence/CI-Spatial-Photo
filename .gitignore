@@ -6,6 +6,13 @@
 *.pyc
 __pycache__/
 
+# server runtime + build artifacts
+/server/data/
+**/*.egg-info/
+.pytest_cache/
+/.env
+/data/
+
 /splats
 /images
 

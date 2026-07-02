@@ -1,7 +1,8 @@
 import { plyFormat } from "./ply.js";
 import { sogFormat } from "./sog.js";
+import { spzFormat } from "./spz.js";
 
-const formats = [plyFormat, sogFormat];
+const formats = [plyFormat, sogFormat, spzFormat];
 
 const getExtension = (fileName) => {
   const dotIndex = fileName.lastIndexOf(".");

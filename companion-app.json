@@ -1,0 +1,67 @@
+{
+  "$schema": "https://docs.ci.computer/schemas/app.v1.json",
+  "id": "ci-photo-time-machine",
+  "name": "Photo Time Machine",
+  "tagline": "Turn any image or video into a shareable 3D memory.",
+  "description": "A containerized 3D processing service that converts a single image, a set of images, or a video into a Gaussian splat or mesh, viewable in the browser and in XR. MCP-native so Companion agents can create and share 3D assets, and wired into Companion memory so your digital twin remembers them.",
+  "version": "2.0.0",
+  "category": "spatial",
+  "keywords": ["3d", "gaussian-splatting", "photogrammetry", "webxr", "spatial", "time-machine"],
+  "icon": "assets/icon.png",
+  "publisher": "Companion Intelligence",
+  "license": "See LICENSE / LICENSE_MODEL; bundled engines have separate licenses (see docs/RESEARCH.md).",
+  "runtime": {
+    "type": "docker-compose",
+    "compose": "docker-compose.yml",
+    "gpu": "recommended",
+    "services": [
+      { "name": "server", "image": "ci-photo-time-machine-server", "port": 8000, "healthcheck": "/healthz" },
+      { "name": "viewer", "image": "ci-photo-time-machine-viewer", "port": 3000 }
+    ]
+  },
+  "endpoints": {
+    "web": { "service": "viewer", "port": 3000, "path": "/" },
+    "api": { "service": "server", "port": 8000, "path": "/api/v1" },
+    "mcp": { "service": "server", "port": 8000, "path": "/mcp", "transport": "http" }
+  },
+  "mcp": {
+    "provides": {
+      "server": "photo-time-machine",
+      "tools": [
+        "list_engines",
+        "image_to_3d",
+        "media_to_3d",
+        "get_job",
+        "list_assets",
+        "get_asset",
+        "get_share_url"
+      ]
+    },
+    "consumes": [
+      {
+        "server": "ci-memory",
+        "purpose": "Persist created 3D assets as memories on the digital twin.",
+        "required": false,
+        "env": "CI_MEMORY_MCP_URL"
+      }
+    ]
+  },
+  "auth": {
+    "type": "companion-oidc",
+    "required": true,
+    "scopes": ["openid", "profile", "email"],
+    "env": {
+      "issuer": "COMPANION_OIDC_ISSUER",
+      "audience": "COMPANION_OIDC_AUDIENCE"
+    }
+  },
+  "permissions": {
+    "memory": { "read": true, "write": true },
+    "storage": { "volumes": ["assets", "model-weights"] }
+  },
+  "config": [
+    { "key": "PUBLIC_BASE_URL", "label": "Public base URL for share links", "type": "string", "default": "http://localhost:3000" },
+    { "key": "DEFAULT_ENGINE", "label": "Default engine", "type": "enum", "options": ["triposplat", "sharp", "photogrammetry"], "default": "triposplat" },
+    { "key": "SHARP_ENABLE_RESEARCH", "label": "Enable Apple SHARP (non-commercial research weights)", "type": "boolean", "default": false }
+  ]
+}
