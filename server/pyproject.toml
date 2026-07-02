@@ -1,0 +1,35 @@
+[project]
+name = "ci-photo-time-machine-server"
+version = "2.0.0"
+description = "Containerized, MCP-native image/video -> 3D processing server for the Companion Intelligence suite."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "pydantic>=2.6",
+  "pydantic-settings>=2.2",
+  "python-multipart>=0.0.9",
+  "httpx>=0.27",
+  "pyjwt>=2.7",
+  "cryptography>=41",
+  "pillow>=10.0",
+  "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+# MCP server/client surface. Kept optional so the REST API + tests run without it.
+mcp = ["mcp>=1.2"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
