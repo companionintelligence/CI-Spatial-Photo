@@ -1,136 +1,109 @@
-# TIME MACHINE PLAYGROUND - WEB INTERFACE
+# CI Photo Time Machine
 
-This project provides a web-based interface for the ML Sharp CLI tool, allowing users to upload data, run predictions/renders, and view the results in an interactive 3D viewer with XR capabilities.
+**Turn any image, image set, or video into a shareable 3D memory** — a Gaussian splat or
+mesh you can explore in the browser and in XR. Part of the [Companion
+Intelligence](https://ci.computer) suite: containerized, **MCP‑native**, and wired into
+Companion memory and Companion OIDC.
 
-## Features
+> Point a photo (or a whole video) at it, get back a link. Open the link and step *into* the
+> moment with head‑tracked parallax — or drop the 3D model into AR on your phone.
 
-- **Full-Stack Architecture**: Flask backend for CLI integration, React frontend for the UI.
-- **Interactive 3D Viewer**: Built with Three.js and `@sparkjsdev/spark` to render Gaussian Splats (`.ply` files).
-- **XR Head Tracking**: Uses MediaPipe to track the user's head via webcam, adjusting the 3D camera perspective in real-time for a holographic effect.
-- **Responsive Design**: Full-screen immersive view with a floating controls panel that adapts to mobile devices.
-- **Theme Support**: Toggle between Light and Dark modes.
+- 🧠 **MCP API** — Hermes, OpenClaw, and Claude Code can create and share 3D assets as tools.
+- 🧩 **Pluggable engines** — TripoSplat (default), Apple SHARP (research), COLMAP→gsplat
+  photogrammetry, with TRELLIS/Hunyuan mesh engines slotting in behind one interface.
+- 🐳 **Containerized** — one `docker compose up` for the processing server + web viewer.
+- 🔐 **Companion‑native** — Companion OIDC auth; created assets are written to CI‑Server /
+  Hermes memory so your digital twin remembers them.
+- 🕶️ **Web + XR viewer** — Spark‑powered splat viewer with a MediaPipe head‑tracked "magic
+  portal," plus `<model-viewer>` for meshes with native mobile AR.
 
-## Project Structure
+## Why this exists / what changed
 
-- `backend/`: Flask application serving the API.
-  - `app.py`: Main entry point.
-  - `tests/`: Backend tests.
-- `client/`: React frontend application.
-  - `src/components/`: UI components (`SplatViewer`, `ControlsPanel`, `TopBar`).
-  - `src/hooks/`: Custom hooks (e.g., `useHeadTracking`).
-  - `src/utils/`: Helper functions for 3D math and file parsing.
+This project began as a fork of Apple's **SHARP** (single‑image → 3D Gaussian Splatting) with a
+Flask + React viewer. Reimagined for the Companion suite, it becomes a proper **3D processing
+service**: agent‑drivable over MCP, engine‑agnostic, containerized, and authenticated.
 
-## Setup & Installation
+A key reason for the redesign: **SHARP's model weights are licensed for non‑commercial research
+only** (`LICENSE_MODEL`). The default engine is now **TripoSplat** (MIT — code *and* weights),
+with SHARP kept as an optional, clearly labeled research/scene engine. Full trade study in
+[`docs/RESEARCH.md`](docs/RESEARCH.md); system design in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-### Quick Start
+## Quick start (Docker)
 
-The easiest way to get up and running is to use the provided helper script. This will install all dependencies and start both the backend and frontend servers.
+```bash
+cp .env.example .env      # set PUBLIC_BASE_URL, Companion OIDC + memory (optional)
+docker compose up --build
+# Viewer:  http://localhost:3000
+# API:     http://localhost:8000/api/v1   (docs at /docs)
+# MCP:     http://localhost:8000/mcp
+```
 
-1. Ensure you have your conda environment active:
+For **local hacking without auth**, set `AUTH_DISABLED=1` (default in `.env.example`).
 
-   ```bash
-   conda activate sharp
-   ```
+## Run the server directly (dev)
 
-2. Run the setup script:
+```bash
+cd server
+pip install -e .
+uvicorn app.main:app --reload --port 8000
+```
 
-   ```bash
-   ./run.sh
-   ```
+The API, MCP surface, input router, auth, and memory client all run **without a GPU**. Engine
+*inference* (TripoSplat/SHARP/photogrammetry) needs a CUDA GPU and downloaded weights; without
+them the API still works and engines return a clear "GPU/weights required" error.
 
-### Manual Setup
+## Using it
 
-If you prefer to run the services manually:
+### From the web
+1. Open the viewer, drop in an image, a set of images, or a video.
+2. The server classifies the input, routes it to an engine, and runs the job.
+3. When it finishes, the asset loads in the viewer and you get a **share link**
+   (`/view/:assetId`). Enable XR for the head‑tracked portal.
 
-#### Backend Setup
+### From an agent (MCP)
+Point your Companion agent at `http://<host>:8000/mcp`. Tools:
+`list_engines`, `image_to_3d`, `media_to_3d`, `get_job`, `list_assets`, `get_asset`,
+`get_share_url`. Example intent: _"make a 3D model of the photo I just shared and send me the
+link"_ → `image_to_3d` → poll `get_job` → `get_share_url`.
 
-1. Navigate to the backend directory:
+## Repository layout
 
-   ```bash
-   cd backend
-   ```
+```
+server/                 FastAPI 3D processing server + MCP + engines (the new core)
+  app/
+    engines/            Engine protocol, registry/router, TripoSplat/SHARP/photogrammetry
+    main.py routes.py mcp_server.py jobs.py storage.py memory.py auth.py models.py config.py
+web-server/client/      React + Three.js + Spark web viewer (kept, evolved: /view/:id, meshes)
+src/sharp/              Apple SHARP engine (bundled; research‑licensed weights)
+docs/                   ARCHITECTURE.md, RESEARCH.md
+companion-app.json      Companion Hub / Marketplace manifest
+docker-compose.yml      Viewer + server stack
+```
 
-2. Install Python dependencies:
+## Configuration
 
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Run the server:
-
-   ```bash
-   python app.py
-   ```
-
-   The backend runs on `http://localhost:5001`.
-
-### Frontend Setup
-
-1. Navigate to the client directory:
-
-   ```bash
-   cd client
-   ```
-
-2. Install Node dependencies:
-
-   ```bash
-   npm install
-   ```
-
-3. Start the development server:
-
-   ```bash
-   npm start
-   ```
-
-   The frontend runs on `http://localhost:3000`.
-
-## Usage
-
-1. Open `http://localhost:3000` in your browser.
-2. **Predict**: Upload a video or images to run the Gaussian Splatting prediction pipeline.
-3. **Render**: Upload a `.ply` file to render a video.
-4. **View**: The generated `.ply` file will automatically load in the background viewer.
-5. **XR Mode**: Click the "Enable XR" (Eye icon) button to turn on webcam-based head tracking. Move your head to see the perspective change!
-
-## App 2.0 redesign: 3D/4D media strategy
-
-The current app already provides the key pieces for a 3D media workflow: capture input, run a
-Gaussian Splatting pipeline, and preview the result in a head-tracked viewer. For App 2.0, the
-recommended direction is to keep that baseline while adding dedicated paths for richer video
-reconstruction and time-aware 4D playback.
-
-### Reviewed systems
-
-| System | Best fit in the roadmap |
-| --- | --- |
-| [`ml-sharp`](https://github.com/iVideoGameBoss/ml-sharp) | Baseline single-scene Gaussian Splatting pipeline and web viewer reference for image-first or short clip workflows. |
-| [`ml-sharp` web interface setup](https://github.com/cjgaspari/ml-sharp?tab=readme-ov-file#web-interface-one-click-setup) | Operational reference for one-click onboarding, background jobs, and artifact delivery from the existing web app. |
-| [`4DGS-Video-Generator`](https://github.com/AndriiShramko/4DGS-Video-Generator) | Dynamic scene pipeline for converting motion-heavy source video into time-varying 4D Gaussian assets. |
-| [`video-3d-reconstruction-gsplat`](https://github.com/Nannigalaxy/video-3d-reconstruction-gsplat) | Video-to-3D reconstruction path for clips that need better scene recovery before splat export or downstream editing. |
-
-### Recommended processing strategy
-
-1. **Intake and classify media**: detect whether the user uploaded a single image, a static/multi-view
-   video, or a motion-rich clip that needs temporal reconstruction.
-2. **Route to the right pipeline**:
-   - Use SHARP for the fastest single-scene conversion and immediate viewer previews.
-   - Use a gsplat reconstruction workflow for richer static video reconstruction and asset cleanup.
-   - Use a 4DGS workflow for sequences where motion needs to survive into playback.
-3. **Normalize outputs**: persist splats, preview renders, thumbnails, and camera metadata in a common
-   job package so the same results can be consumed by the web viewer or a future desktop creator app.
-4. **Build the AR magic portal viewer**: extend the existing head-tracked viewer with portal framing,
-   timeline controls, and scene anchors so users can step into a 3D still or scrub through 4D playback.
-
-### Viewer roadmap
-
-- **Web**: keep the React + Three.js + Spark viewer for upload, preview, and sharing.
-- **Desktop**: add a creator-focused tool for batch conversion, asset cleanup, and timeline authoring.
-- **AR portal mode**: reuse the current XR head tracking to drive a framed portal effect for 3D scenes
-  today, then layer in 4D playback controls once dynamic assets are available.
+| Env var | Purpose | Default |
+| --- | --- | --- |
+| `PUBLIC_BASE_URL` | Base URL used to build share links | `http://localhost:3000` |
+| `AUTH_DISABLED` | Disable Companion OIDC (local dev) | `1` in `.env.example` |
+| `COMPANION_OIDC_ISSUER` | OIDC issuer for token verification | — |
+| `COMPANION_OIDC_AUDIENCE` | Expected token audience | — |
+| `CI_MEMORY_MCP_URL` | Companion memory MCP endpoint (CI‑Server/Hermes) | — (memory off) |
+| `DEFAULT_ENGINE` | Engine when none requested | `triposplat` |
+| `SHARP_ENABLE_RESEARCH` | Enable the non‑commercial SHARP engine | `0` |
+| `ASSET_DIR` | Where assets/jobs are persisted | `./data/assets` |
 
 ## Testing
 
-- **Backend**: Run `pytest` in the `backend/` directory.
-- **Frontend**: Run `npm test` in the `client/` directory.
+```bash
+cd server && pytest          # router, job lifecycle, API contract (no GPU)
+cd web-server/client && npm test
+```
+
+## Credits & licensing
+
+Built on the shoulders of open 3D reconstruction work — see [`docs/RESEARCH.md`](docs/RESEARCH.md)
+for the full list and [`ACKNOWLEDGEMENTS`](ACKNOWLEDGEMENTS). The bundled **SHARP** model and code
+are © Apple Inc. under the Apple ML Research Model License (`LICENSE_MODEL`, **non‑commercial**)
+and Apple sample‑code `LICENSE`. **TripoSplat** is MIT. Verify each engine's license before
+commercial deployment.
