@@ -121,7 +121,7 @@ support both rather than picking one.
 
 | Viewer | Stack | Formats | WebXR | License | Notes |
 | --- | --- | --- | --- | --- | --- |
-| **Spark** (`@sparkjsdev/spark`) — *current* | Three.js | `.ply`, `.splat`, `.ksplat`, `.spz` | Yes | MIT | Modern, actively developed, integrates with our Three.js scene + head‑tracking. **Keep.** |
+| **Spark** (`@sparkjsdev/spark`) — *current* | Three.js | `.ply` (incl. compressed), `.splat`, `.ksplat`, `.spz`, `.sog` | Yes | MIT | Modern, actively developed (World Labs), integrates with our Three.js scene + head‑tracking. **Keep.** See detail below. |
 | mkkellogg/GaussianSplats3D | Three.js | `.ply`, `.splat`, `.ksplat` | Yes (VR) | MIT | Mature, battle‑tested; strong alternative if Spark stalls. |
 | PlayCanvas **SuperSplat** | PlayCanvas | `.ply`, `.sog` export | Yes | MIT | Best‑in‑class *editor*; use for authoring/cleanup + `.sog` compression + hosted share pages. |
 | PlayCanvas Engine | PlayCanvas | `.ply`, `.sog` | Yes | MIT | Full engine w/ GS + WebXR if we ever leave Three.js. |
@@ -129,6 +129,25 @@ support both rather than picking one.
 | antimatter15/splat | WebGL | `.splat` | No | MIT | The original; great reference, minimal. |
 | Babylon.js | Babylon/WebGPU | `.ply`, `.splat` | Yes | Apache‑2.0 | GS support built‑in; WebGPU path. |
 | Google **`<model-viewer>`** | Three.js/WebGL | `.glb`, `.gltf` | Yes (AR Quick Look / Scene Viewer) | Apache‑2.0 | **Add this** for the mesh path — drop‑in web component with native mobile AR. |
+
+### Spark in depth — the chosen splat renderer (sparkjsdev/spark)
+
+- **What:** an advanced 3D Gaussian Splatting renderer for Three.js that renders splats *inside*
+  the normal Three.js pipeline — splats and mesh objects coexist with correct depth sorting,
+  which is exactly what the portal viewer (grid, future scene anchors) needs.
+- **Maintainer/license:** built by **World Labs**; **MIT**. Latest release **v2.1.0** (May 2026).
+- **Formats:** loads **`.ply` (incl. compressed), `.spz`, `.splat`, `.ksplat`, and `.sog`** —
+  every format this server stores or delivers, including both compressed share formats.
+- **Portability/perf:** targets **WebGL2 (~98%+ device support)** and is explicitly optimized to
+  render fast on low‑powered mobile devices — important since share links land on phones.
+- **Beyond static splats:** multiple simultaneous splat objects, real‑time color editing,
+  displacement, skeletal animation, and a **dyno shader‑graph system** for GPU‑based splat
+  creation/editing — headroom for the 4D/temporal roadmap and in‑viewer cleanup tools.
+- **APIs we use:** `SparkRenderer`, `SplatMesh({ fileBytes, fileType })`, `SplatFileType` — see
+  `web-server/client/src/components/SplatViewer.tsx` and `src/formats/*`.
+- **Version note:** the client currently pins `@sparkjsdev/spark ^0.1.10`; upgrading to the 2.x
+  line is a tracked follow‑up (verify `SplatMesh`/`SplatFileType` API surface, then bump).
+- Source: https://github.com/sparkjsdev/spark • docs: https://sparkjs.dev
 
 **Recommendation:** keep **Spark** for splats (it already backs the head‑tracked portal and
 supports `.spz`), and add **`<model-viewer>`** for glTF meshes. One `SplatViewer` + one
@@ -195,7 +214,7 @@ exactly the gap a one‑click containerized service fills.
 - gsplat (Nerfstudio) — https://github.com/nerfstudio-project/gsplat
 - Brush — https://github.com/ArthurBrussee/brush
 - VGGT — https://github.com/facebookresearch/vggt
-- Spark — https://sparkjs.dev • mkkellogg — https://github.com/mkkellogg/GaussianSplats3D
+- Spark — https://github.com/sparkjsdev/spark • https://sparkjs.dev • mkkellogg — https://github.com/mkkellogg/GaussianSplats3D
 - PlayCanvas SuperSplat — https://github.com/playcanvas/supersplat
 - `<model-viewer>` — https://modelviewer.dev
 - Niantic `.spz` — https://github.com/nianticlabs/spz • PlayCanvas SOGS — https://github.com/playcanvas/sogs

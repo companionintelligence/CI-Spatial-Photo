@@ -14,8 +14,9 @@ Companion memory and Companion OIDC.
 - 🐳 **Containerized** — one `docker compose up` for the processing server + web viewer.
 - 🔐 **Companion‑native** — Companion OIDC auth; created assets are written to CI‑Server /
   Hermes memory so your digital twin remembers them.
-- 🕶️ **Web + XR viewer** — Spark‑powered splat viewer with a MediaPipe head‑tracked "magic
-  portal," plus `<model-viewer>` for meshes with native mobile AR.
+- 🕶️ **Web + XR viewer** — [Spark](https://github.com/sparkjsdev/spark)‑powered splat viewer
+  with a MediaPipe head‑tracked "magic portal," plus `<model-viewer>` for meshes with native
+  mobile AR.
 
 ## Why this exists / what changed
 
@@ -105,5 +106,6 @@ cd web-server/client && npm test
 Built on the shoulders of open 3D reconstruction work — see [`docs/RESEARCH.md`](docs/RESEARCH.md)
 for the full list and [`ACKNOWLEDGEMENTS`](ACKNOWLEDGEMENTS). The bundled **SHARP** model and code
 are © Apple Inc. under the Apple ML Research Model License (`LICENSE_MODEL`, **non‑commercial**)
-and Apple sample‑code `LICENSE`. **TripoSplat** is MIT. Verify each engine's license before
-commercial deployment.
+and Apple sample‑code `LICENSE`. **TripoSplat** is MIT. The splat viewer is powered by
+[**Spark**](https://github.com/sparkjsdev/spark) (MIT, World Labs). Verify each engine's license
+before commercial deployment.
