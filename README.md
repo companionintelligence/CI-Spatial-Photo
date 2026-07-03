@@ -8,6 +8,10 @@ Companion memory and Companion OIDC.
 > Point a photo (or a whole video) at it, get back a link. Open the link and step *into* the
 > moment with head‑tracked parallax — or drop the 3D model into AR on your phone.
 
+![A photo turned into a splat, rendered in the shareable web viewer](docs/images/04-viewer-loaded.png)
+*A real capture: a photo → 30,000-Gaussian splat (spz-compressed), rendered by the web viewer
+with its gallery and share link. See the full tour in [docs/UI-GUIDE.md](docs/UI-GUIDE.md).*
+
 - 🧠 **MCP API** — Hermes, OpenClaw, and Claude Code can create and share 3D assets as tools.
 - 🧩 **Pluggable engines** — TripoSplat (default), Apple SHARP (research), COLMAP→gsplat
   photogrammetry, with TRELLIS/Hunyuan mesh engines slotting in behind one interface.
@@ -17,6 +21,16 @@ Companion memory and Companion OIDC.
 - 🕶️ **Web + XR viewer** — [Spark](https://github.com/sparkjsdev/spark)‑powered splat viewer
   with a MediaPipe head‑tracked "magic portal," plus `<model-viewer>` for meshes with native
   mobile AR.
+
+## Documentation
+
+| Doc | What's inside |
+| --- | --- |
+| [**UI Guide**](docs/UI-GUIDE.md) | Every screen, button, and UI element — with real screenshots, behavior/API tables, and mermaid user flows. |
+| [**API Reference**](docs/API.md) | REST + MCP surfaces, job state machine, engine routing, data-at-rest layout, configuration, error contract. |
+| [**Architecture**](docs/ARCHITECTURE.md) | System design: MCP-first core, pluggable engines, Companion OIDC + memory integration. |
+| [**Research**](docs/RESEARCH.md) | The engine & viewer trade studies (with licenses) behind every technology choice. |
+| [**Changelog**](CHANGELOG.md) | Release notes; current release **2.0.0**. |
 
 ## Why this exists / what changed
 
@@ -76,9 +90,10 @@ server/                 FastAPI 3D processing server + MCP + engines (the new co
     main.py routes.py mcp_server.py jobs.py storage.py memory.py auth.py models.py config.py
 web-server/client/      React + Three.js + Spark web viewer (kept, evolved: /view/:id, meshes)
 src/sharp/              Apple SHARP engine (bundled; research‑licensed weights)
-docs/                   ARCHITECTURE.md, RESEARCH.md
+docs/                   UI-GUIDE.md, API.md, ARCHITECTURE.md, RESEARCH.md + screenshots
 companion-app.json      Companion Hub / Marketplace manifest
 docker-compose.yml      Viewer + server stack
+.github/workflows/      CI: server tests + client build
 ```
 
 ## Configuration
@@ -97,9 +112,13 @@ docker-compose.yml      Viewer + server stack
 ## Testing
 
 ```bash
-cd server && pytest          # router, job lifecycle, API contract (no GPU)
-cd web-server/client && npm test
+cd server && pytest          # router, job lifecycle, API contract, spz round-trip (no GPU)
+cd web-server/client && npm run build
 ```
+
+Both run in CI on every push/PR (`.github/workflows/ci.yml`). The `.spz` pipeline is
+additionally validated end-to-end in a real browser: the screenshots in the UI guide come from
+a live session where the viewer fetched and rendered the server's spz output.
 
 ## Credits & licensing
 
