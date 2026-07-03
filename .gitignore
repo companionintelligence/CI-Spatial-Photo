@@ -28,3 +28,5 @@ __pycache__/
 /web-server/client/build  
 
 /node_modules
+
+.DS_Store

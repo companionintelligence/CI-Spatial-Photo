@@ -321,7 +321,7 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
       <div ref={containerRef} className="w-full h-full min-h-[500px] bg-black rounded-lg overflow-hidden" />
       
       {(loading || error || info) && (
-        <div className="absolute top-4 left-4 bg-black/70 text-white p-2 rounded text-sm pointer-events-none">
+        <div className="absolute bottom-4 left-4 bg-black/70 text-white p-2 rounded text-sm pointer-events-none">
           {loading && <div>Loading...</div>}
           {error && <div className="text-red-400">Error: {error}</div>}
           {!loading && !error && info && <div>{info}</div>}
