@@ -179,7 +179,7 @@
       "chapter": "share",
       "seconds": 6,
       "caption": "Orbit it in the browser, then send the link.",
-      "narration": "The address bar is the share link. Send it and they step inside.",
+      "narration": "The address bar is the share link. It points at your box.",
       "shots": [
         {
           "id": "viewer-shared",
@@ -195,7 +195,7 @@
       "seconds": 6,
       "title": "Companion-native",
       "caption": "Agents can drive it. The 3D stays on your hardware.",
-      "narration": "Agents create and share these over MCP. Companion Memory keeps them home.",
+      "narration": "Agents create and share these over MCP. The files stay on your hardware.",
       "items": [
         {
           "label": "MCP tools",
@@ -219,9 +219,9 @@
       "id": "close",
       "kind": "outro",
       "seconds": 5,
-      "cta": "Own your AI.",
+      "cta": "UnCloud your life.",
       "url": "ci.computer",
-      "narration": "Photo Time Machine. Companion Intelligence. Own your AI."
+      "narration": "Photo Time Machine. Companion Intelligence. UnCloud your life."
     }
   ]
 }

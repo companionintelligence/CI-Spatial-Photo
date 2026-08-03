@@ -33,7 +33,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          # `scope` is required alongside `registry-url`: without it setup-node writes a
+          # bare `registry=https://npm.pkg.github.com/` into ~/.npmrc, routing *every*
+          # package there, so public deps like playwright 404 on install.
           registry-url: https://npm.pkg.github.com
+          scope: "@companionintelligence"
 
       - name: Install video project
         working-directory: video
