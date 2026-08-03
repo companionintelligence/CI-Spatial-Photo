@@ -1,0 +1,227 @@
+{
+  "$schema": "https://raw.githubusercontent.com/companionintelligence/CI-Common/main/packages/video-kit/schema/storyboard.schema.json",
+  "app": {
+    "id": "ci-photo-time-machine",
+    "name": "Photo Time Machine",
+    "repo": "companionintelligence/CI-Photo-Time-Machine",
+    "marketplaceId": "ci-photo-time-machine",
+    "website": "ci.computer"
+  },
+  "meta": {
+    "fps": 30,
+    "transitionSeconds": 0.5
+  },
+  "chapters": {
+    "create": "Create",
+    "explore": "Explore",
+    "share": "Share"
+  },
+  "media": {
+    "music": null,
+    "musicVolume": 0.14
+  },
+  "scenes": [
+    {
+      "id": "open",
+      "kind": "intro",
+      "seconds": 5,
+      "title": "Photo Time Machine",
+      "caption": "A photo goes in. A 3D memory comes out.",
+      "narration": "Photo Time Machine turns one photo into a 3D memory."
+    },
+    {
+      "id": "drop-media",
+      "kind": "screen",
+      "chapter": "create",
+      "seconds": 6,
+      "caption": "Drop an image, a set of images, or a video.",
+      "narration": "Open the viewer. Drop in a photo, a burst, or a video.",
+      "shots": [
+        {
+          "id": "create-empty",
+          "url": "photo-time-machine.local",
+          "alt": "The Create tab, empty: dropzone, engine and intent selects, a disabled Create 3D button.",
+          "motion": "push-in",
+          "capture": {
+            "path": "/",
+            "waitFor": "button:has-text(\"Create 3D\")",
+            "waitUntil": "networkidle",
+            "settle": 500,
+            "before": [
+              {
+                "waitFor": "text=Drop an image"
+              },
+              {
+                "waitFor": "option:has-text(\"Auto (recommended)\")"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "choose-engine",
+      "kind": "screen",
+      "chapter": "create",
+      "seconds": 5.5,
+      "caption": "Pick an engine and an intent, or leave both on auto.",
+      "narration": "Pick an engine and an intent, or leave both on auto.",
+      "shots": [
+        {
+          "id": "create-selected",
+          "url": "photo-time-machine.local",
+          "alt": "The Create tab with one file chosen; the dropzone names it and Create 3D is enabled.",
+          "motion": "push-in",
+          "capture": {
+            "path": "/",
+            "waitFor": "button:has-text(\"Create 3D\")",
+            "waitUntil": "networkidle",
+            "settle": 500,
+            "before": [
+              {
+                "waitFor": "option:has-text(\"Auto (recommended)\")"
+              },
+              {
+                "eval": "window.__ciVideoPickFixture()"
+              },
+              {
+                "waitFor": "text=file(s) selected"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "job-running",
+      "kind": "screen",
+      "chapter": "create",
+      "seconds": 5.5,
+      "caption": "The server classifies the input and routes it to an engine.",
+      "narration": "The server reads the input, picks an engine, and runs the job.",
+      "shots": [
+        {
+          "id": "create-processing",
+          "url": "photo-time-machine.local",
+          "alt": "A running job: the button reads Processing and the status line reads running preview.",
+          "motion": "push-in",
+          "capture": {
+            "path": "/",
+            "waitFor": "button:has-text(\"Create 3D\")",
+            "waitUntil": "networkidle",
+            "settle": 600,
+            "before": [
+              {
+                "waitFor": "option:has-text(\"Auto (recommended)\")"
+              },
+              {
+                "eval": "window.__ciVideoPickFixture()"
+              },
+              {
+                "waitFor": "text=file(s) selected"
+              },
+              {
+                "click": "button:has-text(\"Create 3D\")"
+              },
+              {
+                "waitFor": "text=Status: running"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "engines",
+      "kind": "feature",
+      "seconds": 6,
+      "title": "Pluggable engines",
+      "caption": "One interface. Swap the reconstruction underneath.",
+      "narration": "Four engines behind one interface. Preview needs no GPU at all.",
+      "items": [
+        {
+          "label": "Preview",
+          "value": "CPU, always on"
+        },
+        {
+          "label": "TripoSplat",
+          "value": "MIT, default"
+        },
+        {
+          "label": "SHARP",
+          "value": "research only"
+        },
+        {
+          "label": "Photogrammetry",
+          "value": "video to splat"
+        }
+      ]
+    },
+    {
+      "id": "explore-gallery",
+      "kind": "screen",
+      "chapter": "explore",
+      "seconds": 5.5,
+      "caption": "Every memory you have made, in one gallery.",
+      "narration": "Finished assets land in the gallery. Click one to open it.",
+      "shots": [
+        {
+          "id": "gallery-assets",
+          "url": "photo-time-machine.local",
+          "alt": "The Explore tab: a grid of created 3D assets with thumbnails, kind and engine.",
+          "motion": "drift-down"
+        }
+      ]
+    },
+    {
+      "id": "share-link",
+      "kind": "screen",
+      "chapter": "share",
+      "seconds": 6,
+      "caption": "Orbit it in the browser, then send the link.",
+      "narration": "The address bar is the share link. Send it and they step inside.",
+      "shots": [
+        {
+          "id": "viewer-shared",
+          "url": "photo-time-machine.local/view/a7989c36",
+          "alt": "The shared deep link: a splat fills the viewer, with the share footer and Copy link.",
+          "motion": "push-in"
+        }
+      ]
+    },
+    {
+      "id": "companion-native",
+      "kind": "feature",
+      "seconds": 6,
+      "title": "Companion-native",
+      "caption": "Agents can drive it. The 3D stays on your hardware.",
+      "narration": "Agents create and share these over MCP. Companion Memory keeps them home.",
+      "items": [
+        {
+          "label": "MCP tools",
+          "value": "seven"
+        },
+        {
+          "label": "Sign-in",
+          "value": "Companion OIDC"
+        },
+        {
+          "label": "Memory",
+          "value": "Companion Memory"
+        },
+        {
+          "label": "Runtime",
+          "value": "docker compose"
+        }
+      ]
+    },
+    {
+      "id": "close",
+      "kind": "outro",
+      "seconds": 5,
+      "cta": "Own your AI.",
+      "url": "ci.computer",
+      "narration": "Photo Time Machine. Companion Intelligence. Own your AI."
+    }
+  ]
+}
