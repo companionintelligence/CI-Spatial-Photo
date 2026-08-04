@@ -79,11 +79,14 @@ jobs:
 
           # 1. Processing server. AUTH_DISABLED defaults to true (server/app/config.py);
           #    set it explicitly so a stray .env cannot turn Companion OIDC back on.
-          #    PUBLIC_BASE_URL is what config.py::share_url builds the share link from,
-          #    and App.tsx prints that link verbatim in the share footer — on camera.
-          #    A loopback address there would put "http://127.0.0.1:3000/view/..." in a
-          #    marketing frame, so the stage advertises the presentable hostname the
-          #    storyboard's cosmetic browser chrome already shows.
+          #    PUBLIC_BASE_URL is what config.py::share_url builds the share link from.
+          #    It does NOT decide what the share footer shows: video/capture.config.mjs
+          #    rewrites every GET /assets and /assets/:id response in flight and pins
+          #    `share_url` to https://photo-time-machine.local/view/a7989c36, and that
+          #    pinned string is what App.tsx prints on camera. Setting it here is
+          #    belt-and-braces — it keeps the stage presentable if that pin is ever
+          #    dropped, and keeps loopback out of the copies MCP and the Companion
+          #    memory hand-off echo (mcp_server.py::get_share_url, memory.py).
           pip install -e ./server
           AUTH_DISABLED=1 \
           PUBLIC_BASE_URL=https://photo-time-machine.local \

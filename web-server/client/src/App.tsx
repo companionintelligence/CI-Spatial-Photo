@@ -103,8 +103,17 @@ function App() {
           videoRef={videoRef}
         />
 
+        {/*
+          No `w-full` on the panel. `width: 100%` resolves against the flex
+          container (the full viewport), and `m-4` then adds 16px on each side on
+          top of that — so on a 360px phone the panel laid out 392px wide and its
+          rightmost tab, "From Memory", hung off the screen. Letting the flex item
+          stretch instead sizes it to the container MINUS its margins. `max-w-md`
+          (28rem = 448px) still clamps it, so anything wider than 480px — every
+          desktop layout — renders exactly as before.
+        */}
         {showControls && (
-          <div className="pointer-events-auto w-full max-w-md m-4 rounded-xl bg-gray-900/90 backdrop-blur border border-gray-700 shadow-2xl overflow-hidden">
+          <div className="pointer-events-auto max-w-md m-4 rounded-xl bg-gray-900/90 backdrop-blur border border-gray-700 shadow-2xl overflow-hidden">
             <div className="flex border-b border-gray-700 text-sm">
               {(['create', 'explore', 'memory'] as Tab[]).map((t) => (
                 <button

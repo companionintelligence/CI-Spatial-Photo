@@ -224,20 +224,23 @@
       "id": "orbit-memory",
       "kind": "screen",
       "chapter": "explore",
-      "seconds": 6,
-      "caption": "Hide the panel and the memory fills the screen.",
-      "narration": "Orbit the moment at full size. Nothing left your hardware to render it.",
+      "seconds": 7,
+      "caption": "Hide the panel and orbit the memory itself.",
+      "narration": "Hide the panel and orbit the memory itself. Nothing left your hardware to render it.",
       "shots": [
         {
           "id": "viewer-orbit",
           "url": "photo-time-machine.local/view/a7989c36",
-          "alt": "The splat viewer with the control panel toggled off: the 3D memory fills the frame.",
+          "alt": "The splat viewer with the control panel toggled off: the reconstructed splat alone in the viewer.",
           "motion": "push-in",
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
             "waitUntil": "networkidle",
             "settle": 2500,
+            "mask": [
+              "[data-splat-status]"
+            ],
             "before": [
               {
                 "click": "button:has-text(\"Explore\")"
@@ -250,6 +253,9 @@
               },
               {
                 "waitFor": "canvas"
+              },
+              {
+                "waitFor": "[data-splat-status=\"ready\"]"
               },
               {
                 "wait": 5000
@@ -279,13 +285,16 @@
         {
           "id": "viewer-shared",
           "url": "photo-time-machine.local/view/a7989c36",
-          "alt": "The shared deep link: a splat fills the viewer, with the share footer and Copy link.",
+          "alt": "The shared deep link: the reconstructed splat in the viewer, with the share footer and Copy link.",
           "motion": "push-in",
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
             "waitUntil": "networkidle",
             "settle": 2500,
+            "mask": [
+              "[data-splat-status]"
+            ],
             "before": [
               {
                 "click": "button:has-text(\"Explore\")"
@@ -298,6 +307,9 @@
               },
               {
                 "waitFor": "canvas"
+              },
+              {
+                "waitFor": "[data-splat-status=\"ready\"]"
               },
               {
                 "wait": 5000
