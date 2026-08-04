@@ -38,20 +38,35 @@
  *     frame is a RACE against a live server — the app would jump straight to the
  *     Explore tab. STUBBED to a pinned running job so the beat is filmable.
  *  4. Asset ids (`a_<hex>`) and `created_at` are generated per run. Gallery prints
- *     `new Date(a.created_at).toLocaleString()` and the share footer prints the
- *     asset's share_url — both volatile. Those two shots are NOT captured yet
- *     (see the storyboard); when they are, seed a fixed asset and mask the caption.
+ *     `new Date(a.created_at).toLocaleString()` (Gallery.tsx) and the share footer
+ *     prints `asset.share_url` (App.tsx) — the only two volatile strings the asset
+ *     screens put on camera. Both are now PINNED by rewriting `GET /assets` and
+ *     `GET /assets/:id` in flight (see the route table). The REAL `asset_id` is left
+ *     untouched, so `/assets/:id/file` and `/assets/:id/thumbnail` still resolve
+ *     against the live server — the gallery tile and the orbited splat are the
+ *     genuine article, not a mock. `.github/workflows/video.yml` seeds that asset
+ *     through the real POST /jobs before capture runs.
  *  5. The viewer is a Three.js + Spark SplatMesh WebGL2 canvas
- *     (components/SplatViewer.tsx). GPU rasterisation is explicitly outside the
- *     kit's byte-stability guarantee, and headless Chromium falls back to
- *     SwiftShader. Any future viewer shot needs `--use-gl` plus a tolerance check,
- *     or a masked canvas.
+ *     (components/SplatViewer.tsx). Headless Chromium under the kit's launch args
+ *     does expose WebGL2 through ANGLE/SwiftShader, including the
+ *     EXT_color_buffer_float / EXT_float_blend / OES_texture_float_linear set a
+ *     3DGS renderer needs, so the viewer shots rasterise on ubuntu-latest with no
+ *     GPU. SwiftShader is deterministic within a Chromium build, so these frames
+ *     are byte-stable until Playwright is bumped — at which point the drift job
+ *     opens a PR, which is exactly what it is for. Left unmasked deliberately: a
+ *     masked canvas would defeat the point of the shot.
  *  6. XR mode calls `getUserMedia` and pulls the MediaPipe FaceLandmarker WASM
  *     from a CDN (hooks/useHeadTracking.ts). Never enable XR during capture —
  *     no camera in CI, and the CDN fetch is a network dependency.
- *  7. `MemoryPicker` renders "Companion memory is not connected." unless
- *     CI_MEMORY_MCP_URL points at a reachable Companion Memory MCP. No memory
- *     scene is in this cut for that reason.
+ *  7. `MemoryPicker` ALWAYS paints its Photos/Videos toggle (MemoryPicker.tsx), so
+ *     the From Memory screen is reachable in CI — it is the grid CONTENTS that are
+ *     environment-dependent. With CI_MEMORY_MCP_URL unset, MemoryClient._call_tool
+ *     returns None and `GET /memory/media` answers `{"media": []}`
+ *     (server/app/memory.py), so the panel reads "No media in Companion memory (or
+ *     memory not configured)." — NOT "Companion memory is not connected.", which is
+ *     the fetch-rejected branch this comment used to claim. STUBBED below to a fixed
+ *     set for the same reason /engines is: the screen is real, the library is the
+ *     user's, and CI has no Companion Memory to borrow one from.
  *  8. Routing is a hand-rolled regex, not a router: `parseViewId()` in App.tsx
  *     matches only `^/view/([A-Za-z0-9_]+)`. Every other screen — Explore, From
  *     Memory, the share footer — is INTERACTION STATE on `/`, reached via
@@ -184,6 +199,36 @@ export default {
       },
     ];
 
+    // A fixed Companion memory library (hazard 7). Thumbnails are inlined data URIs
+    // so the grid needs no network and no Companion Memory server: MemoryPicker.tsx
+    // puts `thumbnail_url` straight into an <img src>. Shape from api.ts MemoryMedia
+    // / server/app/models.py MemoryMedia. These stand in for the user's own photos —
+    // the ONLY thing CI cannot supply — exactly as the /engines stub stands in for a
+    // GPU box.
+    const MEMORY_MEDIA = [
+      { ref: "mem_0f21", kind: "image", title: "Porch at sunset, 1998", thumbnail_url: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgwKCA0MCwwPDg0QFCIWFBISFCkdHxgiMSszMjArLy42PE1CNjlJOi4vQ1xESVBSV1dXNEFfZl5UZU1VV1P/2wBDAQ4PDxQSFCcWFidTNy83U1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1P/wAARCACAAIADASIAAhEBAxEB/8QAGwABAQADAQEBAAAAAAAAAAAAAAMBAgQFBgf/xAApEAACAgEDAgUFAQEAAAAAAAAAAQISAwQFETFBEyFRYYEGInGRocHR/8QAGAEBAQEBAQAAAAAAAAAAAAAAAAEDAgT/xAAeEQEBAAIDAQEBAQAAAAAAAAAAEQECAxIxIVEEQf/aAAwDAQACEQMRAD8A+TqKlaip6K5iVRUrUVFIlUVK1CiKRKoqVqKikSqKlqmKikSqKllEVFIjXzFStRUUiVRUrUVFIrUVLVMVMq7iVRUrUzUtIjQzUrUVJSJV8xUtUUFIjUV9S1RX2FIjUVLUM0HZYhUV8y1BUVIjUVK1FeRSK1FStRUyrSJVFSqiZqKRKoqVqZUBSI1M1LKBsoDsRBQMqBehmhOyxz0FDpoPDJ2I5aCh0OBhwL2I56mKnQ4GtS9kilRUrUVM67iSiKlqhRJSJKJsoFFE2UBViSgbqHsVjApHGc52WIrGbeGdEcZusfsc9l6uXwzDxnZ4XsHi9id16uFwNHA7njJyxlxskcbh7GrgdUoGjid42cwqKlqipxXcSqZUTTUanDpo2zZIwXv3/COWO86FxTeVxfHRxfkX7nxPmHcom6iedk3vRQg2sjm/SMXy/wBk9Dv+HNmcc6WFN/a+eV8sddvYXD2YwKxgbQSZeEDHOzTGE44yscXoWhA6cWEyzu7xq4/BZrLF7Fdw3PQbbKMNXnjjnJcqPDb4+Dxtw+qtvxY+dM5aib7JOKX5bX+MuuN9vMOc51x/rvljJSxnzC+rNVdOeLC48+aSabX7PZ0W/aPVw+6awz45ccj4/T6G2ePfX1xjfXLplAnKB1NJmkokxssTa4PJ3XeIaReHhccmbnz7qP59/Y8XU75rM6ausa46QXH96nmt8no14v1jtyfjfPmnnyyyZJOUpdWybAN2IE+OgAHtbTv+bR1x5k8uFcJLvH8ev4Pq9s3nR66cceKbWRpuk1w/L+H50b4sk8c4zhJxlF8pp8NMx34ddvrXXlzq/Wbwxwc5yUYxXLbfCSPnd2+ssWLHPFt0XObXCyyXCj7pPr368fJ85uO/6vX6THp8jUYpffXy8R+r/wCevxx5HXqZcf8ANj3d3vzX5qrn1GXU5XkzZJ5Jy6ynLlv5JAdz1vOGU+O5gdwPR2vds+3zajxLHJpyhLp8ejPs9JqsWt06y4ZcxfVd0/Rn52etsGvyaXXRxxScM0lCS+fJ/wBMeXjuLj1rx7z5l5IANmQB3HAAAAAAA8wAAAAABAAdGgyQw67Bkm+IwyRk36JM5wM4uDAO4HIABgAAgAAAAAAAAAAAAAAf/9k=" },
+      { ref: "mem_1a77", kind: "image", title: "Beach, Outer Banks", thumbnail_url: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgwKCA0MCwwPDg0QFCIWFBISFCkdHxgiMSszMjArLy42PE1CNjlJOi4vQ1xESVBSV1dXNEFfZl5UZU1VV1P/2wBDAQ4PDxQSFCcWFidTNy83U1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1P/wAARCACAAIADASIAAhEBAxEB/8QAGgABAQADAQEAAAAAAAAAAAAAAAIBAwQGBf/EADQQAAICAgACBQgLAQAAAAAAAAARAQIDBBIhBQYxQVEVMlRxgZGToRMiIyQ1QmFzscHR8P/EABgBAQEBAQEAAAAAAAAAAAAAAAABAgMF/8QAFxEBAQEBAAAAAAAAAAAAAAAAABEBAv/aAAwDAQACEQMRAD8A6kEbEEelXlxCCLQQpGtBGxBCkQjCNi5BCrEIItBCka0EbEEKkQgi0EKRrQRsQ4RSLQRaCMV0iEEWghSIQ4S0EKRCCLQQpEIItBCkQgi0EKRCCLQQpEIItBCkWgjYjEVOdbiEEbEEKRrQRaCFIhBGxGEKRCCLQQpEIItBCkQgjYghSNaCLQQpFoyi0Ec63EIwjYghSIQRaCFIhBFoIUiEEWghSI4Qi+EIUiEEWghSIQRaCFItBFqCJvWLRWbRxTDiPE510gginAhCpEoItBCkQuQRfCEKsQgi5Rz5tzX17RGXNSkz3TPPwFSNqHCZpet6xatotWYcTHeZ5CkSgi+QQpEIItBCkePy9Zdy+Oa1jFSZ/NWsuPfJ8nJnyZbze97WtPba0uTWDcadXlHc9KzfEk26vS+5qqKZrTWF9W3OFHd+nsOAAen1etEKI2cM9nnY5/qf9PraHS+rvTMY7cN4lRS6iZ9XieCKpe1LRalpraJcTEpSTecHvt/pLW0KPLd27qV52n2Hzb9Z9WKzwYs0yuUTERE/M8pky3zXm+S9r2ntm0uSCZyPsb3WDa2XXFP0FPCk8/f/AIj5E2me8wDUg34tzYw1muLNkpVtVtMF+Udz0rP8STlAH1MPT2/j4Xm4q1XK1Yl+ue0+/q9YtTLiic1pw3fmzE2+cQeMBNzNHr97rHr48X3X7a8+MTEV9bOXo7rFmy58eHNireb2rWLVlT4Of+g80zq6M/Etb92v8wJg5QAaAAAAAAAAAAAYMgAAB3ABHIAAAAHcAAAAAAAAAAAMGQMGQAAAA//Z" },
+      { ref: "mem_2c40", kind: "image", title: "Cabin trail, October", thumbnail_url: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgwKCA0MCwwPDg0QFCIWFBISFCkdHxgiMSszMjArLy42PE1CNjlJOi4vQ1xESVBSV1dXNEFfZl5UZU1VV1P/2wBDAQ4PDxQSFCcWFidTNy83U1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1P/wAARCACAAIADASIAAhEBAxEB/8QAGgABAQADAQEAAAAAAAAAAAAAAAIBAwUGBP/EACwQAAICAQMCBQEJAAAAAAAAAAARAQIDBAUhEkETMTJRYYEVIjRCU2JyobH/xAAYAQEBAQEBAAAAAAAAAAAAAAAAAgMBBP/EABwRAQEBAQACAwAAAAAAAAAAAAARAQIDQRIhMf/aAAwDAQACEQMRAD8A80gjYgjOpiEEWghXIhGEbEEKRCCLQQpEIwjYghSIQRaC4FIhBcFoIUiEEWuQhSLQRsQRFXGtDpNiCFI1oI2IwhSIQRaMoUjWgjYjCFIhBFoyhSNaCLQQpEIItGUKRaCLXwERVxCCLQQpEIIuICFIhBFoIUiEEWh08CkQjCNiCFIhCILQQpEIItBCkWEedjV54mJjLfj9zPs0u6X64rmU172iOTu8bhnWOujCLjkyjOrjWjK5LRiYQrkQgjm63c4h0wS5iVN+30Pj+0dT+p/UGmcbqd6zHeQRx9PuuSsrNEXie/lMHQpuGmso8RTPaYng5vO47m5r6OkIuIZlEVUQjCNiJvatK9VpisR3kUiUEc7Ju9a3mKY+qseUzKZqw7nmy5sdJikRNoiVHyX8OkfLHMHIB6GTrbVrp6q4MkuJ4rM9vg7UQzyESd3addOavhZbffjymfOxh5OPeNeOvWujMcHG3TXzNrYMUzERxaff4Po3HcqVx2x4L9V546q9vqcKeZHj496d9esY7gA3ZAaAA7W06yLRXT39Uemff4OsjyOO8471tWVMS4k9Lptdhyaelr5aVtMc1m0Ryefycz7xtx161s1GamnxTfJKiO3uef1utvqrR+WkeVYL3PWzqc01pafCr6Y9/k+Evjifep66v4G7Sfi8X84/00l4b+FmpdPptEr3NN/EYgAHXAAAPMAAAAAAAAyzAAAAAJAASAAA7gAAAAAAAAAAAAAAAAAAAAAAACQAAAADuAAAAAAAAAP/2Q==" },
+      { ref: "mem_3b19", kind: "image", title: "Skyline from the roof", thumbnail_url: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgwKCA0MCwwPDg0QFCIWFBISFCkdHxgiMSszMjArLy42PE1CNjlJOi4vQ1xESVBSV1dXNEFfZl5UZU1VV1P/2wBDAQ4PDxQSFCcWFidTNy83U1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1P/wAARCACAAIADASIAAhEBAxEB/8QAGgABAQEBAQEBAAAAAAAAAAAAAAECAwUEB//EACkQAQADAAEEAAUDBQAAAAAAAAABAhEDBBIhMRMyQVFxFGGBIjORobH/xAAXAQEBAQEAAAAAAAAAAAAAAAAAAQID/8QAGBEBAQEBAQAAAAAAAAAAAAAAAAERIVH/2gAMAwEAAhEDEQA/APz4xrDHdlnDGsM8gzhjRgM4Y1iAmGNYYDJMNYYDJjWGAzhjWJgNYuLi4NM4Y1hgjOGNYmAmJjZgrC4uLgM4mN4YDOGNYYDOEwuGA1i40YKzhjWICYY1hgMYuNYYDOGLi4DC41iYCYY1iYCYYuLgLhjWx9wVnFxcXAZwxcUGMXGsTATDFAZxc8tYYDOJjWKDGLjWGA86bTadmZmVpeaW2JYGGXpcd4vWJq1jzuPktxztZx6HDeOTji0fzH2al1qXWpgXDFVl8nL1Fu/KTkR/tvq+XP6I/l8bNrNrc8t5nZtLtxdTni/+XzCamvTraLxtZ2Fx53HyTx3iYelS0XrEx6lqXWpdTFxcJhVc+S0UrsuFep7rREUzZ+7jz8nxOSftHpni/u1/MM6zrADLI7dNy/Cv5+Wfbiqq9dz5+SOKk2n36j8uPT9TWOGY5J819fvD5+o5vjX31EemreN28crWm1pmfcoDLAH7HlEH09Hydt+yfVv+vmWJmJ2PCxZXr4+fq+SKcfb47rOf66e35PP5fLe03tM2nZW1q3xlqs9tomPpOojLACqCAih9Q9iKgAKgAAAAKAKgCoIACoAp9BUEFAEAUD6ggqAD/9k=" },
+      { ref: "mem_4e83", kind: "image", title: "Ridge above the lake", thumbnail_url: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgwKCA0MCwwPDg0QFCIWFBISFCkdHxgiMSszMjArLy42PE1CNjlJOi4vQ1xESVBSV1dXNEFfZl5UZU1VV1P/2wBDAQ4PDxQSFCcWFidTNy83U1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1P/wAARCACAAIADASIAAhEBAxEB/8QAGwABAQACAwEAAAAAAAAAAAAAAAIEBgEDBQf/xAAyEAACAgEDAgMGAwkAAAAAAAAAAQIRAwQFIRIxBkFREyIycZGxYqHBFCVCc4GT0eHw/8QAFwEBAQEBAAAAAAAAAAAAAAAAAAECBP/EABURAQEAAAAAAAAAAAAAAAAAAAAR/9oADAMBAAIRAxEAPwDvoUX0ijvriiK4FF0OkUiKFF0KFIihRdChSIoUXQoUiKFF0KFIihRdChSIoUXQoUi6FF0KMVqIoUX08ihSIoUXQoUiKFF0KFIihRdChSIoUXQoUiKFF0KFEUKLSFCkXQouhRitx10c1yXQoUiOkUXQoUiKFF0KFIihRdChSIoUXQoUiKFF0KFIihRdChSLo4PB3Dfu8NJ/ca+yZhYt61UM0Zzn1xXDjSSaMVuNsoUYug1+HW404SSnXMG+V/ozUKkRQouhQpEUKLo4fApE0K5MTNuujw5JQnmSlHh0m/sYsfEGkcknHKrfdpcfmKR6tCjF025aXU5FjxZVKfeqav6mbVikRQouhQpEUKLomTjFctLmuRSPn4AMtqhOUJKUW01ymn2Nn2Lc3qY+wzyXtIr3W3zJf5NWKxzlCalFtNO00+wH0OhRhbRuEdfpup1HJF1OP6/Iz64JUiHwuTWt53lyk8Okm1FP3skX3+T9DJ8Sbh7PGtNinU5fHT7L0/r/AN3NY8yqW2zgACoTlCSlFtNO013Rtuybl+24nDJXtoLn8S9TUDu02eem1EMsHUou0Bv9CjF23X4tfgU4cSXxQb5izNrglSMfU5o6fBPLkdRgrZqy3LNrdzwdbrGssXGC7Ln8zN8T634dLjl+KdP6L9foeJtz/eGn/mR+5VYwAAAADM2zWPRa3HlTfSnUkvNeZt+s3HDptAtRzOM0uhL+K1a+RolnZPPkyY4Y5SbhjTUV6W7JBWqzz1OonlyP3pu2dIBQAAAAAZm3bhl0Go68fMX8UH2kj3s/iPDLQSeJSjnapRa7Ou9+hqoEFTnLJNyk25N22+7JVoAAAAAAAAAADk4AAAAAAAAADyAoAAACAAAAAAAAAQAeQAAAAAAAP//Z" },
+      { ref: "mem_5d52", kind: "image", title: "First snow, back field", thumbnail_url: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgwKCA0MCwwPDg0QFCIWFBISFCkdHxgiMSszMjArLy42PE1CNjlJOi4vQ1xESVBSV1dXNEFfZl5UZU1VV1P/2wBDAQ4PDxQSFCcWFidTNy83U1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1P/wAARCACAAIADASIAAhEBAxEB/8QAGgABAAMBAQEAAAAAAAAAAAAAAAECAwUGBP/EADEQAAICAQIEAgcJAQAAAAAAAAARAQIDBBIFITFBBtEjMlFxgZGhFSIkQlJTYeHw8f/EABcBAQEBAQAAAAAAAAAAAAAAAAABAwT/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwD7UF7TRBHSxZrkEaIICiIRoggM0EaIbQM0EaIbQM1zCNENoGaCNEEBRERBoggLoI02hEVmiUXQQGaCNEEBmgjRBAZoI0QQGaCNEEBmgjRBAZ7QjRBAXRK5l0NpBREI0QQFEEXQ2gZolF0EBmgjRDaBmhtNEEBmgjRBAZoI0QQGiCLoIiqIIuggKIIuggKIIuggKIhGiEQBRBF0EBRBF0EBREI0QQGi5jaXQRFUQ2l0EBRDaXQQFFzCL7QgKIRUuggKIbS6CYGaJRdBAUQRdBAcvUce02OFii2W38Qo+vkcjJxrWWy7q5Ir221rC+pzQB2I8Qan9vF8p8z7NN4gx3UZ8c0nlG6vOP8AfM84APdYM+LPj34rxes94NYiOx4TFnyYbbsd7UlJ1lHW4PxfJTURj1OSbY7/AJrz6s+QHpkUvatKza0xERDmZ7HN4nxrHpommBZMsSpfSp5/V8S1OqcZMk7Jn1Y5R/fxA6/EeOVpM49KrWjlN56fA5+HjerxVU2rk6RG+OhzQB1vt/VbonbiXsU+Z92LxDhmvpMV6y+lVPkebAHuNJqsOrxxfFaJ5c47x7z6EeEwajLp8kXxXmlo7xJ6TRcfwXx/ifRXj2RMxIHXRhn1OLBalb2+9ktFaxHWZk5et8QY6Oulrvn9VoUfL/hxtNnvn4phyZLTa1stZmZ98AfGCCQIJI7gAT0AAdSCQAIJIAkAgCQQAJHuIJAAdwAIJAAAgASCAJIJIAkEEgAAABBIH//Z" },
+    ];
+
+    // The two strings the asset screens actually print. Everything else about the
+    // asset — including its real id — is left exactly as the server returned it.
+    const PINNED_CREATED_AT = "2026-06-15T14:58:12Z"; // -> "6/15/2026, 2:58:12 PM"
+    const PINNED_SHARE_URL = "https://photo-time-machine.local/view/a7989c36";
+    const pinAsset = (a) => ({
+      ...a,
+      created_at: PINNED_CREATED_AT,
+      share_url: PINNED_SHARE_URL,
+    });
+
+    // `/api/v1/assets` and `/api/v1/assets/:id` only — NOT `/file` or `/thumbnail`,
+    // which are binary and must stream through untouched.
+    const ASSET_LIST_RE = /\/api\/v1\/assets\/?(?:\?.*)?$/;
+    const ASSET_ONE_RE = /\/api\/v1\/assets\/[^/?#]+\/?(?:\?.*)?$/;
+
     // A job pinned to `running` so the create-processing beat holds still. Without
     // this the CPU Preview engine finishes before the client's first 1.5 s poll and
     // the app navigates to Explore mid-shutter.
@@ -214,9 +259,25 @@ export default {
         });
       }
       if (/\/api\/v1\/engines\b/.test(url)) return json(route, { engines: ENGINES });
+      if (/\/api\/v1\/memory\/media\b/.test(url)) return json(route, { media: MEMORY_MEDIA });
       if (/\/api\/v1\/jobs\b/.test(url)) return json(route, RUNNING_JOB);
 
-      // /assets, /assets/:id, /assets/:id/file, /thumbnail, /memory/media — real server.
+      // Asset reads are REWRITTEN, not faked: ask the real server, then pin only the
+      // two volatile strings (hazard 4). A non-2xx passes straight through so a
+      // genuinely broken stage still fails loudly instead of rendering a fixture.
+      if (ASSET_LIST_RE.test(url)) {
+        const res = await route.fetch();
+        if (!res.ok()) return route.fulfill({ response: res });
+        const body = await res.json();
+        return json(route, { assets: (body.assets ?? []).map(pinAsset) });
+      }
+      if (ASSET_ONE_RE.test(url)) {
+        const res = await route.fetch();
+        if (!res.ok()) return route.fulfill({ response: res });
+        return json(route, pinAsset(await res.json()));
+      }
+
+      // /assets/:id/file and /assets/:id/thumbnail are binary — real server, untouched.
       return route.continue();
     });
   },

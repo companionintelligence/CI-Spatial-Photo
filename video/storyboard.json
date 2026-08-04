@@ -52,7 +52,7 @@
                 "waitFor": "text=Drop an image"
               },
               {
-                "waitFor": "option:has-text(\"Auto (recommended)\")"
+                "waitFor": "select:has(option[value=\"preview\"])"
               }
             ]
           }
@@ -79,7 +79,7 @@
             "settle": 500,
             "before": [
               {
-                "waitFor": "option:has-text(\"Auto (recommended)\")"
+                "waitFor": "select:has(option[value=\"preview\"])"
               },
               {
                 "eval": "window.__ciVideoPickFixture()"
@@ -112,7 +112,7 @@
             "settle": 600,
             "before": [
               {
-                "waitFor": "option:has-text(\"Auto (recommended)\")"
+                "waitFor": "select:has(option[value=\"preview\"])"
               },
               {
                 "eval": "window.__ciVideoPickFixture()"
@@ -125,6 +125,39 @@
               },
               {
                 "waitFor": "text=Status: running"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "from-memory",
+      "kind": "screen",
+      "chapter": "create",
+      "seconds": 7.5,
+      "caption": "Pull straight from Companion memory. No upload step.",
+      "narration": "Your Companion already holds your photos. Turn one into 3D without uploading anything.",
+      "shots": [
+        {
+          "id": "memory-grid",
+          "url": "photo-time-machine.local",
+          "alt": "The From Memory tab: a Photos/Videos toggle above a grid of photos already in Companion memory.",
+          "motion": "drift-down",
+          "capture": {
+            "path": "/",
+            "waitFor": "button:has-text(\"Create 3D\")",
+            "waitUntil": "networkidle",
+            "settle": 600,
+            "before": [
+              {
+                "click": "button:has-text(\"From Memory\")"
+              },
+              {
+                "waitFor": "button:has-text(\"Photos\")"
+              },
+              {
+                "waitFor": "img[alt=\"Porch at sunset, 1998\"]"
               }
             ]
           }
@@ -169,7 +202,69 @@
           "id": "gallery-assets",
           "url": "photo-time-machine.local",
           "alt": "The Explore tab: a grid of created 3D assets with thumbnails, kind and engine.",
-          "motion": "drift-down"
+          "motion": "drift-down",
+          "capture": {
+            "path": "/",
+            "waitFor": "button:has-text(\"Create 3D\")",
+            "waitUntil": "networkidle",
+            "settle": 600,
+            "before": [
+              {
+                "click": "button:has-text(\"Explore\")"
+              },
+              {
+                "waitFor": "button:has(img[alt=\"preview\"])"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "orbit-memory",
+      "kind": "screen",
+      "chapter": "explore",
+      "seconds": 6,
+      "caption": "Hide the panel and the memory fills the screen.",
+      "narration": "Orbit the moment at full size. Nothing left your hardware to render it.",
+      "shots": [
+        {
+          "id": "viewer-orbit",
+          "url": "photo-time-machine.local/view/a7989c36",
+          "alt": "The splat viewer with the control panel toggled off: the 3D memory fills the frame.",
+          "motion": "push-in",
+          "capture": {
+            "path": "/",
+            "waitFor": "button:has-text(\"Create 3D\")",
+            "waitUntil": "networkidle",
+            "settle": 2500,
+            "before": [
+              {
+                "click": "button:has-text(\"Explore\")"
+              },
+              {
+                "click": "button:has(img[alt=\"preview\"])"
+              },
+              {
+                "waitFor": "button:has-text(\"Copy link\")"
+              },
+              {
+                "waitFor": "canvas"
+              },
+              {
+                "wait": 5000
+              },
+              {
+                "eval": "(() => { window.requestAnimationFrame = () => 0; window.webkitRequestAnimationFrame = () => 0; })()"
+              },
+              {
+                "click": "button[title=\"Toggle Controls\"]"
+              },
+              {
+                "wait": 5000
+              }
+            ]
+          }
         }
       ]
     },
@@ -185,7 +280,33 @@
           "id": "viewer-shared",
           "url": "photo-time-machine.local/view/a7989c36",
           "alt": "The shared deep link: a splat fills the viewer, with the share footer and Copy link.",
-          "motion": "push-in"
+          "motion": "push-in",
+          "capture": {
+            "path": "/",
+            "waitFor": "button:has-text(\"Create 3D\")",
+            "waitUntil": "networkidle",
+            "settle": 2500,
+            "before": [
+              {
+                "click": "button:has-text(\"Explore\")"
+              },
+              {
+                "click": "button:has(img[alt=\"preview\"])"
+              },
+              {
+                "waitFor": "button:has-text(\"Copy link\")"
+              },
+              {
+                "waitFor": "canvas"
+              },
+              {
+                "wait": 5000
+              },
+              {
+                "eval": "(() => { window.requestAnimationFrame = () => 0; window.webkitRequestAnimationFrame = () => 0; })()"
+              }
+            ]
+          }
         }
       ]
     },
