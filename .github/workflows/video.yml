@@ -39,11 +39,25 @@ jobs:
           registry-url: https://npm.pkg.github.com
           scope: "@companionintelligence"
 
+      # ⚠️ THIS STEP CURRENTLY FAILS, AND IT BLOCKS EVERY SHOT IN THE VIDEO.
+      # @companionintelligence/video-kit is a PRIVATE package published from
+      # CI-Common. `secrets.GITHUB_TOKEN` is scoped to THIS repo, so it cannot read a
+      # package owned by a different one, and npm answers:
+      #   403 Forbidden - GET .../@companionintelligence%2fvideo-kit
+      #   Permission permission_denied: read_package
+      # Until that is resolved, `npm run capture` never runs and every shot renders as
+      # the kit's "capture pending" slate. Two ways out, both ORG-level:
+      #   (a) preferred — GitHub Packages > video-kit > Manage Actions access > add
+      #       this repo with Read. One-time setting, no secret to rotate. The same
+      #       step exists in all 12 product repos, so all 12 need the grant.
+      #   (b) provision an org secret CI_PACKAGES_TOKEN (a PAT with read:packages).
+      # The fallback below is INERT until (b) exists: an undefined secret is the empty
+      # string, so this evaluates to secrets.GITHUB_TOKEN and behaves exactly as before.
       - name: Install video project
         working-directory: video
         run: npm install
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.CI_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Install Chromium
         working-directory: video
@@ -65,9 +79,14 @@ jobs:
 
           # 1. Processing server. AUTH_DISABLED defaults to true (server/app/config.py);
           #    set it explicitly so a stray .env cannot turn Companion OIDC back on.
+          #    PUBLIC_BASE_URL is what config.py::share_url builds the share link from,
+          #    and App.tsx prints that link verbatim in the share footer — on camera.
+          #    A loopback address there would put "http://127.0.0.1:3000/view/..." in a
+          #    marketing frame, so the stage advertises the presentable hostname the
+          #    storyboard's cosmetic browser chrome already shows.
           pip install -e ./server
           AUTH_DISABLED=1 \
-          PUBLIC_BASE_URL=http://127.0.0.1:3000 \
+          PUBLIC_BASE_URL=https://photo-time-machine.local \
           ASSET_DIR="$PWD/.video-stage/assets" \
             nohup uvicorn app.main:app --app-dir server --host 127.0.0.1 --port 8000 \
               > "$RUNNER_TEMP/uvicorn.log" 2>&1 &
@@ -88,6 +107,53 @@ jobs:
           npx --yes wait-on -t 120000 \
             http://127.0.0.1:8000/healthz \
             http://127.0.0.1:3000
+
+      # ASSET_DIR is a fresh empty directory every run, so without this the Explore
+      # tab renders "No 3D memories yet — create one above.", the viewer never has an
+      # asset to load, and the share footer never mounts: three of the seven shots
+      # would film an empty state. Seed exactly one asset through the REAL API.
+      #
+      # `engine=preview` routes explicitly to PreviewEngine (server/app/engines/registry.py
+      # "explicit request wins"), which is CPU-only and needs neither CUDA nor
+      # downloaded weights (server/app/engines/preview.py) — the only one of the four
+      # engines that can run on ubuntu-latest. It writes a real master.ply plus a
+      # thumb.webp, so the gallery tile and the orbited splat are genuine output.
+      - name: Seed one 3D memory
+        run: |
+          set -euo pipefail
+          job_id=$(curl -sf -X POST http://127.0.0.1:8000/api/v1/jobs \
+            -F files=@video/assets/media/porch-1998.png \
+            -F engine=preview \
+            -F intent=auto \
+            | python3 -c 'import sys,json; print(json.load(sys.stdin)["job_id"])')
+          echo "seed job: $job_id"
+
+          job_status=""
+          for _ in $(seq 1 60); do
+            body=$(curl -sf "http://127.0.0.1:8000/api/v1/jobs/$job_id")
+            job_status=$(printf '%s' "$body" | python3 -c 'import sys,json; print(json.load(sys.stdin)["status"])')
+            if [ "$job_status" = "done" ]; then
+              break
+            fi
+            if [ "$job_status" = "error" ]; then
+              echo "$body"
+              echo "::error::seed job failed"
+              exit 1
+            fi
+            sleep 2
+          done
+
+          if [ "$job_status" != "done" ]; then
+            echo "::error::seed job never reached done (last status: ${job_status:-none})"
+            tail -50 "$RUNNER_TEMP/uvicorn.log" || true
+            exit 1
+          fi
+
+          # Fail here rather than silently filming an empty gallery. A missing
+          # thumbnail matters on its own: Gallery.tsx only renders the <img> when
+          # `thumbnail` is set, and both viewer shots select the tile by img[alt].
+          curl -sf http://127.0.0.1:8000/api/v1/assets \
+            | python3 -c 'import sys,json; a=json.load(sys.stdin)["assets"]; assert a, "seed reported done but /assets is empty"; x=a[0]; assert x["thumbnail"], "seeded asset has no thumbnail; the gallery tile would be blank"; print("seeded:", x["asset_id"], x["kind"], x["engine"], sorted(x["formats"]))'
 
       - name: Capture
         working-directory: video
