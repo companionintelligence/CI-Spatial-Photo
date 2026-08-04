@@ -78,8 +78,14 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
     const handleResize = () => {
       if (!containerRef.current || !renderer || !camera) return;
       const { clientWidth, clientHeight } = containerRef.current;
-      renderer.setSize(clientWidth, clientHeight, false);
-      
+      // `updateStyle` must stay ON. setPixelRatio(dpr) sizes the BACKING STORE to
+      // clientWidth * dpr; passing `false` here skipped the matching CSS size, so on
+      // any HiDPI display the canvas element laid out at dpr x the container and the
+      // parent's `overflow-hidden` cropped the view to its top-left 1/dpr — at dpr 3,
+      // one ninth of the scene, with the splat pushed off-frame. Nothing else in this
+      // component ever sets the canvas CSS size.
+      renderer.setSize(clientWidth, clientHeight);
+
       // If we have active camera metadata, re-apply projection
       if (currentMeshRef.current && currentMeshRef.current.userData.cameraMetadata) {
           const meta = currentMeshRef.current.userData.cameraMetadata;
