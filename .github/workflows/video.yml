@@ -88,11 +88,21 @@ jobs:
           #    dropped, and keeps loopback out of the copies MCP and the Companion
           #    memory hand-off echo (mcp_server.py::get_share_url, memory.py).
           pip install -e ./server
+
+          # `python -m uvicorn`, not the bare `uvicorn` console script. The script
+          # only works if pip's bin directory happens to be on PATH; `-m` runs the
+          # module with the SAME interpreter that pip just installed it for, which
+          # is the thing we actually know is true. A missing console script is also
+          # invisible here — the launch is backgrounded, so `set -e` cannot catch
+          # it, its error goes to a log file nobody prints, and the only symptom is
+          # wait-on timing out on /healthz two minutes later with no server output
+          # anywhere in the run.
           AUTH_DISABLED=1 \
           PUBLIC_BASE_URL=https://photo-time-machine.local \
           ASSET_DIR="$PWD/.video-stage/assets" \
-            nohup uvicorn app.main:app --app-dir server --host 127.0.0.1 --port 8000 \
+            nohup python -m uvicorn app.main:app --app-dir server --host 127.0.0.1 --port 8000 \
               > "$RUNNER_TEMP/uvicorn.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/uvicorn.pid"
 
           # 2. Viewer. REACT_APP_API_BASE is baked in at CRA BUILD time (api.ts),
           #    so it must be set here, not at serve time. CI=true makes
@@ -107,9 +117,29 @@ jobs:
           nohup npx --yes serve -s web-server/client/build -l 3000 \
             > "$RUNNER_TEMP/serve.log" 2>&1 &
 
-          npx --yes wait-on -t 120000 \
-            http://127.0.0.1:8000/healthz \
-            http://127.0.0.1:3000
+          # Both server logs are written to files, so a boot failure is otherwise
+          # completely silent: the previous run's whole diagnostic was "Timed out
+          # waiting for: http://127.0.0.1:8000/healthz" with not one line from
+          # uvicorn anywhere in the job. Dump them on failure, and say whether the
+          # process is even alive, so the next failure is readable the first time.
+          if ! npx --yes wait-on -t 120000 \
+                 http://127.0.0.1:8000/healthz \
+                 http://127.0.0.1:3000; then
+            echo "::error::stage did not come up — server logs follow"
+            pid="$(cat "$RUNNER_TEMP/uvicorn.pid" 2>/dev/null || true)"
+            if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+              echo "--- uvicorn (pid $pid) is RUNNING but /healthz never answered ---"
+            else
+              echo "--- uvicorn (pid ${pid:-unknown}) is NOT running — it exited at startup ---"
+            fi
+            echo "--- uvicorn.log ---"; cat "$RUNNER_TEMP/uvicorn.log" || true
+            echo "--- serve.log ---";   cat "$RUNNER_TEMP/serve.log"   || true
+            echo "--- listening sockets ---"; (ss -ltnp || netstat -ltnp || true) 2>&1 | head -20
+            echo "--- python / uvicorn resolution ---"
+            python -V || true
+            python -c "import uvicorn, sys; print('uvicorn', uvicorn.__version__, 'via', sys.executable)" || true
+            exit 1
+          fi
 
       # ASSET_DIR is a fresh empty directory every run, so without this the Explore
       # tab renders "No 3D memories yet — create one above.", the viewer never has an
