@@ -122,9 +122,16 @@ jobs:
           # waiting for: http://127.0.0.1:8000/healthz" with not one line from
           # uvicorn anywhere in the job. Dump them on failure, and say whether the
           # process is even alive, so the next failure is readable the first time.
+          # `http-get://`, not `http://`. wait-on probes plain http:// targets with
+          # HEAD, and this is what that cost: /healthz answered 405 Method Not
+          # Allowed on every poll for the full 120s and the step reported a
+          # timeout, as though nothing had ever started. The server had been up
+          # the whole time. app/main.py now serves HEAD too, so either half alone
+          # is sufficient — both are here because the next endpoint added to this
+          # list will not necessarily answer HEAD either.
           if ! npx --yes wait-on -t 120000 \
-                 http://127.0.0.1:8000/healthz \
-                 http://127.0.0.1:3000; then
+                 http-get://127.0.0.1:8000/healthz \
+                 http-get://127.0.0.1:3000; then
             echo "::error::stage did not come up — server logs follow"
             pid="$(cat "$RUNNER_TEMP/uvicorn.pid" 2>/dev/null || true)"
             if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
