@@ -46,7 +46,13 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    @app.get("/healthz")
+    # HEAD as well as GET. FastAPI's @app.get registers GET only — unlike
+    # Starlette's plain Route, an APIRoute does not imply HEAD — so a HEAD probe
+    # got 405 Method Not Allowed from a server that was perfectly healthy. HEAD is
+    # the default probe for a lot of monitoring, `wait-on` included, and it cost
+    # this repo every product-video run: the stage sat in a 120s wait-on loop
+    # answering 405 to every poll and then reported a timeout.
+    @app.api_route("/healthz", methods=["GET", "HEAD"])
     def healthz():
         return {"status": "ok", "version": "2.0.0"}
 
