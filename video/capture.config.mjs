@@ -259,7 +259,17 @@ export default {
         });
       }
       if (/\/api\/v1\/engines\b/.test(url)) return json(route, { engines: ENGINES });
-      if (/\/api\/v1\/memory\/media\b/.test(url)) return json(route, { media: MEMORY_MEDIA });
+
+      // MemoryPicker refetches on every toggle press with ?type=image|video
+      // (api.ts listMemoryMedia), so the stub has to honour the parameter.
+      // Answering the same six photos for `type=video` would paint photos under a
+      // selected "Videos" toggle — a screen that contradicts itself. The fixture
+      // library is all stills, so Videos correctly reads "No media in Companion
+      // memory (or memory not configured)." (MemoryPicker.tsx).
+      if (/\/api\/v1\/memory\/media\b/.test(url)) {
+        const type = new URL(url).searchParams.get("type") ?? "image";
+        return json(route, { media: MEMORY_MEDIA.filter((m) => m.kind === type) });
+      }
       if (/\/api\/v1\/jobs\b/.test(url)) return json(route, RUNNING_JOB);
 
       // Asset reads are REWRITTEN, not faked: ask the real server, then pin only the

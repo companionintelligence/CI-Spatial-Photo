@@ -326,8 +326,19 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
     <div className={`relative ${className}`}>
       <div ref={containerRef} className="w-full h-full min-h-[500px] bg-black rounded-lg overflow-hidden" />
       
+      {/*
+        `data-splat-status` is the only machine-readable signal that the splat
+        actually finished uploading. `canvas` appears the moment this component
+        mounts — long before `loadData` resolves — so anything that waits on the
+        canvas alone can photograph an empty #0c1018 frame and call it a success.
+        The product-video capture waits on [data-splat-status="ready"] and masks
+        [data-splat-status] (video/storyboard.json).
+      */}
       {(loading || error || info) && (
-        <div className="absolute bottom-4 left-4 bg-black/70 text-white p-2 rounded text-sm pointer-events-none">
+        <div
+          data-splat-status={loading ? 'loading' : error ? 'error' : 'ready'}
+          className="absolute bottom-4 left-4 bg-black/70 text-white p-2 rounded text-sm pointer-events-none"
+        >
           {loading && <div>Loading...</div>}
           {error && <div className="text-red-400">Error: {error}</div>}
           {!loading && !error && info && <div>{info}</div>}
