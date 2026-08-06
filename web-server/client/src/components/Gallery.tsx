@@ -1,6 +1,25 @@
 import React, { useEffect, useState } from "react";
 import { api, Asset } from "../api";
 
+/**
+ * What this 3D memory is *of*.
+ *
+ * The card used to lead with `{kind} · {engine}` — "Splat · Preview" — which
+ * names the file format and the reconstruction backend and says nothing about
+ * the memory. The asset already carries the source it was built from
+ * (`source_filenames`, set in server/app/jobs.py), so lead with that and let
+ * the machinery be the subtitle.
+ */
+function assetTitle(a: Asset): string {
+  const source = a.source_filenames?.[0];
+  if (source) {
+    const stem = source.replace(/\.[^./\\]+$/, "").trim();
+    if (stem) return a.source_filenames.length > 1 ? `${stem} +${a.source_filenames.length - 1}` : stem;
+  }
+  if (a.source_origin === "memory") return "From Companion memory";
+  return `${a.kind} · ${a.engine}`;
+}
+
 interface GalleryProps {
   onSelect: (asset: Asset) => void;
   refreshKey?: number;
@@ -42,9 +61,23 @@ const Gallery: React.FC<GalleryProps> = ({ onSelect, refreshKey }) => {
               </div>
             )}
           </div>
+          {/*
+            `toLocaleString()` printed to the second — "6/15/2026, 2:58:12 PM".
+            A gallery is browsed by day, not by second; the seconds were pure
+            noise competing with the title for a 2-column card's width.
+          */}
           <div className="p-2 text-xs">
-            <div className="font-medium capitalize">{a.kind} · {a.engine}</div>
-            <div className="text-gray-400">{new Date(a.created_at).toLocaleString()}</div>
+            <div className="truncate font-medium" title={assetTitle(a)}>
+              {assetTitle(a)}
+            </div>
+            <div className="truncate capitalize text-gray-400">
+              {a.kind} · {a.engine} ·{" "}
+              {new Date(a.created_at).toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })}
+            </div>
           </div>
         </button>
       ))}

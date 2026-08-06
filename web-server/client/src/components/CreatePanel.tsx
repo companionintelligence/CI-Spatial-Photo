@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { api, waitForJob, EngineCapabilities, Intent, Job } from "../api";
+import { jobStatusLine } from "../jobStatus";
 
 interface CreatePanelProps {
   onCreated: (assetId: string) => void;
@@ -58,11 +59,20 @@ const CreatePanel: React.FC<CreatePanelProps> = ({ onCreated }) => {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <label className="flex flex-col gap-1">
+      {/*
+        Two columns inside a panel that is only as wide as the viewport left the
+        Engine select ~144px on a 360px phone, and the browser clipped its own
+        selected option to "Auto (recommen" — a control failing to render its
+        value, which reads as a bug rather than as a narrow screen. The pair
+        stacks below `sm` and keeps the side-by-side layout everywhere the panel
+        is at its full 448px. `min-w-0` lets each select actually shrink to its
+        grid track instead of forcing the track wider than the panel.
+      */}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className="text-gray-400">Engine</span>
           <select
-            className="bg-gray-800 rounded px-2 py-1"
+            className="w-full min-w-0 bg-gray-800 rounded px-2 py-1"
             value={engine}
             onChange={(e) => setEngine(e.target.value)}
           >
@@ -75,10 +85,10 @@ const CreatePanel: React.FC<CreatePanelProps> = ({ onCreated }) => {
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className="text-gray-400">Intent</span>
           <select
-            className="bg-gray-800 rounded px-2 py-1"
+            className="w-full min-w-0 bg-gray-800 rounded px-2 py-1"
             value={intent}
             onChange={(e) => setIntent(e.target.value as Intent)}
           >
@@ -97,7 +107,7 @@ const CreatePanel: React.FC<CreatePanelProps> = ({ onCreated }) => {
         {busy ? "Processing…" : "Create 3D"}
       </button>
 
-      {job && <p className="text-gray-400">Status: {job.status} — {job.message}</p>}
+      {job && <p className="text-gray-400">{jobStatusLine(job)}</p>}
       {error && <p className="text-red-400">Error: {error}</p>}
     </div>
   );

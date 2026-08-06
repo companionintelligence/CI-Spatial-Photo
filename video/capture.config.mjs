@@ -239,7 +239,7 @@ export default {
       owner: "local-dev",
       status: "running",
       engine: "preview",
-      message: "running preview",
+      message: "reconstructing with preview",
       error: null,
       asset_id: null,
     };

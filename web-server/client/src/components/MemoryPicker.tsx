@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api, waitForJob, MemoryMedia, Job } from "../api";
+import { jobStatusLine } from "../jobStatus";
 
 interface MemoryPickerProps {
   onCreated: (assetId: string) => void;
@@ -51,22 +52,34 @@ const MemoryPicker: React.FC<MemoryPickerProps> = ({ onCreated }) => {
         </button>
       </div>
       {note && <p className="text-gray-400">{note}</p>}
-      {job && <p className="text-gray-400">Status: {job.status} — {job.message}</p>}
+      {job && <p className="text-gray-400">{jobStatusLine(job)}</p>}
+      {/*
+        Companion memory returns a `title` for every item and this grid used to
+        throw it away, so the user's own photo library rendered as six anonymous
+        squares — indistinguishable from a placeholder grid, and impossible to
+        pick from without hovering each one for the tooltip. The caption is the
+        thing that makes this read as *your* memories.
+      */}
       <div className="grid grid-cols-3 gap-2">
         {media.map((m) => (
           <button
             key={m.ref}
             onClick={() => create(m.ref)}
             title={m.title || m.ref}
-            className="rounded overflow-hidden bg-gray-800 hover:ring-2 ring-blue-500 aspect-square"
+            className="flex flex-col overflow-hidden rounded bg-gray-800 text-left hover:ring-2 ring-blue-500"
           >
-            {m.thumbnail_url ? (
-              <img src={m.thumbnail_url} alt={m.title || ""} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
-                {m.kind}
-              </div>
-            )}
+            <div className="aspect-square w-full overflow-hidden bg-gray-900">
+              {m.thumbnail_url ? (
+                <img src={m.thumbnail_url} alt={m.title || ""} className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-xs text-gray-500">
+                  {m.kind}
+                </div>
+              )}
+            </div>
+            <span className="line-clamp-2 px-1.5 py-1 text-[11px] leading-tight text-gray-300">
+              {m.title || m.ref}
+            </span>
           </button>
         ))}
       </div>

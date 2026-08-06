@@ -83,7 +83,10 @@ class JobManager:
                     job_input.original_filenames = [f.name for f in files]
 
             engine = self.registry.route(job_input, self.settings)
-            self._touch(job, engine=engine.name, message=f"running {engine.name}")
+            # The client renders "Status: {status} — {message}", so a message that
+            # opens with the status word stutters: with the CPU preview engine this
+            # read "Status: running — running preview". Name the phase, not the state.
+            self._touch(job, engine=engine.name, message=f"reconstructing with {engine.name}")
 
             result = await asyncio.to_thread(engine.run, job_input, workdir, self.settings)
 
