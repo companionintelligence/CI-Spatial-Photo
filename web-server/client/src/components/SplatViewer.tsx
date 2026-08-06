@@ -6,8 +6,30 @@ import { SparkRenderer } from '@sparkjsdev/spark';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 // @ts-ignore
 import { getFormatHandler } from '../formats/index.js';
-import { makeAxisFlipCvToGl, computeMlSharpDepthFocus, makeProjectionFromIntrinsics } from '../utils/cameraUtils';
+import {
+  makeAxisFlipCvToGl,
+  computeMlSharpDepthFocus,
+  makeProjectionFromIntrinsics,
+  fitDistanceToBox,
+} from '../utils/cameraUtils';
 import { HeadPosition } from '../hooks/useHeadTracking';
+
+/** Ground plane, in units of the subject's widest horizontal dimension. */
+const GRID_SPAN_FACTOR = 2.4;
+/** The GridHelper is built at this size, so scaling is relative to it. */
+const GRID_BASE_SIZE = 2.5;
+
+/** Sit the ground grid under the loaded subject, scaled to it. */
+const fitGridToSubject = (
+  grid: THREE.GridHelper | null,
+  center: THREE.Vector3,
+  size: THREE.Vector3,
+) => {
+  if (!grid) return;
+  const span = Math.max(size.x, size.z, 0.5) * GRID_SPAN_FACTOR;
+  grid.scale.setScalar(span / GRID_BASE_SIZE);
+  grid.position.set(center.x, center.y - size.y / 2 - span * 0.02, center.z);
+};
 
 interface SplatViewerProps {
   fileUrl?: string;
@@ -23,6 +45,7 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const sparkRef = useRef<any>(null);
+  const gridRef = useRef<THREE.GridHelper | null>(null);
   const requestRef = useRef<number>();
   const currentMeshRef = useRef<any>(null);
   
@@ -64,9 +87,10 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
     scene.add(spark);
     sparkRef.current = spark;
 
-    const grid = new THREE.GridHelper(2.5, 10, 0x2a2f3a, 0x151822);
+    const grid = new THREE.GridHelper(GRID_BASE_SIZE, 10, 0x2a2f3a, 0x151822);
     grid.position.y = -0.5;
     scene.add(grid);
+    gridRef.current = grid;
 
     const animate = () => {
       requestRef.current = requestAnimationFrame(animate);
@@ -284,28 +308,54 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
              window.dispatchEvent(new Event('resize'));
 
         } else if (mesh.getBoundingBox && cameraRef.current && controlsRef.current) {
-            // Fallback to fitting view (match browser-sharp behavior)
+            // No camera metadata in the file — every asset the `preview` engine
+            // writes is in this branch, because server/app/plywriter.py emits no
+            // `intrinsic` element and readPlyCamera returns null without one. So
+            // this IS the default framing for the common case, not a rare path.
+            //
+            // It used to place the camera at `centre + (d, d, d)` with
+            // `d = radius / tan(fov/2)`: sqrt(3) times too far, fitted against
+            // the vertical FOV only, and looking down a 45deg/35deg diagonal that
+            // shows a flat photo plane nearly edge-on. A full-frame memory
+            // rendered as a small skewed quad in the middle of a black viewport.
             const box = mesh.getBoundingBox();
+            const worldBox = box.clone().applyMatrix4(mesh.matrixWorld);
             const size = new THREE.Vector3();
-            const center = new THREE.Vector3();
-            box.getSize(size);
-            box.getCenter(center);
-            
-            const worldCenter = center.clone().applyMatrix4(mesh.matrixWorld);
+            const worldCenter = new THREE.Vector3();
+            worldBox.getSize(size);
+            worldBox.getCenter(worldCenter);
 
-            const radius = Math.max(size.length() * 0.5, 0.5);
-            const dist = radius / Math.tan((cameraRef.current.fov * Math.PI) / 360);
+            // Off-axis enough to read as 3D and not as a pasted image; shallow
+            // enough that the photo itself stays legible. The old (1,1,1) is a
+            // 45deg yaw / 35deg pitch, which foreshortens a plane to about half
+            // its width.
+            const dir = new THREE.Vector3(0.34, 0.17, 1).normalize();
+            const radius = Math.max(size.length() * 0.5, 0.25);
+            const dist = Math.max(
+              fitDistanceToBox(
+                [size.x / 2, size.y / 2, size.z / 2],
+                [dir.x, dir.y, dir.z],
+                cameraRef.current.fov,
+                cameraRef.current.aspect,
+                1.12,
+              ),
+              radius * 0.5,
+            );
 
-            // browser-sharp uses (dist, dist, dist) offset
-            cameraRef.current.position.copy(worldCenter).add(new THREE.Vector3(dist, dist, dist));
+            cameraRef.current.position.copy(worldCenter).addScaledVector(dir, dist);
             cameraRef.current.lookAt(worldCenter);
-            
-            cameraRef.current.near = Math.max(0.01, radius * 0.01);
+
+            cameraRef.current.near = Math.max(0.01, (dist - radius) * 0.5);
             cameraRef.current.far = Math.max(dist * 4, radius * 8);
             cameraRef.current.updateProjectionMatrix();
 
             controlsRef.current.target.copy(worldCenter);
             controlsRef.current.update();
+
+            // The grid is scenery for the subject, so it has to follow it. At its
+            // built-in 2.5 units it was SMALLER than a 3.6-unit-wide plane and sat
+            // at a fixed y = -0.5, i.e. cutting through the middle of it.
+            fitGridToSubject(gridRef.current, worldCenter, size);
         }
 
         sparkRef.current.update({ scene: sceneRef.current });
