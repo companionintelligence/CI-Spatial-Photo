@@ -56,21 +56,11 @@
               }
             ]
           }
-        }
-      ]
-    },
-    {
-      "id": "choose-engine",
-      "kind": "screen",
-      "chapter": "create",
-      "seconds": 5.5,
-      "caption": "Pick an engine and an intent, or leave both on auto.",
-      "narration": "Pick an engine and an intent, or leave both on auto.",
-      "shots": [
+        },
         {
           "id": "create-selected",
           "url": "photo-time-machine.local",
-          "alt": "The Create tab with one file chosen; the dropzone names it and Create 3D is enabled.",
+          "alt": "The same dropzone after a drop: it names porch-1998.png and Create 3D has gone live.",
           "motion": "push-in",
           "capture": {
             "path": "/",
@@ -93,17 +83,105 @@
       ]
     },
     {
+      "id": "choose-engine",
+      "kind": "screen",
+      "chapter": "create",
+      "seconds": 6,
+      "caption": "Pick an engine and an intent, or leave both on auto.",
+      "narration": "Pick an engine and an intent, or leave both on auto.",
+      "shots": [
+        {
+          "id": "create-selected",
+          "url": "photo-time-machine.local",
+          "alt": "The armed Create tab with Engine on Auto (recommended) and Intent on Auto.",
+          "motion": "push-in",
+          "capture": {
+            "path": "/",
+            "waitFor": "button:has-text(\"Create 3D\")",
+            "waitUntil": "networkidle",
+            "settle": 500,
+            "before": [
+              {
+                "waitFor": "select:has(option[value=\"preview\"])"
+              },
+              {
+                "eval": "window.__ciVideoPickFixture()"
+              },
+              {
+                "waitFor": "text=file(s) selected"
+              }
+            ]
+          }
+        },
+        {
+          "id": "create-engine-picked",
+          "url": "photo-time-machine.local",
+          "alt": "The same two selects driven off auto: Engine now reads triposplat, Intent now reads Object (full 3D).",
+          "motion": "push-in",
+          "capture": {
+            "path": "/",
+            "waitFor": "button:has-text(\"Create 3D\")",
+            "waitUntil": "networkidle",
+            "settle": 500,
+            "before": [
+              {
+                "waitFor": "select:has(option[value=\"preview\"])"
+              },
+              {
+                "eval": "window.__ciVideoPickFixture()"
+              },
+              {
+                "waitFor": "text=file(s) selected"
+              },
+              {
+                "eval": "() => { const pick = (probe, value) => { const sel = Array.from(document.querySelectorAll('select')).find((s) => Array.from(s.options).some((o) => o.value === probe)); if (!sel) throw new Error('no select carries option ' + probe); sel.value = value; sel.dispatchEvent(new Event('change', { bubbles: true })); }; pick('preview', 'triposplat'); pick('object', 'object'); }"
+              },
+              {
+                "waitFor": "select:has(option[value=\"triposplat\"]:checked)"
+              },
+              {
+                "waitFor": "select:has(option[value=\"object\"]:checked)"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "id": "job-running",
       "kind": "screen",
       "chapter": "create",
-      "seconds": 5.5,
+      "seconds": 6,
       "caption": "The server classifies the input and routes it to an engine.",
       "narration": "The server reads the input, picks an engine, and runs the job.",
       "shots": [
         {
+          "id": "create-selected",
+          "url": "photo-time-machine.local",
+          "alt": "Create 3D armed and waiting, one image staged in the dropzone.",
+          "motion": "push-in",
+          "capture": {
+            "path": "/",
+            "waitFor": "button:has-text(\"Create 3D\")",
+            "waitUntil": "networkidle",
+            "settle": 500,
+            "before": [
+              {
+                "waitFor": "select:has(option[value=\"preview\"])"
+              },
+              {
+                "eval": "window.__ciVideoPickFixture()"
+              },
+              {
+                "waitFor": "text=file(s) selected"
+              }
+            ]
+          }
+        },
+        {
           "id": "create-processing",
           "url": "photo-time-machine.local",
-          "alt": "A running job: the button reads Processing and the status line reads running preview.",
+          "alt": "The same button one click later: it reads Processing, and a status line reads running preview.",
           "motion": "push-in",
           "capture": {
             "path": "/",
@@ -161,6 +239,35 @@
               }
             ]
           }
+        },
+        {
+          "id": "memory-job",
+          "url": "photo-time-machine.local",
+          "alt": "One tap on the 1998 porch photo and the job is already running preview — the library never left the box.",
+          "motion": "drift-down",
+          "capture": {
+            "path": "/",
+            "waitFor": "button:has-text(\"Create 3D\")",
+            "waitUntil": "networkidle",
+            "settle": 600,
+            "before": [
+              {
+                "click": "button:has-text(\"From Memory\")"
+              },
+              {
+                "waitFor": "button:has-text(\"Photos\")"
+              },
+              {
+                "waitFor": "img[alt=\"Porch at sunset, 1998\"]"
+              },
+              {
+                "click": "button[title=\"Porch at sunset, 1998\"]"
+              },
+              {
+                "waitFor": "text=Status: running"
+              }
+            ]
+          }
         }
       ]
     },
@@ -194,14 +301,14 @@
       "id": "explore-gallery",
       "kind": "screen",
       "chapter": "explore",
-      "seconds": 5.5,
-      "caption": "Every memory you have made, in one gallery.",
+      "seconds": 6,
+      "caption": "Your finished memories, one click from opening.",
       "narration": "Finished assets land in the gallery. Click one to open it.",
       "shots": [
         {
           "id": "gallery-assets",
           "url": "photo-time-machine.local",
-          "alt": "The Explore tab: a grid of created 3D assets with thumbnails, kind and engine.",
+          "alt": "The Explore tab: the finished splat as a gallery tile, labelled with its kind, engine and creation time.",
           "motion": "drift-down",
           "capture": {
             "path": "/",
@@ -217,6 +324,44 @@
               }
             ]
           }
+        },
+        {
+          "id": "viewer-shared",
+          "url": "photo-time-machine.local/view/a7989c36",
+          "alt": "The same tile clicked: the splat is loaded behind the panel and the address bar has become the share link.",
+          "motion": "drift-down",
+          "capture": {
+            "path": "/",
+            "waitFor": "button:has-text(\"Create 3D\")",
+            "waitUntil": "networkidle",
+            "settle": 2500,
+            "mask": [
+              "[data-splat-status]"
+            ],
+            "before": [
+              {
+                "click": "button:has-text(\"Explore\")"
+              },
+              {
+                "click": "button:has(img[alt=\"preview\"])"
+              },
+              {
+                "waitFor": "button:has-text(\"Copy link\")"
+              },
+              {
+                "waitFor": "canvas"
+              },
+              {
+                "waitFor": "[data-splat-status=\"ready\"]"
+              },
+              {
+                "wait": 5000
+              },
+              {
+                "eval": "(() => { window.requestAnimationFrame = () => 0; window.webkitRequestAnimationFrame = () => 0; })()"
+              }
+            ]
+          }
         }
       ]
     },
@@ -229,9 +374,47 @@
       "narration": "Hide the panel and orbit the memory itself. Nothing left your hardware to render it.",
       "shots": [
         {
+          "id": "viewer-shared",
+          "url": "photo-time-machine.local/view/a7989c36",
+          "alt": "The viewer with the control panel still up, the splat rendering behind it.",
+          "motion": "push-in",
+          "capture": {
+            "path": "/",
+            "waitFor": "button:has-text(\"Create 3D\")",
+            "waitUntil": "networkidle",
+            "settle": 2500,
+            "mask": [
+              "[data-splat-status]"
+            ],
+            "before": [
+              {
+                "click": "button:has-text(\"Explore\")"
+              },
+              {
+                "click": "button:has(img[alt=\"preview\"])"
+              },
+              {
+                "waitFor": "button:has-text(\"Copy link\")"
+              },
+              {
+                "waitFor": "canvas"
+              },
+              {
+                "waitFor": "[data-splat-status=\"ready\"]"
+              },
+              {
+                "wait": 5000
+              },
+              {
+                "eval": "(() => { window.requestAnimationFrame = () => 0; window.webkitRequestAnimationFrame = () => 0; })()"
+              }
+            ]
+          }
+        },
+        {
           "id": "viewer-orbit",
           "url": "photo-time-machine.local/view/a7989c36",
-          "alt": "The splat viewer with the control panel toggled off: the reconstructed splat alone in the viewer.",
+          "alt": "The panel toggled away: the reconstructed splat alone, full bleed, on its grid.",
           "motion": "push-in",
           "capture": {
             "path": "/",
@@ -283,9 +466,53 @@
       "narration": "The address bar is the share link. It points at your box.",
       "shots": [
         {
+          "id": "viewer-orbit",
+          "url": "photo-time-machine.local/view/a7989c36",
+          "alt": "The full-bleed splat, mid-orbit, with nothing but the app title over it.",
+          "motion": "push-in",
+          "capture": {
+            "path": "/",
+            "waitFor": "button:has-text(\"Create 3D\")",
+            "waitUntil": "networkidle",
+            "settle": 2500,
+            "mask": [
+              "[data-splat-status]"
+            ],
+            "before": [
+              {
+                "click": "button:has-text(\"Explore\")"
+              },
+              {
+                "click": "button:has(img[alt=\"preview\"])"
+              },
+              {
+                "waitFor": "button:has-text(\"Copy link\")"
+              },
+              {
+                "waitFor": "canvas"
+              },
+              {
+                "waitFor": "[data-splat-status=\"ready\"]"
+              },
+              {
+                "wait": 5000
+              },
+              {
+                "eval": "(() => { window.requestAnimationFrame = () => 0; window.webkitRequestAnimationFrame = () => 0; })()"
+              },
+              {
+                "click": "button[title=\"Toggle Controls\"]"
+              },
+              {
+                "wait": 5000
+              }
+            ]
+          }
+        },
+        {
           "id": "viewer-shared",
           "url": "photo-time-machine.local/view/a7989c36",
-          "alt": "The shared deep link: the reconstructed splat in the viewer, with the share footer and Copy link.",
+          "alt": "The panel back up, showing the share URL for this memory beside a Copy link button.",
           "motion": "push-in",
           "capture": {
             "path": "/",

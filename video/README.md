@@ -65,12 +65,24 @@ Overrides: `PTM_VIEWER_URL` (default `http://localhost:3000`) and `PTM_API_URL`
 
 ## Current coverage
 
+Nine shots across seven scenes. Most scenes carry **two** of them, because several shots in one
+scene cross-dissolve inside that scene — which is how a beat shows its own state change (empty →
+filled, auto → chosen, panel → hidden) without cutting away.
+
 | Shot | State |
 | --- | --- |
-| `create-empty`, `create-selected`, `create-processing` | capture spec written — run `npm run capture` against the stage |
-| `gallery-assets`, `viewer-shared` | **no capture spec** — render as "capture pending" slates |
+| `create-empty`, `create-selected`, `create-processing` | captured |
+| `memory-grid` | captured |
+| `gallery-assets`, `viewer-shared`, `viewer-orbit` | captured — need the **seeded asset** above |
+| `create-engine-picked`, `memory-job` | spec written, **not yet captured** — render as "capture pending" slates until someone runs `npm run capture` against the stage |
 
-The two pending shots need the **seeded asset** above, and the viewer shot additionally renders a
+`create-selected`, `viewer-shared` and `viewer-orbit` are each referenced by more than one scene.
+That is deliberate: a shot shared between consecutive scenes is a hinge frame, so one beat ends on
+the state the next begins with. `capture` dedupes by shot id and **the first occurrence in scene
+order wins**, so if you edit one copy of a shared shot's `capture` block, edit every copy — a
+divergent later copy is silently dead config.
+
+The asset shots need the seeded asset above, and the viewer shots additionally render a
 Three.js + Spark **WebGL2 canvas** that is outside the kit's byte-stability guarantee. Every
 determinism hazard is catalogued at the top of [`capture.config.mjs`](capture.config.mjs).
 
@@ -103,6 +115,22 @@ file**, so the script and the screenshots cannot drift apart.
 
 Adding a beat is: add a scene, add its shot's `capture` block, `npm run capture -- --only <id>`,
 then `npm run build && npm run render`.
+
+Prefer **adding a shot to an existing scene** over adding a scene. Two shots in one scene
+cross-dissolve across that scene's dwell, so the beat gains motion and shows causality without
+making the video longer. A new scene only earns its place when a whole screen is missing.
+
+Two things bite when writing a `capture.before` here:
+
+- **Ordering.** `before` runs *after* `capture.waitFor`, not before it. `waitFor` must name a
+  selector present on the first rendered state after `goto` — which for this app is always the
+  Create tab, because `App.tsx` defaults `tab` to `create`. Navigation belongs in `before`, each
+  step guarded by its own `waitFor`.
+- **The two `<select>`s.** The kit's `fill` verb cannot drive them — Playwright rejects `fill` on
+  a `<select>`. Use an `eval` that sets `.value` and dispatches a bubbling `change` (React's
+  `ChangeEventPlugin` listens to the native `change` for selects), then guard it with
+  `select:has(option[value="…"]:checked)`. `create-engine-picked` is the worked example. Guard
+  every such eval: an eval that silently no-ops still produces a screenshot, of the wrong state.
 
 ## Media
 
