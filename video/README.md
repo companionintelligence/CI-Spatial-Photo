@@ -180,6 +180,23 @@ Drop prepared media into `assets/media/` and point `media.music` at it. Per-scen
 picked up automatically from `assets/audio/<sceneId>.mp3`; regenerate it from the storyboard's
 `narration` fields with `npm run narrate`.
 
+### The stand-in memory library
+
+`assets/memory/*.jpg` are the six thumbnails behind the `GET /api/v1/memory/media` stub — the
+Companion Memory library the From Memory grid browses, which a capture machine does not have.
+They are **synthetic, not photographs**: drawn by [`assets/memory/generate.py`](assets/memory/generate.py)
+in the same style as `assets/media/porch-1998.png`, and committed next to the generator so their
+origin is impossible to mistake. No caption may describe them as someone's photos.
+
+```bash
+python3 video/assets/memory/generate.py    # needs numpy + Pillow; deterministic
+```
+
+Each scene is composed for the title it is served under (`capture.config.mjs`, `MEMORY_MEDIA`).
+That matters now that `MemoryPicker` renders those titles: before this, all six were recolourings
+of one mountain ridge, so "Skyline from the roof" and "Beach, Outer Banks" were the same picture.
+Change a title and change its scene in the same commit.
+
 ## What is committed
 
 `assets/shots/*.png` and `assets/audio/*.mp3` **are** committed. They are **inputs**, not output:
