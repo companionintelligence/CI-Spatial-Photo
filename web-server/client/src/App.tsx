@@ -80,11 +80,32 @@ function App() {
             headPosition={isXREnabled ? headPosition : null}
           />
         ) : (
-          <div className="flex items-center justify-center w-full h-full text-center opacity-30">
+          /*
+            The empty-state hero used to be centred in the whole viewport while
+            the controls panel floated over its top-left corner. The panel is
+            opaque, so the hero came out sliced: on desktop the subtitle read
+            "reate a 3D memory, or open one to explore." and on a 360px phone
+            stray half-glyphs poked out of both panel edges. Neither is a
+            capture artifact — that is what the app draws.
+
+            So the hero now respects the panel's footprint instead of sitting
+            under it. `md:pl-[30rem]` is the panel's own width budget
+            (max-w-md = 28rem, plus m-4 either side), which re-centres the hero
+            in the space the panel does not use — and fills the dead right half
+            of a wide window. Below `md` there is no such space, so the hero
+            steps aside entirely while the panel is up; the panel already says
+            everything the hero would. Toggling the panel off (the eye button)
+            brings the hero back full-screen at every width, which is the one
+            moment it is actually needed.
+          */
+          <div
+            className={`w-full h-full items-center justify-center text-center opacity-30 px-6 md:pl-[30rem] ${
+              showControls ? 'hidden md:flex' : 'flex'
+            }`}
+          >
             <div>
               <p className="mb-3 text-4xl font-bold">Photo Time Machine</p>
               <p className="text-xl">Create a 3D memory, or open one to explore.</p>
-              {loadError && <p className="mt-3 text-red-400 text-sm">{loadError}</p>}
             </div>
           </div>
         )}
@@ -126,15 +147,33 @@ function App() {
               ))}
             </div>
 
+            {/*
+              loadError used to live inside the background hero, which now hides
+              itself behind the panel on phones — so a failed deep-link would have
+              gone silent there. It belongs on the panel regardless: that is the
+              layer the user is looking at.
+            */}
+            {loadError && (
+              <p className="px-4 pt-3 text-sm text-red-400" role="alert">
+                {loadError}
+              </p>
+            )}
+
             <div className="max-h-[60vh] overflow-y-auto">
               {tab === 'create' && <CreatePanel onCreated={handleCreated} />}
               {tab === 'explore' && <Gallery onSelect={(a) => loadAsset(a.asset_id)} refreshKey={refreshKey} />}
               {tab === 'memory' && <MemoryPicker onCreated={handleCreated} />}
             </div>
 
+            {/*
+              Side by side, the share URL had ~200px on a 360px phone and
+              truncated to "https://photo-time-machine.local/vie…" — the one
+              string on the screen a viewer might want to read. Stacking it
+              above the button below `sm` gives it the full panel width.
+            */}
             {asset && (
-              <div className="flex items-center justify-between gap-2 p-3 border-t border-gray-700 text-xs">
-                <span className="truncate text-gray-400">{asset.share_url}</span>
+              <div className="flex flex-col items-stretch gap-2 p-3 border-t border-gray-700 text-xs sm:flex-row sm:items-center sm:justify-between">
+                <span className="min-w-0 truncate text-gray-400">{asset.share_url}</span>
                 <button onClick={share} className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 shrink-0">
                   Copy link
                 </button>

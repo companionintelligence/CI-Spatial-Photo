@@ -182,7 +182,7 @@
         {
           "id": "create-processing",
           "url": "photo-time-machine.local",
-          "alt": "The same button one click later: it reads Processing, and a status line reads running preview.",
+          "alt": "The same button one click later: it reads Processing, and a status line reads reconstructing with preview.",
           "motion": "push-in",
           "capture": {
             "path": "/",
@@ -244,7 +244,7 @@
         {
           "id": "memory-job",
           "url": "photo-time-machine.local",
-          "alt": "One tap on the 1998 porch photo and the job is already running preview — the library never left the box.",
+          "alt": "One tap on the 1998 porch photo and the job is already reconstructing with preview — the library never left the box.",
           "motion": "drift-down",
           "capture": {
             "path": "/",
