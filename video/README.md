@@ -63,6 +63,24 @@ curl -sf -X POST http://127.0.0.1:8000/api/v1/jobs \
 Overrides: `PTM_VIEWER_URL` (default `http://localhost:3000`) and `PTM_API_URL`
 (default `http://localhost:8000`) in [`capture.config.mjs`](capture.config.mjs).
 
+Both ports are overridable, which matters when several product stages boot at once and 3000/8000
+are already taken. Nothing in the stage is pinned to the defaults — the 2026-08-05 re-shoot ran
+entirely on 3183/8183:
+
+```bash
+uvicorn app.main:app --app-dir server --host 127.0.0.1 --port 8183 &
+CI=false REACT_APP_API_BASE=http://127.0.0.1:8183 npm run build --prefix web-server/client
+npx serve -s web-server/client/build -l 3183 &
+# …seed the asset against :8183, then:
+APP_URL=http://localhost:3183 PTM_API_URL=http://127.0.0.1:8183 npm run capture
+```
+
+`APP_URL` works as a fallback for `PTM_VIEWER_URL`, so the fleet-wide runner convention needs no
+special case here. **`REACT_APP_API_BASE` must match the API port** — it is baked into the bundle
+at build time, so changing the API port means rebuilding the client, not just restarting uvicorn.
+`npx serve` can be any static server that does SPA fallback; without `-s`, `/view/:assetId` 404s
+and the two viewer shots fail.
+
 ## Current coverage
 
 Nine shots across seven scenes. Most scenes carry **two** of them, because several shots in one
@@ -71,16 +89,33 @@ filled, auto → chosen, panel → hidden) without cutting away.
 
 | Shot | State |
 | --- | --- |
-| `create-empty`, `create-selected`, `create-processing` | captured |
-| `memory-grid` | captured |
+| `create-empty`, `create-selected`, `create-engine-picked`, `create-processing` | captured |
+| `memory-grid`, `memory-job` | captured |
 | `gallery-assets`, `viewer-shared`, `viewer-orbit` | captured — need the **seeded asset** above |
-| `create-engine-picked`, `memory-job` | spec written, **not yet captured** — render as "capture pending" slates until someone runs `npm run capture` against the stage |
 
-`create-selected`, `viewer-shared` and `viewer-orbit` are each referenced by more than one scene.
-That is deliberate: a shot shared between consecutive scenes is a hinge frame, so one beat ends on
+**All nine are captured at both viewports — `ci-video status` reports "missing none".** The whole
+set was re-shot in one pass on 2026-08-05 against the stage below, so there are no "capture
+pending" slates left and no mixed-vintage frames.
+
+That re-shoot was not optional. The seven previously committed shots predated three fixes on this
+branch and could not be mixed with new ones: the top bar read `CI Photo Time Machine` (the repo
+name, on camera in every screen frame — `MESSAGING.md` "Naming"); `[data-splat-status]` was masked
+rather than hidden, so the viewer frames carried an opaque rectangle; and `renderer.setSize(…,
+false)` cropped the splat canvas to its top-left ninth at dpr 3. Capturing only the two missing
+shots would have shipped a cut whose product name changes between beats — which is why "just the
+missing ones" is the wrong instinct whenever the committed set is marked stale. **Check the top-bar
+string before assuming a partial capture is safe.**
+
+`create-selected` and `viewer-shared` are each referenced by more than one scene. That is
+deliberate: a shot shared between consecutive scenes is a hinge frame, so one beat ends on
 the state the next begins with. `capture` dedupes by shot id and **the first occurrence in scene
 order wins**, so if you edit one copy of a shared shot's `capture` block, edit every copy — a
 divergent later copy is silently dead config.
+
+A shared shot must still move the story *forward*. `share-link` used to run
+`viewer-orbit` → `viewer-shared`, which is `orbit-memory` played backwards: the same two frames
+alternating for 18s across three consecutive scenes. It is now a single `viewer-shared` beat —
+the only frame that actually carries the share URL.
 
 The asset shots need the seeded asset above, and the viewer shots additionally render a
 Three.js + Spark **WebGL2 canvas** that is outside the kit's byte-stability guarantee. Every
@@ -126,6 +161,13 @@ Two things bite when writing a `capture.before` here:
   selector present on the first rendered state after `goto` — which for this app is always the
   Create tab, because `App.tsx` defaults `tab` to `create`. Navigation belongs in `before`, each
   step guarded by its own `waitFor`.
+- **Never `mask` something you can hide.** `capture.mask` does not blur or crop — Playwright
+  paints an opaque `#0A222E` block over the region (`video-kit/src/capture.mjs`), which inside a
+  device frame reads as a UI bug. The viewer shots used to mask `[data-splat-status]` and shipped
+  a teal-grey rectangle in the bottom-left of every viewer frame. They now `waitFor`
+  `[data-splat-status="ready"]` as before and then hide the pill with an injected stylesheet, as
+  the last `before` step so it survives the Toggle Controls re-render. Mask only what you cannot
+  make deterministic.
 - **The two `<select>`s.** The kit's `fill` verb cannot drive them — Playwright rejects `fill` on
   a `<select>`. Use an `eval` that sets `.value` and dispatches a bubbling `change` (React's
   `ChangeEventPlugin` listens to the native `change` for selects), then guard it with

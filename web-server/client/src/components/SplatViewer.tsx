@@ -331,8 +331,10 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
         actually finished uploading. `canvas` appears the moment this component
         mounts — long before `loadData` resolves — so anything that waits on the
         canvas alone can photograph an empty #0c1018 frame and call it a success.
-        The product-video capture waits on [data-splat-status="ready"] and masks
-        [data-splat-status] (video/storyboard.json).
+        The product-video capture waits on [data-splat-status="ready"] and then
+        hides [data-splat-status] with an injected stylesheet (video/storyboard.json).
+        It used to `mask` it instead, which paints an opaque #0A222E rectangle over
+        the pill — visible inside the device frame for the whole viewer sequence.
       */}
       {(loading || error || info) && (
         <div

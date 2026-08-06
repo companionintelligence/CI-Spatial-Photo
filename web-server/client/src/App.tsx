@@ -82,7 +82,7 @@ function App() {
         ) : (
           <div className="flex items-center justify-center w-full h-full text-center opacity-30">
             <div>
-              <p className="mb-3 text-4xl font-bold">CI Photo Time Machine</p>
+              <p className="mb-3 text-4xl font-bold">Photo Time Machine</p>
               <p className="text-xl">Create a 3D memory, or open one to explore.</p>
               {loadError && <p className="mt-3 text-red-400 text-sm">{loadError}</p>}
             </div>

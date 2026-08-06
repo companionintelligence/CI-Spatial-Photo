@@ -63,7 +63,10 @@ const TopBar: React.FC<TopBarProps> = ({
 
   return (
     <div className="flex items-center justify-between p-4 pointer-events-auto bg-gradient-to-b from-black/70 to-transparent">
-      <h1 className="text-2xl font-bold text-white drop-shadow-md">CI Photo Time Machine</h1>
+      {/* Product name, not the repo name — this string is on camera in every
+          product-video frame (video/storyboard.json, CI-Common video-kit
+          MESSAGING.md "Naming"). */}
+      <h1 className="text-2xl font-bold text-white drop-shadow-md">Photo Time Machine</h1>
       <div className="flex gap-3">
          {isXREnabled && (
            <div className="relative w-24 h-16 overflow-hidden border border-green-500 rounded bg-black/50">
