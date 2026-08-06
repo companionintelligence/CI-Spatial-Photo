@@ -94,7 +94,7 @@
           "id": "create-selected",
           "url": "photo-time-machine.local",
           "alt": "The armed Create tab with Engine on Auto (recommended) and Intent on Auto.",
-          "motion": "push-in",
+          "motion": "drift-down",
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
@@ -117,7 +117,7 @@
           "id": "create-engine-picked",
           "url": "photo-time-machine.local",
           "alt": "The same two selects driven off auto: Engine now reads triposplat, Intent now reads Object (full 3D).",
-          "motion": "push-in",
+          "motion": "drift-down",
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
@@ -302,7 +302,7 @@
       "kind": "screen",
       "chapter": "explore",
       "seconds": 6,
-      "caption": "Your finished memories, one click from opening.",
+      "caption": "Every finished memory becomes a tile you can open.",
       "narration": "Finished assets land in the gallery. Click one to open it.",
       "shots": [
         {
@@ -335,9 +335,6 @@
             "waitFor": "button:has-text(\"Create 3D\")",
             "waitUntil": "networkidle",
             "settle": 2500,
-            "mask": [
-              "[data-splat-status]"
-            ],
             "before": [
               {
                 "click": "button:has-text(\"Explore\")"
@@ -359,6 +356,9 @@
               },
               {
                 "eval": "(() => { window.requestAnimationFrame = () => 0; window.webkitRequestAnimationFrame = () => 0; })()"
+              },
+              {
+                "eval": "() => { const s = document.createElement('style'); s.textContent = '[data-splat-status]{display:none !important}'; document.head.appendChild(s); }"
               }
             ]
           }
@@ -383,9 +383,6 @@
             "waitFor": "button:has-text(\"Create 3D\")",
             "waitUntil": "networkidle",
             "settle": 2500,
-            "mask": [
-              "[data-splat-status]"
-            ],
             "before": [
               {
                 "click": "button:has-text(\"Explore\")"
@@ -407,6 +404,9 @@
               },
               {
                 "eval": "(() => { window.requestAnimationFrame = () => 0; window.webkitRequestAnimationFrame = () => 0; })()"
+              },
+              {
+                "eval": "() => { const s = document.createElement('style'); s.textContent = '[data-splat-status]{display:none !important}'; document.head.appendChild(s); }"
               }
             ]
           }
@@ -421,9 +421,6 @@
             "waitFor": "button:has-text(\"Create 3D\")",
             "waitUntil": "networkidle",
             "settle": 2500,
-            "mask": [
-              "[data-splat-status]"
-            ],
             "before": [
               {
                 "click": "button:has-text(\"Explore\")"
@@ -451,6 +448,9 @@
               },
               {
                 "wait": 5000
+              },
+              {
+                "eval": "() => { const s = document.createElement('style'); s.textContent = '[data-splat-status]{display:none !important}'; document.head.appendChild(s); }"
               }
             ]
           }
@@ -461,54 +461,10 @@
       "id": "share-link",
       "kind": "screen",
       "chapter": "share",
-      "seconds": 6,
-      "caption": "Orbit it in the browser, then send the link.",
+      "seconds": 5,
+      "caption": "Every memory gets a link, ready to copy.",
       "narration": "The address bar is the share link. It points at your box.",
       "shots": [
-        {
-          "id": "viewer-orbit",
-          "url": "photo-time-machine.local/view/a7989c36",
-          "alt": "The full-bleed splat, mid-orbit, with nothing but the app title over it.",
-          "motion": "push-in",
-          "capture": {
-            "path": "/",
-            "waitFor": "button:has-text(\"Create 3D\")",
-            "waitUntil": "networkidle",
-            "settle": 2500,
-            "mask": [
-              "[data-splat-status]"
-            ],
-            "before": [
-              {
-                "click": "button:has-text(\"Explore\")"
-              },
-              {
-                "click": "button:has(img[alt=\"preview\"])"
-              },
-              {
-                "waitFor": "button:has-text(\"Copy link\")"
-              },
-              {
-                "waitFor": "canvas"
-              },
-              {
-                "waitFor": "[data-splat-status=\"ready\"]"
-              },
-              {
-                "wait": 5000
-              },
-              {
-                "eval": "(() => { window.requestAnimationFrame = () => 0; window.webkitRequestAnimationFrame = () => 0; })()"
-              },
-              {
-                "click": "button[title=\"Toggle Controls\"]"
-              },
-              {
-                "wait": 5000
-              }
-            ]
-          }
-        },
         {
           "id": "viewer-shared",
           "url": "photo-time-machine.local/view/a7989c36",
@@ -519,9 +475,6 @@
             "waitFor": "button:has-text(\"Create 3D\")",
             "waitUntil": "networkidle",
             "settle": 2500,
-            "mask": [
-              "[data-splat-status]"
-            ],
             "before": [
               {
                 "click": "button:has-text(\"Explore\")"
@@ -543,6 +496,9 @@
               },
               {
                 "eval": "(() => { window.requestAnimationFrame = () => 0; window.webkitRequestAnimationFrame = () => 0; })()"
+              },
+              {
+                "eval": "() => { const s = document.createElement('style'); s.textContent = '[data-splat-status]{display:none !important}'; document.head.appendChild(s); }"
               }
             ]
           }
@@ -570,8 +526,8 @@
           "value": "Companion Memory"
         },
         {
-          "label": "Runtime",
-          "value": "docker compose"
+          "label": "Viewer",
+          "value": "browser and XR"
         }
       ]
     },

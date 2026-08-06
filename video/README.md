@@ -76,11 +76,22 @@ filled, auto → chosen, panel → hidden) without cutting away.
 | `gallery-assets`, `viewer-shared`, `viewer-orbit` | captured — need the **seeded asset** above |
 | `create-engine-picked`, `memory-job` | spec written, **not yet captured** — render as "capture pending" slates until someone runs `npm run capture` against the stage |
 
-`create-selected`, `viewer-shared` and `viewer-orbit` are each referenced by more than one scene.
-That is deliberate: a shot shared between consecutive scenes is a hinge frame, so one beat ends on
+**All seven committed shots are stale** and need one re-shoot against the current stage. They were
+taken before three fixes landed: the top bar read `CI Photo Time Machine` (the repo name, on camera
+in every screen frame — `MESSAGING.md` "Naming"); `[data-splat-status]` was masked rather than
+hidden, so the viewer frames carry an opaque rectangle; and the gallery was seeded with one asset
+under a plural caption. Re-shooting also clears the two slates above, so do it in one pass.
+
+`create-selected` and `viewer-shared` are each referenced by more than one scene. That is
+deliberate: a shot shared between consecutive scenes is a hinge frame, so one beat ends on
 the state the next begins with. `capture` dedupes by shot id and **the first occurrence in scene
 order wins**, so if you edit one copy of a shared shot's `capture` block, edit every copy — a
 divergent later copy is silently dead config.
+
+A shared shot must still move the story *forward*. `share-link` used to run
+`viewer-orbit` → `viewer-shared`, which is `orbit-memory` played backwards: the same two frames
+alternating for 18s across three consecutive scenes. It is now a single `viewer-shared` beat —
+the only frame that actually carries the share URL.
 
 The asset shots need the seeded asset above, and the viewer shots additionally render a
 Three.js + Spark **WebGL2 canvas** that is outside the kit's byte-stability guarantee. Every
@@ -126,6 +137,13 @@ Two things bite when writing a `capture.before` here:
   selector present on the first rendered state after `goto` — which for this app is always the
   Create tab, because `App.tsx` defaults `tab` to `create`. Navigation belongs in `before`, each
   step guarded by its own `waitFor`.
+- **Never `mask` something you can hide.** `capture.mask` does not blur or crop — Playwright
+  paints an opaque `#0A222E` block over the region (`video-kit/src/capture.mjs`), which inside a
+  device frame reads as a UI bug. The viewer shots used to mask `[data-splat-status]` and shipped
+  a teal-grey rectangle in the bottom-left of every viewer frame. They now `waitFor`
+  `[data-splat-status="ready"]` as before and then hide the pill with an injected stylesheet, as
+  the last `before` step so it survives the Toggle Controls re-render. Mask only what you cannot
+  make deterministic.
 - **The two `<select>`s.** The kit's `fill` verb cannot drive them — Playwright rejects `fill` on
   a `<select>`. Use an `eval` that sets `.value` and dispatches a bubbling `change` (React's
   `ChangeEventPlugin` listens to the native `change` for selects), then guard it with
