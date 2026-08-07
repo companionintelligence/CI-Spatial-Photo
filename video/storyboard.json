@@ -147,7 +147,8 @@
             ]
           }
         }
-      ]
+      ],
+      "transition": "cut"
     },
     {
       "id": "job-running",
@@ -209,7 +210,8 @@
             ]
           }
         }
-      ]
+      ],
+      "transition": "cut"
     },
     {
       "id": "from-memory",
@@ -240,6 +242,14 @@
                 "waitFor": "img[alt=\"Porch at sunset, 1998\"]"
               }
             ]
+          },
+          "focus": {
+            "landscape": {
+              "x": 0.005,
+              "y": 0.09,
+              "w": 0.37,
+              "h": 0.66
+            }
           }
         },
         {
@@ -271,7 +281,8 @@
             ]
           }
         }
-      ]
+      ],
+      "transition": "cut"
     },
     {
       "id": "engines",
@@ -456,9 +467,18 @@
                 "eval": "() => { const s = document.createElement('style'); s.textContent = '[data-splat-status]{display:none !important}'; document.head.appendChild(s); }"
               }
             ]
+          },
+          "focus": {
+            "landscape": {
+              "x": 0.2,
+              "y": 0.07,
+              "w": 0.76,
+              "h": 0.88
+            }
           }
         }
-      ]
+      ],
+      "transition": "cut"
     },
     {
       "id": "share-link",
@@ -506,7 +526,8 @@
             ]
           }
         }
-      ]
+      ],
+      "transition": "cut"
     },
     {
       "id": "companion-native",
@@ -542,7 +563,8 @@
       "cta": "UnCloud your life.",
       "url": "ci.computer",
       "narration": "Photo Time Machine, from Companion Intelligence. UnCloud your life.",
-      "mark": "brand:logo.full"
+      "mark": "brand:logo.full",
+      "transition": "cut"
     }
   ]
 }
