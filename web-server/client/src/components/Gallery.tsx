@@ -28,17 +28,30 @@ interface GalleryProps {
 const Gallery: React.FC<GalleryProps> = ({ onSelect, refreshKey }) => {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     api
       .listAssets()
       .then((r) => setAssets(r.assets))
-      .catch((e) => setError(e.message));
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }, [refreshKey]);
 
-  if (error) return <p className="p-4 text-red-400 text-sm">Could not load assets: {error}</p>;
+  if (error)
+    return (
+      <p className="p-4 text-red-300 text-sm" role="alert">
+        Could not load your memories. {error}
+      </p>
+    );
+  if (loading) return <p className="p-4 text-gray-400 text-sm">Loading your memories…</p>;
   if (!assets.length)
-    return <p className="p-4 text-gray-400 text-sm">No 3D memories yet — create one above.</p>;
+    return (
+      <p className="p-4 text-gray-400 text-sm">
+        No 3D memories yet — make one in the Create tab.
+      </p>
+    );
 
   return (
     <div className="grid grid-cols-2 gap-2 p-4">

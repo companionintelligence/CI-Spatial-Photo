@@ -99,7 +99,13 @@ function App() {
             moment it is actually needed.
           */
           <div
-            className={`w-full h-full items-center justify-center text-center opacity-30 px-6 md:pl-[30rem] ${
+            /*
+              opacity-30 put white at #4d4d4d over the #000 viewport: 2.48:1,
+              which fails WCAG AA at every size (3:1 large, 4.5:1 normal). The
+              sub-line is 20px, so it needs 4.5:1. opacity-60 lands both lines
+              at 7.4:1 and still reads as a watermark rather than content.
+            */
+            className={`w-full h-full items-center justify-center text-center opacity-60 px-6 md:pl-[30rem] ${
               showControls ? 'hidden md:flex' : 'flex'
             }`}
           >
@@ -137,10 +143,26 @@ function App() {
           <div className="pointer-events-auto max-w-md m-4 rounded-xl bg-gray-900/90 backdrop-blur border border-gray-700 shadow-2xl overflow-hidden">
             <div className="flex border-b border-gray-700 text-sm">
               {(['create', 'explore', 'memory'] as Tab[]).map((t) => (
+                /*
+                  The selected tab used to be signalled by `bg-gray-800` alone:
+                  #1f2937 against the #0f1623 panel is 1.23:1, far under the
+                  3:1 a UI state change needs, and both states painted the same
+                  white label. The hover fill (gray-800/50) also landed BETWEEN
+                  the two, so hovering an inactive tab looked half-selected.
+                  Now the state is carried by three redundant cues — an accent
+                  underline (5.3:1 against the tab fill), label weight, and
+                  label colour (inactive #9ca3af is still 7.1:1).
+                */
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className={`flex-1 py-2 capitalize ${tab === t ? 'bg-gray-800 font-medium' : 'hover:bg-gray-800/50'}`}
+                  role="tab"
+                  aria-selected={tab === t}
+                  className={`flex-1 py-2 capitalize border-b-2 ${
+                    tab === t
+                      ? 'bg-gray-800 font-medium text-white border-blue-400'
+                      : 'text-gray-400 border-transparent hover:bg-gray-800/50 hover:text-gray-200'
+                  }`}
                 >
                   {t === 'memory' ? 'From Memory' : t}
                 </button>
