@@ -125,10 +125,10 @@ filled, auto → chosen, panel → hidden) without cutting away.
 | `gallery-assets`, `viewer-shared`, `viewer-orbit` | captured — need the **seeded asset** above |
 
 **All nine are captured at both viewports — `ci-video status` reports "missing none".** The whole
-set was re-shot in one pass on 2026-08-06 with `video/make.sh`, so there are no "capture pending"
+set was re-shot in one pass on 2026-08-07 with `video/make.sh`, so there are no "capture pending"
 slates left and no mixed-vintage frames.
 
-Neither re-shoot was optional, and both were whole-set:
+No re-shoot was optional, and all three were whole-set:
 
 - **2026-08-05.** Seven committed shots predated three fixes: the top bar read `CI Photo Time
   Machine` (the repo name, on camera in every frame — `MESSAGING.md` "Naming");
@@ -142,6 +142,15 @@ Neither re-shoot was optional, and both were whole-set:
   [#23](https://github.com/companionintelligence/CI-Photo-Time-Machine/pull/23) (the viewer's
   default camera moved, which took `viewer-orbit` and `viewer-shared` with it — the two shots #22
   had exempted).
+- **2026-08-07.** All eighteen were invalidated by
+  [#32](https://github.com/companionintelligence/CI-Photo-Time-Machine/pull/32), which un-inverted
+  the splat and changed five UI files besides. The headline was `viewer-orbit`: the porch deck ran
+  along the TOP edge and the sun hung below the railing, so `explore-gallery` cross-dissolved from
+  the **upright** gallery thumbnail straight into the **inverted** viewer — the same memory, both
+  ways up, inside one scene. The other seventeen moved too, for the rest of #32: the empty-state
+  watermark went `opacity-30 → 60`, the selected tab gained an accent underline, disabled
+  `Create 3D` got explicit colours, Gallery gained a loading state, the `Loaded N splats` debug
+  readout stopped painting, and the mobile header gained `truncate`.
 
 Capturing only the shots you think moved ships a cut whose product name, or panel layout, or
 camera changes between beats. **Whenever the committed set is marked stale, re-shoot all of it** —
@@ -158,9 +167,26 @@ A shared shot must still move the story *forward*. `share-link` used to run
 alternating for 18s across three consecutive scenes. It is now a single `viewer-shared` beat —
 the only frame that actually carries the share URL.
 
+**The engine the picker shows must be the engine the rest of the film runs.**
+`create-engine-picked` drives the two selects off auto, and it used to pick `triposplat` and
+`Object (full 3D)` — while the very next scene prints `Status: running — reconstructing with
+preview`, the gallery tile reads `Splat · Preview`, and the orbited splat is a `preview` render.
+The film chose one engine on camera and ran another. It now picks `preview` and `Scene (portal)`,
+which is what this stage can honestly produce: `preview` is the only engine needing neither CUDA
+nor downloaded weights, and its own capability blurb calls it a *flat textured Gaussian plane* —
+a portal, not a full 3D object. The beat still shows a real two-field state change, so the
+cross-dissolve keeps its causality. If you ever stage a GPU box, change the pick and the seeded
+asset's `engine=` together, in one commit.
+
 The asset shots need the seeded asset above, and the viewer shots additionally render a
 Three.js + Spark **WebGL2 canvas** that is outside the kit's byte-stability guarantee. Every
 determinism hazard is catalogued at the top of [`capture.config.mjs`](capture.config.mjs).
+
+In practice that canvas **is** reproducible on one machine: two full passes on 2026-08-07, booted
+independently and landing on different API ports, produced all eighteen shots byte-for-byte
+identical except the one shot whose storyboard entry had deliberately changed. Re-shooting twice
+and diffing the hashes is the cheapest available proof that a change is scoped to what it claims —
+`check` cannot tell you that, because it counts files and looks for slates.
 
 Note that **every screen except `/view/:assetId` is interaction state on `/`** — routing is a
 hand-rolled regex (`parseViewId()` in `web-server/client/src/App.tsx`), not a router. Drive new

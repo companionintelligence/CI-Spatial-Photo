@@ -118,7 +118,7 @@
         {
           "id": "create-engine-picked",
           "url": "photo-time-machine.local",
-          "alt": "The same two selects driven off auto: Engine now reads triposplat, Intent now reads Object (full 3D).",
+          "alt": "The same two selects driven off auto: Engine now reads preview, Intent now reads Scene (portal).",
           "motion": "drift-down",
           "capture": {
             "path": "/",
@@ -136,13 +136,13 @@
                 "waitFor": "text=file(s) selected"
               },
               {
-                "eval": "() => { const pick = (probe, value) => { const sel = Array.from(document.querySelectorAll('select')).find((s) => Array.from(s.options).some((o) => o.value === probe)); if (!sel) throw new Error('no select carries option ' + probe); sel.value = value; sel.dispatchEvent(new Event('change', { bubbles: true })); }; pick('preview', 'triposplat'); pick('object', 'object'); }"
+                "eval": "() => { const pick = (probe, value) => { const sel = Array.from(document.querySelectorAll('select')).find((s) => Array.from(s.options).some((o) => o.value === probe)); if (!sel) throw new Error('no select carries option ' + probe); sel.value = value; sel.dispatchEvent(new Event('change', { bubbles: true })); }; pick('preview', 'preview'); pick('object', 'scene'); }"
               },
               {
-                "waitFor": "select:has(option[value=\"triposplat\"]:checked)"
+                "waitFor": "select:has(option[value=\"preview\"]:checked)"
               },
               {
-                "waitFor": "select:has(option[value=\"object\"]:checked)"
+                "waitFor": "select:has(option[value=\"scene\"]:checked)"
               }
             ]
           }
