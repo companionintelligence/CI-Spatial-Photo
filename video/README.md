@@ -34,6 +34,37 @@ need `pip install -e ./server` and a CRA build first.
 
 ## The stage
 
+**`video/make.sh` boots all of it and re-shoots every screenshot.** Use it; the manual steps
+below are what it does, kept here because you need them when something in the middle breaks.
+
+```bash
+video/make.sh --no-render                       # stage, capture, build, check — no MP4
+video/make.sh --only viewer-orbit               # re-shoot one shot
+video/make.sh --keep-up                         # leave the stage running afterwards
+video/make.sh                                   # …and render, which you do not do on a laptop
+```
+
+`make.sh` is **generic and byte-identical in every product repo** — it ships as
+`template/make.sh` in video-kit. Do not edit it here; fix it in the kit and roll it out, or the
+copies drift, which is how several repos ended up with a Playwright guard that checked the wrong
+thing. To see what this repo has diverged by:
+
+```bash
+diff video/make.sh <CI-Common>/packages/video-kit/template/make.sh
+```
+
+Everything Photo-Time-Machine-specific lives in [`video/stage.sh`](stage.sh), which defines
+`stage_up` and `stage_down`. It installs `server/` into a venv outside the repo, points
+`ASSET_DIR` outside the repo so a capture leaves no splats in the working tree, rebuilds the CRA
+bundle against whichever API port `pick_port` landed on, asserts the SPA fallback is really
+there, and seeds one asset through the real `POST /api/v1/jobs` before capture starts. Ports
+relocate around anything already bound; override the preferred ones with `PTM_API_PORT` /
+`PTM_VIEWER_PORT`, and the scratch directory with `PTM_WORK_DIR`.
+
+`make.sh` finds the kit at `$CI_WORKSPACE/CI-Common/packages/video-kit`, or by walking up from
+the repo — **look at what that checkout is on** before trusting a render. A CI-Common clone
+parked on an old branch renders last week's brand without a word of warning.
+
 The capture stage is **two processes**, exactly as in [`docker-compose.yml`](../docker-compose.yml).
 From the repo root:
 
@@ -94,17 +125,27 @@ filled, auto → chosen, panel → hidden) without cutting away.
 | `gallery-assets`, `viewer-shared`, `viewer-orbit` | captured — need the **seeded asset** above |
 
 **All nine are captured at both viewports — `ci-video status` reports "missing none".** The whole
-set was re-shot in one pass on 2026-08-05 against the stage below, so there are no "capture
-pending" slates left and no mixed-vintage frames.
+set was re-shot in one pass on 2026-08-06 with `video/make.sh`, so there are no "capture pending"
+slates left and no mixed-vintage frames.
 
-That re-shoot was not optional. The seven previously committed shots predated three fixes on this
-branch and could not be mixed with new ones: the top bar read `CI Photo Time Machine` (the repo
-name, on camera in every screen frame — `MESSAGING.md` "Naming"); `[data-splat-status]` was masked
-rather than hidden, so the viewer frames carried an opaque rectangle; and `renderer.setSize(…,
-false)` cropped the splat canvas to its top-left ninth at dpr 3. Capturing only the two missing
-shots would have shipped a cut whose product name changes between beats — which is why "just the
-missing ones" is the wrong instinct whenever the committed set is marked stale. **Check the top-bar
-string before assuming a partial capture is safe.**
+Neither re-shoot was optional, and both were whole-set:
+
+- **2026-08-05.** Seven committed shots predated three fixes: the top bar read `CI Photo Time
+  Machine` (the repo name, on camera in every frame — `MESSAGING.md` "Naming");
+  `[data-splat-status]` was masked rather than hidden, so viewer frames carried an opaque
+  rectangle; and `renderer.setSize(…, false)` cropped the splat canvas to its top-left ninth at
+  dpr 3.
+- **2026-08-06.** All eighteen were invalidated by [#22](https://github.com/companionintelligence/CI-Photo-Time-Machine/pull/22)
+  (the empty-state hero stopped being sliced by the panel, the mobile Engine select stopped
+  clipping its own value, `Status: running — running preview` lost its stutter, gallery cards
+  started leading with the source, the memory grid regained its captions) and
+  [#23](https://github.com/companionintelligence/CI-Photo-Time-Machine/pull/23) (the viewer's
+  default camera moved, which took `viewer-orbit` and `viewer-shared` with it — the two shots #22
+  had exempted).
+
+Capturing only the shots you think moved ships a cut whose product name, or panel layout, or
+camera changes between beats. **Whenever the committed set is marked stale, re-shoot all of it** —
+one `video/make.sh` run costs less than one mixed-vintage frame in review.
 
 `create-selected` and `viewer-shared` are each referenced by more than one scene. That is
 deliberate: a shot shared between consecutive scenes is a hinge frame, so one beat ends on
@@ -222,3 +263,19 @@ indistinguishable from a real UI change in review.
 
 So the range is gone. Re-pin deliberately when you want the newer browser, and re-capture the whole
 shot set in the same commit.
+
+**A pin only binds if the copy that answers is the pinned one.** Node's resolution walks *up*, so
+a `playwright` anywhere above `video/` satisfies `require.resolve` and the pin is never consulted —
+no install happens, and the capture quietly runs on whatever the parent directory had. Checking
+that Playwright *resolves* proves nothing; only the resolved version does. `video/make.sh` asks for
+the version from inside `video/` and refuses to capture on a mismatch, and video-kit ≥ 0.5 makes
+the same check in `capture` and `doctor`. To see it yourself:
+
+```bash
+cd video && node -p "require('playwright/package.json').version"   # must equal the pin
+```
+
+`npm install playwright` inside `video/` does not work: `video/package.json` lists the private
+`@companionintelligence/video-kit`, and npm demands a token for the whole tree before it installs
+anything. `make.sh` installs through a throwaway manifest that names nothing private, and links
+the result in.

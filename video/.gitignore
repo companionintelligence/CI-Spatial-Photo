@@ -4,7 +4,18 @@ out/
 # generated compositions — regenerate with `ci-video build`
 build/
 
+# runtime assets `ci-video build` copies in from the installed kit on every run
+# (src/brand.mjs RUNTIME_ASSETS). Derived from the kit version, not authored
+# here — and they appear as untracked noise the first time anyone builds, which
+# is exactly when a hurried `git add -A` sweeps them into a screenshot commit.
+assets/fonts/manrope-latin-var.woff2
+assets/fonts/LICENSE-Manrope.txt
+assets/vendor/
+
 # playwright auth state
 .auth/
 
-node_modules/
+# no trailing slash, so a symlinked node_modules is ignored too: video/make.sh
+# installs the pinned Playwright HERE on purpose (so video/ wins resolution over
+# the repo root), and reaching for it by hand often means linking one in.
+node_modules
