@@ -273,6 +273,12 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
              );
 
              // view = cvToThree * extrinsicCv * cvToThree
+             //
+             // This is the same flip the mesh got above, and it has to be: the
+             // extrinsic is in OpenCV axes, so it is conjugated into Three's.
+             // It is scoped to this branch because that is exactly where the
+             // mesh flip applies too — `cameraMetadata` is the discriminator.
+             const cvToThree = makeAxisFlipCvToGl();
              const view = new THREE.Matrix4()
                 .multiplyMatrices(cvToThree, extrinsicCvMat)
                 .multiply(cvToThree);
