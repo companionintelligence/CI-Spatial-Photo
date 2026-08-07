@@ -66,8 +66,8 @@ const TopBar: React.FC<TopBarProps> = ({
       {/* Product name, not the repo name — this string is on camera in every
           product-video frame (video/storyboard.json, CI-Common video-kit
           MESSAGING.md "Naming"). */}
-      <h1 className="text-2xl font-bold text-white drop-shadow-md">Photo Time Machine</h1>
-      <div className="flex gap-3">
+      <h1 className="min-w-0 truncate text-2xl font-bold text-white drop-shadow-md">Photo Time Machine</h1>
+      <div className="flex shrink-0 gap-3 pl-3">
          {isXREnabled && (
            <div className="relative w-24 h-16 overflow-hidden border border-green-500 rounded bg-black/50">
              <canvas ref={previewCanvasRef} width={160} height={120} className="w-full h-full object-cover" />
