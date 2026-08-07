@@ -233,9 +233,20 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
         // @ts-ignore
         const mesh = await formatHandler.loadData({ file: fileObj, bytes });
 
-        // Apply OpenCV to OpenGL flip (ml-sharp uses OpenCV coordinates)
-        const cvToThree = makeAxisFlipCvToGl();
-        mesh.applyMatrix4(cvToThree);
+        // Apply the OpenCV -> OpenGL flip ONLY to assets that are actually in
+        // OpenCV coordinates. Carrying camera intrinsics is what identifies
+        // them: `loadMetadata` returns null unless the PLY has an `intrinsic`
+        // element, and that element is written by the ml-sharp pipeline.
+        //
+        // The `preview` engine does NOT write one, and it already emits y-up
+        // (OpenGL) geometry — server/app/plywriter.py maps image row 0 to
+        // y = +1. Flipping it again inverted every preview asset: the porch
+        // deck rendered along the TOP edge and the sun hung below the railing.
+        // That is the default engine, so this was the common case, and it is
+        // visible in the committed product-video shots (viewer-orbit.png).
+        if (cameraMetadata) {
+            mesh.applyMatrix4(makeAxisFlipCvToGl());
+        }
         mesh.updateMatrixWorld(true);
 
         if (currentMeshRef.current) {
@@ -389,10 +400,25 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
       {(loading || error || info) && (
         <div
           data-splat-status={loading ? 'loading' : error ? 'error' : 'ready'}
-          className="absolute bottom-4 left-4 bg-black/70 text-white p-2 rounded text-sm pointer-events-none"
+          className={
+            loading || error
+              ? 'absolute bottom-4 left-4 bg-black/70 text-white p-2 rounded text-sm pointer-events-none'
+              : 'sr-only'
+          }
+          role={error ? 'alert' : undefined}
         >
-          {loading && <div>Loading...</div>}
-          {error && <div className="text-red-400">Error: {error}</div>}
+          {loading && <div>Loading your memory…</div>}
+          {error && <div className="text-red-300">Error: {error}</div>}
+          {/*
+            `info` is a developer readout ("Loaded 22400 splats"). It is never
+            cleared, so it used to sit pinned over the viewer for the whole
+            session in the shipped app. The product-video capture papered over
+            it with an injected `[data-splat-status]{display:none}` stylesheet,
+            which is masking a product defect in video/ rather than fixing it.
+            The element stays mounted and keeps carrying `data-splat-status`,
+            because that attribute is the capture's only reliable "the splat
+            actually finished loading" signal — it is just no longer painted.
+          */}
           {!loading && !error && info && <div>{info}</div>}
         </div>
       )}

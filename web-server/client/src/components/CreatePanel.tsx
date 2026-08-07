@@ -102,7 +102,7 @@ const CreatePanel: React.FC<CreatePanelProps> = ({ onCreated }) => {
       <button
         onClick={submit}
         disabled={busy || !files.length}
-        className="w-full py-2 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-40"
+        className="w-full py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-900 disabled:text-blue-200 disabled:cursor-not-allowed"
       >
         {busy ? "Processing…" : "Create 3D"}
       </button>
