@@ -28,7 +28,8 @@
       "seconds": 5,
       "title": "Photo Time Machine",
       "caption": "A photo goes in. A 3D memory comes out.",
-      "narration": "Photo Time Machine turns one photo into a 3D memory."
+      "narration": "Photo Time Machine turns one photo into a 3D memory.",
+      "mark": "./assets/app-icon.png"
     },
     {
       "id": "drop-media",
@@ -296,7 +297,8 @@
           "label": "Photogrammetry",
           "value": "video to splat"
         }
-      ]
+      ],
+      "reveal": "paced"
     },
     {
       "id": "explore-gallery",
@@ -530,7 +532,8 @@
           "label": "Viewer",
           "value": "browser and XR"
         }
-      ]
+      ],
+      "reveal": "paced"
     },
     {
       "id": "close",
@@ -538,7 +541,8 @@
       "seconds": 5,
       "cta": "UnCloud your life.",
       "url": "ci.computer",
-      "narration": "Photo Time Machine. Companion Intelligence. UnCloud your life."
+      "narration": "Photo Time Machine. Companion Intelligence. UnCloud your life.",
+      "mark": "brand:logo.full"
     }
   ]
 }
