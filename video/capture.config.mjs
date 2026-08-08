@@ -105,6 +105,38 @@ export default {
   // The CRA viewer. `npm run capture` never boots it — see video/README.md.
   baseURL: process.env.PTM_VIEWER_URL ?? process.env.APP_URL ?? "http://localhost:3000",
 
+  /**
+   * Hardware GL, because this app draws a real 3D scene (video-kit >= 0.14.0).
+   *
+   * video-kit's default launch resolves WebGL to SwiftShader, Chromium's
+   * software rasteriser:
+   *
+   *   default              ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device ...))
+   *   channel: "chromium"  ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Max)
+   *
+   * Software-rasterising the splat at 3840x2160 blocks the renderer's main
+   * thread for over thirty seconds, and a blocked page cannot service a
+   * `before` step. Measured 2026-08-08 on the same stage, same steps, twice:
+   *
+   *   default              viewer-orbit (both cuts) failed on `page.click` for
+   *                        button[title="Toggle Controls"] — an element the DOM
+   *                        carried the entire time, count 1 at every probe —
+   *                        and viewer-shared.mobile failed on a waitForSelector
+   *                        whose own call log reads "resolved to visible".
+   *                        Even `locator('body')` timed out at 30s.
+   *   channel: "chromium"  every step passed, click included.
+   *
+   * That failure mode is the loud one, and it still left three stale PNGs on
+   * disk (see the receipt in assets/shots/). The quiet one is a splat shot
+   * mid-composite, which reads in review as an art problem.
+   *
+   * Turning this on re-rasterises text as well, so every shot in this project
+   * moved in the same commit that added it. Do not copy this line into a
+   * project that has no WebGL — it would rewrite that project's PNGs for
+   * nothing.
+   */
+  launch: { channel: "chromium" },
+
   // The app hard-codes dark chrome (App.tsx defaults isDarkMode = true, the
   // viewer background is bg-black), so the context matches it. Pinned
   // locale/timezone/clock keep `toLocaleString()` output stable.

@@ -3,33 +3,28 @@
   "voice": "en-GB-SoniaNeural",
   "scenes": {
     "open": {
-      "text": "A photograph has no depth. Your own server works it out.",
-      "seconds": 4.44
+      "text": "Photo Time Machine does that work on hardware you already own.",
+      "seconds": 4.032
     },
     "drop-media": {
-      "text": "Open the viewer. Drop in a photo, a burst, or a video.",
-      "seconds": 4.68,
-      "adopted": true
+      "text": "Open the viewer and drop one in. It goes to your own server, not a queue.",
+      "seconds": 5.256
     },
     "choose-engine": {
-      "text": "Pick an engine and an intent, or leave both on auto.",
-      "seconds": 3.792,
-      "adopted": true
+      "text": "Name the engine yourself, or leave it on auto and let the server infer it.",
+      "seconds": 4.8
     },
     "job-running": {
-      "text": "The server reads the input, picks an engine, and runs the job.",
-      "seconds": 4.368,
-      "adopted": true
+      "text": "It reads the input, picks an engine, and runs the job where the file already is.",
+      "seconds": 5.328
     },
     "from-memory": {
-      "text": "Your Companion already holds your photos. Turn one into 3D without uploading anything.",
-      "seconds": 6.528,
-      "adopted": true
+      "text": "Your Companion already holds your library. Turn one into 3D without uploading anything.",
+      "seconds": 6.48
     },
     "engines": {
-      "text": "Six engines behind one interface, now including monocular depth. Preview needs no GPU at all.",
-      "seconds": 7.44,
-      "adopted": true
+      "text": "Preview lays the picture on a plane. Depth adds real parallax. Many views rebuild the scene.",
+      "seconds": 7.248
     },
     "explore-gallery": {
       "text": "Finished assets land in the gallery. Click one to open it.",
@@ -60,6 +55,26 @@
       "text": "Photo Time Machine, from Companion Intelligence. UnCloud your life.",
       "seconds": 5.688,
       "adopted": true
+    },
+    "flat": {
+      "text": "A photograph has no depth. Your own server works it out.",
+      "seconds": 4.44
+    },
+    "most-people-stop": {
+      "text": "Depth normally means a GPU you do not own, or a service that keeps your file.",
+      "seconds": 5.064
+    },
+    "plate-to-space": {
+      "text": "This one is the Preview engine: the picture itself, lifted onto a plane and turned.",
+      "seconds": 5.64
+    },
+    "whose-hardware": {
+      "text": "Move around it. The panel names the engine, and the link points at your own box.",
+      "seconds": 5.64
+    },
+    "stays-yours": {
+      "text": "The file, the engine and the link all stay on hardware you own. Nothing to cancel.",
+      "seconds": 5.976
     }
   }
 }

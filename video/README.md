@@ -284,6 +284,38 @@ That matters now that `MemoryPicker` renders those titles: before this, all six 
 of one mountain ridge, so "Skyline from the roof" and "Beach, Outer Banks" were the same picture.
 Change a title and change its scene in the same commit.
 
+### The film says "photograph" exactly once, and never about this file
+
+`assets/media/porch-1998.png` is the image that goes in — and it is a drawn illustration, under a
+product whose own hero reads "Turn a photo into a 3D memory". That is uncomfortable, and it was
+decided rather than ignored.
+
+**It stays synthetic.** A user's own photographs are the one input Companion Intelligence cannot
+supply, which is exactly why the stub exists; swapping in a real photograph would put a third
+party's image, or somebody's actual porch, into a committed and redistributable marketing asset —
+and it would buy nothing. The Preview engine lays whatever it is handed onto a plane, so a more
+photographic input would only make a flat plate *look* more like a reconstruction. That is the
+opposite of what this cut is trying to be honest about.
+
+**So the script carries the seam instead of hiding it.** Exactly one line uses the word
+photograph — the opening, "A photograph has no depth. Your own server works it out." — and it is a
+statement about photographs in general, not a claim about this file. Every line that points at
+what is on screen says *image*, *picture*, *file*, *library* or *tile*. The opening card is titled
+"1998. The porch, the sun going down.", which describes the picture without classifying it, and it
+agrees with what the app itself prints on camera: `porch-1998` in the dropzone, "Porch at sunset,
+1998" in the memory grid.
+
+Keep that rule when editing `storyboard.json`. It is the rule the stand-in library above is already
+under, extended to the input.
+
+## The capture needs hardware GL
+
+`capture.config.mjs` sets `launch: { channel: "chromium" }`, which needs **video-kit >= 0.14.0**.
+On an older kit the key is silently ignored, capture falls back to SwiftShader, and the three
+viewer shots fail while leaving their previous PNGs on disk — 15 of 18, with
+`assets/shots/.capture-receipt.json` the only sign. `make.sh` announces the kit version on every
+run; read it before trusting a re-capture. The reasoning is in the comment on that key.
+
 ## What is committed
 
 `assets/shots/*.png` and `assets/audio/*.mp3` **are** committed. They are **inputs**, not output:
