@@ -1,12 +1,29 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import SplatViewer from './components/SplatViewer';
-import MeshViewer from './components/MeshViewer';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import TopBar from './components/TopBar';
 import CreatePanel from './components/CreatePanel';
 import Gallery from './components/Gallery';
 import MemoryPicker from './components/MemoryPicker';
 import { useHeadTracking } from './hooks/useHeadTracking';
 import { Asset, api, fetchAssetAsFile, viewerSplatFormat, API_BASE } from './api';
+
+/*
+  The two viewers are code-split, and this is the single highest-leverage thing
+  in the bundle.
+
+  Between them they pull in three.js, @sparkjsdev/spark and (via MeshViewer)
+  @google/model-viewer. None of that is needed to render the screen almost
+  everyone sees first — the Create empty state, which is HTML and Tailwind and
+  nothing else. Statically imported, they sat in `main.js` and every first load
+  paid for a WebGL splat renderer before the user had chosen a photo.
+
+  Splitting on the viewers rather than on the libraries directly is deliberate:
+  `utils/magicWindow.ts` and `utils/cameraUtils.ts` also import three, but they
+  are only reachable FROM the viewers, so webpack puts them in the same async
+  chunk automatically. Importing either of them eagerly from App would silently
+  drag three back into the main bundle — so don't.
+*/
+const SplatViewer = lazy(() => import('./components/SplatViewer'));
+const MeshViewer = lazy(() => import('./components/MeshViewer'));
 
 type Tab = 'create' | 'explore' | 'memory';
 
@@ -167,19 +184,27 @@ function App() {
         against the whole viewport in ignorance of the other.
       */}
       <div className="absolute inset-0 z-0 overflow-hidden bg-black">
-        {asset && asset.kind === 'mesh' ? (
-          <MeshViewer
-            src={`${API_BASE}/api/v1/assets/${asset.asset_id}/file?format=glb`}
-            poster={api.thumbnailUrl(asset.asset_id)}
-            className="w-full h-full"
-          />
-        ) : splatFile ? (
-          <SplatViewer
-            file={splatFile}
-            className="w-full h-full"
-            headPosition={isXREnabled ? headPosition : null}
-          />
-        ) : (
+        {/*
+          `fallback={null}` and not a spinner. This boundary only resolves while
+          an asset's chunk is downloading, and the layer underneath is already
+          the right colour — a spinner here would be a second loading indicator
+          competing with `data-splat-status`, which is the one the product-video
+          capture waits on. Rendering nothing keeps that contract single-valued.
+        */}
+        <Suspense fallback={null}>
+          {asset && asset.kind === 'mesh' ? (
+            <MeshViewer
+              src={`${API_BASE}/api/v1/assets/${asset.asset_id}/file?format=glb`}
+              poster={api.thumbnailUrl(asset.asset_id)}
+              className="w-full h-full"
+            />
+          ) : splatFile ? (
+            <SplatViewer
+              file={splatFile}
+              className="w-full h-full"
+              headPosition={isXREnabled ? headPosition : null}
+            />
+          ) : (
           /*
             Backdrop for the empty state, and ONLY the empty state — a splat or
             mesh still renders against true #000, which is what those viewers
@@ -209,17 +234,18 @@ function App() {
             needs every space underscore-escaped, which turns an already dense
             declaration into something nobody will edit correctly later.
           */
-          <div
-            className="h-full w-full"
-            style={{
-              background: [
-                'radial-gradient(1100px 680px at 24% 34%, rgba(37, 99, 235, 0.12), transparent 68%)',
-                'radial-gradient(900px 620px at 80% 74%, rgba(14, 116, 144, 0.10), transparent 70%)',
-                'linear-gradient(158deg, #0b1018 0%, #080c14 55%, #070a11 100%)',
-              ].join(', '),
-            }}
-          />
-        )}
+            <div
+              className="h-full w-full"
+              style={{
+                background: [
+                  'radial-gradient(1100px 680px at 24% 34%, rgba(37, 99, 235, 0.12), transparent 68%)',
+                  'radial-gradient(900px 620px at 80% 74%, rgba(14, 116, 144, 0.10), transparent 70%)',
+                  'linear-gradient(158deg, #0b1018 0%, #080c14 55%, #070a11 100%)',
+                ].join(', '),
+              }}
+            />
+          )}
+        </Suspense>
       </div>
 
       {/* Overlay UI */}

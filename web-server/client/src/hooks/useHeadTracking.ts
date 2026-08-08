@@ -1,5 +1,20 @@
 import { useEffect, useRef } from 'react';
-import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
+/*
+  TYPE-ONLY. `import type` is erased at compile time, so naming FaceLandmarker
+  in signatures below costs nothing at runtime — the actual module is fetched by
+  the dynamic `import()` in `createLandmarker`, and only when XR is switched on.
+
+  This matters more than it looks. `@mediapipe/tasks-vision` was a value import,
+  which put the whole vision runtime in `main.js` for every visitor — including
+  the overwhelming majority who open the Create tab, make one memory, and never
+  touch the XR button. It is the second-largest thing the app can avoid
+  downloading, after three.js and Spark (which App.tsx now splits out via
+  React.lazy).
+
+  Keep it `import type`. Adding any value import of this module here silently
+  puts it back in the entry chunk, and nothing in CI will tell you.
+*/
+import type { FaceLandmarker } from '@mediapipe/tasks-vision';
 import { OneEuroFilter } from '../utils/oneEuroFilter';
 import { estimateHeadPose } from '../utils/headPose';
 import { resolveHeadTrackingAssets, HeadTrackingAssets } from '../utils/headTrackingConfig';
@@ -328,6 +343,21 @@ const describeFailure = (err: unknown): { status: HeadTrackingStatus; message: s
 const createLandmarker = async (
   assets: HeadTrackingAssets,
 ): Promise<FaceLandmarker> => {
+  /*
+    The one place the vision runtime is actually pulled over the wire. This sits
+    behind the same `await` chain that already asks for the camera, so the extra
+    round trip costs nothing a user can perceive: the permission prompt is the
+    slow step, and it happens first (deliberately — see the camera-first comment
+    in `start`).
+
+    A rejection here is a genuine failure mode, not a theoretical one: the chunk
+    is served from this origin, so an offline PWA-style reload or a stale
+    service worker can 404 it while the rest of the app runs fine. Let it
+    propagate — `start` classifies it into the 'unavailable' status with an
+    actionable message, which is strictly better than the old behaviour of
+    failing at page load for everyone.
+  */
+  const { FaceLandmarker, FilesetResolver } = await import('@mediapipe/tasks-vision');
   const vision = await FilesetResolver.forVisionTasks(assets.wasmBase);
   const build = (delegate: 'GPU' | 'CPU') =>
     FaceLandmarker.createFromOptions(vision, {
