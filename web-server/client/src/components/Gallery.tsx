@@ -65,9 +65,9 @@ const Gallery: React.FC<GalleryProps> = ({ onSelect, refreshKey }) => {
         <button
           key={a.asset_id}
           onClick={() => onSelect(a)}
-          className="group text-left rounded-lg overflow-hidden bg-gray-800 hover:ring-2 ring-blue-500"
+          className="group text-left rounded-lg overflow-hidden bg-gray-800 hover:ring-2 ring-primary-500"
         >
-          <div className="aspect-video bg-black overflow-hidden">
+          <div className="aspect-video bg-ground overflow-hidden">
             {a.thumbnail ? (
               <img
                 src={api.thumbnailUrl(a.asset_id)}

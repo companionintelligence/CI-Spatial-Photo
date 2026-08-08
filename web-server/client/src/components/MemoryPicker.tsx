@@ -39,13 +39,13 @@ const MemoryPicker: React.FC<MemoryPickerProps> = ({ onCreated }) => {
     <div className="p-4 space-y-3 text-sm">
       <div className="flex gap-2">
         <button
-          className={`px-2 py-1 rounded ${type === "image" ? "bg-blue-600" : "bg-gray-800"}`}
+          className={`px-2 py-1 rounded ${type === "image" ? "bg-primary-600" : "bg-gray-800"}`}
           onClick={() => setType("image")}
         >
           Photos
         </button>
         <button
-          className={`px-2 py-1 rounded ${type === "video" ? "bg-blue-600" : "bg-gray-800"}`}
+          className={`px-2 py-1 rounded ${type === "video" ? "bg-primary-600" : "bg-gray-800"}`}
           onClick={() => setType("video")}
         >
           Videos
@@ -66,7 +66,7 @@ const MemoryPicker: React.FC<MemoryPickerProps> = ({ onCreated }) => {
             key={m.ref}
             onClick={() => create(m.ref)}
             title={m.title || m.ref}
-            className="flex flex-col overflow-hidden rounded bg-gray-800 text-left hover:ring-2 ring-blue-500"
+            className="flex flex-col overflow-hidden rounded bg-gray-800 text-left hover:ring-2 ring-primary-500"
           >
             <div className="aspect-square w-full overflow-hidden bg-gray-900">
               {m.thumbnail_url ? (

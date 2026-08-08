@@ -1550,7 +1550,7 @@ const SplatViewer: React.FC<SplatViewerProps> = ({
 
   return (
     <div className={`relative ${className}`}>
-      <div ref={containerRef} className="w-full h-full min-h-[500px] bg-black rounded-lg overflow-hidden" />
+      <div ref={containerRef} className="w-full h-full min-h-[500px] bg-ground rounded-lg overflow-hidden" />
 
       {/*
         The WebXR DOM overlay root.
@@ -1575,7 +1575,7 @@ const SplatViewer: React.FC<SplatViewerProps> = ({
       >
         {arPhase !== 'off' && (
           <div ref={arControlsRef} className="flex items-start justify-between gap-3 p-4 text-white">
-            <p className="max-w-[60%] rounded-lg bg-black/60 px-3 py-2 text-sm leading-snug backdrop-blur">
+            <p className="max-w-[60%] rounded-lg bg-ground/60 px-3 py-2 text-sm leading-snug backdrop-blur">
               {arPhase === 'entering' && 'Starting AR…'}
               {arPhase === 'scanning' && (
                 <span className="flex items-center gap-2">
@@ -1628,7 +1628,7 @@ const SplatViewer: React.FC<SplatViewerProps> = ({
           type="button"
           onClick={enterAr}
           title="View in AR"
-          className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-lg transition-colors hover:bg-blue-500"
+          className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-lg transition-colors hover:bg-primary-500"
         >
           <Boxes size={18} aria-hidden="true" />
           View in your room
@@ -1636,7 +1636,7 @@ const SplatViewer: React.FC<SplatViewerProps> = ({
       )}
 
       {iosNote && (
-        <details className="absolute bottom-4 right-4 max-w-xs rounded-lg bg-black/70 px-3 py-2 text-xs text-gray-300 backdrop-blur">
+        <details className="absolute bottom-4 right-4 max-w-xs rounded-lg bg-ground/70 px-3 py-2 text-xs text-gray-300 backdrop-blur">
           <summary className="cursor-pointer list-none text-gray-200">
             AR is not available on iPhone or iPad
           </summary>
@@ -1668,7 +1668,7 @@ const SplatViewer: React.FC<SplatViewerProps> = ({
           data-splat-status={loading ? 'loading' : error ? 'error' : 'ready'}
           className={
             loading || error
-              ? 'absolute bottom-4 left-4 bg-black/70 text-white p-2 rounded text-sm pointer-events-none'
+              ? 'absolute bottom-4 left-4 bg-ground/70 text-white p-2 rounded text-sm pointer-events-none'
               : 'sr-only'
           }
           role={error ? 'alert' : undefined}

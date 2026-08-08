@@ -212,7 +212,7 @@ const CreatePanel: React.FC<CreatePanelProps> = ({ onCreated }) => {
       <div
         {...getRootProps()}
         className={`border-2 border-dashed rounded-lg p-4 sm:p-6 text-center cursor-pointer transition ${
-          isDragActive ? "border-blue-400 bg-blue-500/10" : "border-gray-600 hover:border-gray-400"
+          isDragActive ? "border-primary-400 bg-primary-500/10" : "border-gray-600 hover:border-gray-400"
         }`}
       >
         <input {...getInputProps()} />
@@ -380,7 +380,7 @@ const CreatePanel: React.FC<CreatePanelProps> = ({ onCreated }) => {
       <button
         onClick={submit}
         disabled={busy || !files.length || !!blocker}
-        className="w-full py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-900 disabled:text-blue-200 disabled:cursor-not-allowed"
+        className="w-full py-2 rounded bg-primary-600 text-white hover:bg-primary-700 disabled:bg-primary-900 disabled:text-primary-200 disabled:cursor-not-allowed"
       >
         {busy ? "Processing…" : "Create 3D"}
       </button>
@@ -481,7 +481,7 @@ const EngineDetail: React.FC<EngineDetailProps> = ({
             <span className="flex items-baseline gap-1.5">
               <span className="truncate font-medium text-gray-100">{engine.name}</span>
               {tag && (
-                <span className="shrink-0 rounded bg-blue-500/20 px-1 text-[10px] text-blue-200">
+                <span className="shrink-0 rounded bg-primary-500/20 px-1 text-[10px] text-primary-200">
                   {tag}
                 </span>
               )}
@@ -586,7 +586,7 @@ const EngineDetail: React.FC<EngineDetailProps> = ({
               key={e.name}
               className={
                 engine && e.name === engine.name
-                  ? "border-l-2 border-blue-500/60 pl-1.5"
+                  ? "border-l-2 border-primary-500/60 pl-1.5"
                   : "border-l-2 border-transparent pl-1.5"
               }
             >

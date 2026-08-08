@@ -26,7 +26,7 @@ const MeshViewer: React.FC<MeshViewerProps> = ({ src, className, poster }) => {
 
   if (!ready) {
     return (
-      <div className={`flex items-center justify-center bg-black text-white/60 ${className}`}>
+      <div className={`flex items-center justify-center bg-ground text-white/60 ${className}`}>
         Loading mesh viewer…
       </div>
     );

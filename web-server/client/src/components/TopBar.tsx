@@ -54,8 +54,8 @@ const STATUS_UI: Record<HeadTrackingStatus, { label: string; dot: string; frame:
   off: { label: 'Off', dot: 'bg-gray-500', frame: 'border-gray-600' },
   starting: {
     label: 'Starting camera…',
-    dot: 'bg-sky-400 animate-pulse',
-    frame: 'border-sky-500/70',
+    dot: 'bg-primary-400 animate-pulse',
+    frame: 'border-primary-500/70',
   },
   searching: { label: 'Looking for your face', dot: 'bg-amber-400', frame: 'border-amber-500/80' },
   tracking: { label: 'Tracking', dot: 'bg-emerald-400', frame: 'border-emerald-500' },
@@ -309,7 +309,7 @@ const TopBar: React.FC<TopBarProps> = ({
         </button>
         <button
           onClick={() => setShowControls(!showControls)}
-          className="p-2 text-white transition-colors bg-blue-600 rounded-full hover:bg-blue-700"
+          className="p-2 text-white transition-colors bg-primary-600 rounded-full hover:bg-primary-700"
           title="Toggle Controls"
         >
           {showControls ? <X size={20} /> : <Settings size={20} />}
@@ -317,7 +317,7 @@ const TopBar: React.FC<TopBarProps> = ({
 
         {isXREnabled && (
           <div className="absolute right-0 top-full z-20 mt-2 w-64 overflow-hidden rounded-xl border border-gray-700 bg-gray-900/95 text-xs shadow-2xl backdrop-blur">
-            <div className={`flex justify-center border-b-2 ${statusUi.frame} bg-black`}>
+            <div className={`flex justify-center border-b-2 ${statusUi.frame} bg-ground`}>
               {/*
                 Deliberately given no CSS size, so it renders at its intrinsic
                 160x120 — the 4:3 of the 640x480 stream the hook asks for. A
@@ -380,7 +380,7 @@ const TopBar: React.FC<TopBarProps> = ({
                   value={snapshot.sensitivity}
                   onChange={(e) => tracker?.setSensitivity(parseFloat(e.target.value))}
                   disabled={!tracker}
-                  className="mt-1 w-full accent-blue-500"
+                  className="mt-1 w-full accent-primary-500"
                   aria-label="Head tracking parallax sensitivity"
                 />
               </label>
