@@ -133,7 +133,7 @@ function App() {
             aria-selected={tab === t}
             className={`flex-1 py-2 capitalize border-b-2 ${
               tab === t
-                ? 'bg-gray-800 font-medium text-white border-blue-400'
+                ? 'bg-gray-800 font-medium text-white border-primary-400'
                 : 'text-gray-400 border-transparent hover:bg-gray-800/50 hover:text-gray-200'
             }`}
           >
@@ -167,7 +167,7 @@ function App() {
       {asset && (
         <div className="flex flex-col items-stretch gap-2 p-3 border-t border-gray-700 text-xs sm:flex-row sm:items-center sm:justify-between">
           <span className="min-w-0 truncate text-gray-400">{asset.share_url}</span>
-          <button onClick={share} className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 shrink-0">
+          <button onClick={share} className="px-3 py-1 rounded bg-primary-600 hover:bg-primary-500 shrink-0">
             Copy link
           </button>
         </div>
@@ -183,7 +183,7 @@ function App() {
         with the panel — they were on different layers, each centring itself
         against the whole viewport in ignorance of the other.
       */}
-      <div className="absolute inset-0 z-0 overflow-hidden bg-black">
+      <div className="absolute inset-0 z-0 overflow-hidden bg-ground">
         {/*
           `fallback={null}` and not a spinner. This boundary only resolves while
           an asset's chunk is downloading, and the layer underneath is already
@@ -217,9 +217,9 @@ function App() {
             between "the app is composed on a dark surface" and "the app failed
             to fill its window".
 
-            Two accents from the app's own palette (blue-600, cyan-700 — the
-            Create button and the tab underline live in that family) over a very
-            dark blue-black.
+            Two accents from the app's own palette (primary-600 #0F717A and
+            cyan-700 — the Create button and the tab underline live in that
+            family) over a very dark teal-black.
 
             Every stop is deliberately above luma 8/255, the threshold the
             near-black audit uses. That is not gaming the metric — it is the
@@ -238,9 +238,14 @@ function App() {
               className="h-full w-full"
               style={{
                 background: [
-                  'radial-gradient(1100px 680px at 24% 34%, rgba(37, 99, 235, 0.12), transparent 68%)',
+                  'radial-gradient(1100px 680px at 24% 34%, rgba(15, 113, 122, 0.12), transparent 68%)',
                   'radial-gradient(900px 620px at 80% 74%, rgba(14, 116, 144, 0.10), transparent 70%)',
-                  'linear-gradient(158deg, #0b1018 0%, #080c14 55%, #070a11 100%)',
+                  // Re-tuned off the canon ground #041620 rather than the old
+                  // blue-black. Every stop clears the luma-8/255 floor the
+                  // comment above is about, with far more room than the old
+                  // stops had — measured 27.7, 22.4, 19.8 against the previous
+                  // 9.9 at the darkest point.
+                  'linear-gradient(158deg, #08202b 0%, #061a23 55%, #05171f 100%)',
                 ].join(', '),
               }}
             />
