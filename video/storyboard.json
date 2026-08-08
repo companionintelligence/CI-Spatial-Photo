@@ -574,7 +574,7 @@
         },
         {
           "label": "Viewer",
-          "value": "browser and XR"
+          "value": "browser, no headset"
         }
       ],
       "reveal": "paced"
