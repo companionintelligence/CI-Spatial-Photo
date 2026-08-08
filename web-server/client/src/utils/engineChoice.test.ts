@@ -1,8 +1,10 @@
-import { EngineCapabilities, normalizeEngine, normalizeEngines } from '../api';
+import { EngineCapabilities, Intent, SourceType, normalizeEngine, normalizeEngines } from '../api';
 import {
   activeModel,
   chooseAutoEngine,
   classifySource,
+  describeIntent,
+  describeSource,
   engineMetaLine,
   engineRosterLine,
   explicitEngineBlocker,
@@ -422,5 +424,291 @@ describe('chooseAutoEngine matches route() when SHARP is unavailable', () => {
       e.name === 'triposplat' ? { ...e, available: false, unavailable_reason: 'no CLI' } : e,
     );
     expect(chooseAutoEngine(cpuOnly, oneImage, 'scene').engine?.name).toBe('preview');
+  });
+});
+
+const depthVideo = wire({
+  name: 'depth-video',
+  description: "Video -> temporally consistent depth -> Gaussian cloud of the clip's sharpest frame.",
+  inputs: ['video'],
+  intents: ['auto', 'scene'],
+  output_kind: 'splat',
+  output_formats: ['ply'],
+  commercial: true,
+  requires_gpu: false,
+  license: 'Per-model — see models[].license (Apache-2.0 for the defaults)',
+  available: true,
+  default_model: 'video-depth-anything-small',
+  models: [
+    {
+      id: 'video-depth-anything-small',
+      label: 'Video Depth Anything — Small',
+      license: 'Apache-2.0',
+      commercial: true,
+      requires_gpu: false,
+      temporal: true,
+      approx_download_mb: 110,
+      weights_cached: false,
+      available: true,
+    },
+  ],
+});
+
+/**
+ * The whole registry, in `EngineRegistry.__init__` insertion order.
+ *
+ * The order is load-bearing, not cosmetic. `rank()` ends in a stable sort, so
+ * every full tie — and preview vs depth-image on a CPU box is a full tie:
+ * both list ["auto", "scene"], neither wants a GPU, neither is a dedicated
+ * specialist — resolves to whichever the server listed first. `/engines`
+ * serialises `self._engines.values()`, i.e. this order, so a fixture in any
+ * other order would test a roster the server cannot produce and would hide the
+ * one thing that makes the tie come out the way `route()` does.
+ */
+const REGISTRY_ORDER = [preview, triposplat, sharp, photogrammetry, depthImage, depthVideo];
+
+interface ServerSettings {
+  /** config.py `default_engine`. */
+  defaultEngine: string;
+  /** config.py `depth_auto_route`. */
+  depthAutoRoute: boolean;
+}
+
+const STOCK: ServerSettings = { defaultEngine: 'triposplat', depthAutoRoute: false };
+
+/**
+ * A transliteration of `EngineRegistry._route()` for the no-explicit-engine
+ * path, used as the oracle for the sweep below. Returns the engine name the
+ * server would run, or null where it would raise `EngineError`.
+ *
+ * `can_handle` is modelled as `inputs.includes(type)` because that is what
+ * every engine's implementation reduces to — each one is
+ * `source_type == X and len(files) >= 1`, and SHARP's extra
+ * `sharp_enable_research` gate is the same flag that drives its `available`.
+ * The part that is NOT a restatement of the client, and the part this oracle
+ * exists to pin, is the ORDER: photogrammetry by name for anything multi-frame,
+ * SHARP by name on the scene branch, then `default_engine`, then the
+ * depth-engine gate, then preview.
+ */
+const serverRoute = (
+  roster: readonly EngineCapabilities[],
+  source: { type: SourceType },
+  intent: Intent,
+  settings: ServerSettings,
+): string | null => {
+  const find = (name: string) => roster.find((e) => e.name === name);
+  const usable = (name: string) => {
+    const engine = find(name);
+    return !!engine && engine.available && engine.inputs.includes(source.type);
+  };
+  const depthFallback = (name: string) => {
+    if (!settings.depthAutoRoute && settings.defaultEngine !== name) return null;
+    return usable(name) ? name : null;
+  };
+
+  if (source.type === 'images' || source.type === 'video') {
+    if (usable('photogrammetry')) return 'photogrammetry';
+    return depthFallback('depth-video');
+  }
+  if (intent === 'scene' && usable('sharp')) return 'sharp';
+  if (usable(settings.defaultEngine)) return settings.defaultEngine;
+  const depth = depthFallback('depth-image');
+  if (depth) return depth;
+  // registry.py checks preview's can_handle only — it is never unavailable.
+  return find('preview')?.inputs.includes(source.type) ? 'preview' : null;
+};
+
+const SOURCES = [
+  { type: 'image' as const, count: 1 },
+  { type: 'images' as const, count: 4 },
+  { type: 'video' as const, count: 1 },
+];
+const INTENTS: Intent[] = ['auto', 'object', 'scene'];
+
+/** Every combination of which engines a given box has actually provisioned. */
+const rosters = (): EngineCapabilities[][] => {
+  // preview is registered unconditionally and `is_available` is the base-class
+  // default, so it is present on every real deployment; the other five each
+  // depend on a binary, a wheel or a feature flag.
+  const optional = REGISTRY_ORDER.filter((e) => e.name !== 'preview');
+  const out: EngineCapabilities[][] = [];
+  for (let mask = 0; mask < 1 << optional.length; mask += 1) {
+    out.push(
+      REGISTRY_ORDER.map((engine) => {
+        const slot = optional.indexOf(engine);
+        if (slot < 0) return engine;
+        return (mask & (1 << slot)) !== 0
+          ? engine
+          : { ...engine, available: false, unavailable_reason: `${engine.name} is not installed.` };
+      }),
+    );
+  }
+  return out;
+};
+
+/**
+ * The panel's prediction, checked against the router itself over every
+ * deployment shape the registry can produce — 32 availability combinations x 3
+ * source types x 3 intents. A single case where the panel names one engine and
+ * `route()` runs another is a lie told before an upload the user then waits on,
+ * and it is not the kind of thing spot-checks find: the tiebreaks only diverge
+ * on rosters nobody thinks to write a fixture for.
+ */
+describe('chooseAutoEngine against a transliteration of route()', () => {
+  const sweep = () => {
+    const rows: { key: string; client: string | null; server: string | null }[] = [];
+    for (const roster of rosters()) {
+      for (const source of SOURCES) {
+        for (const intent of INTENTS) {
+          const installed = roster
+            .filter((e) => e.available)
+            .map((e) => e.name)
+            .join('+');
+          rows.push({
+            key: `${source.type}/${intent} on [${installed}]`,
+            client: chooseAutoEngine(roster, source, intent).engine?.name ?? null,
+            server: serverRoute(roster, source, intent, STOCK),
+          });
+        }
+      }
+    }
+    return rows;
+  };
+
+  /**
+   * The one class of disagreement the capability data cannot resolve.
+   *
+   * `DEPTH_AUTO_ROUTE` is off by default and is not published on `/engines`, so
+   * a depth engine that reports itself available looks routable to the panel
+   * while `route()` skips it. Reachable today: a box with the torch wheel but
+   * without COLMAP answers a video upload with "depth-video", and the server
+   * fails the job with photogrammetry's unavailable reason. There is no honest
+   * client-side fix — the flag simply is not on the wire — so it is quarantined
+   * here by shape rather than left to hide inside a green sweep.
+   */
+  const isDepthAutoRouteGap = (row: { client: string | null; server: string | null }) =>
+    !!row.client?.startsWith('depth-') && row.server !== row.client;
+
+  it('agrees with the router on every roster the registry can produce', () => {
+    const mismatches = sweep().filter((r) => r.client !== r.server);
+    const unexpected = mismatches
+      .filter((r) => !isDepthAutoRouteGap(r))
+      .map((r) => `${r.key}: panel says ${r.client}, server runs ${r.server}`);
+    expect(unexpected).toEqual([]);
+  });
+
+  it('agrees on every roster with no depth engine installed at all', () => {
+    // The same sweep with the unresolvable class removed from the inputs rather
+    // than from the results, so this one has no escape hatch in it.
+    const noDepth = REGISTRY_ORDER.filter((e) => !e.name.startsWith('depth-'));
+    for (const source of SOURCES) {
+      for (const intent of INTENTS) {
+        for (let mask = 0; mask < 1 << (noDepth.length - 1); mask += 1) {
+          const roster = noDepth.map((engine, i) =>
+            i === 0 || (mask & (1 << (i - 1))) !== 0
+              ? engine
+              : { ...engine, available: false, unavailable_reason: 'not installed' },
+          );
+          expect({
+            case: `${source.type}/${intent}/${mask}`,
+            engine: chooseAutoEngine(roster, source, intent).engine?.name ?? null,
+          }).toEqual({
+            case: `${source.type}/${intent}/${mask}`,
+            engine: serverRoute(roster, source, intent, STOCK),
+          });
+        }
+      }
+    }
+  });
+
+  it('KNOWN GAP: over-promises a depth engine on a box without COLMAP', () => {
+    // Pinned so that fixing it — should `depth_auto_route` ever reach the wire —
+    // fails here and this comment gets deleted along with the workaround.
+    const roster = REGISTRY_ORDER.map((e) =>
+      e.name === 'photogrammetry'
+        ? { ...e, available: false, unavailable_reason: 'Photogrammetry needs colmap.' }
+        : e,
+    );
+    const video = { type: 'video' as const, count: 1 };
+    const route = chooseAutoEngine(roster, video, 'auto');
+
+    expect(route.engine?.name).toBe('depth-video');
+    expect(serverRoute(roster, video, 'auto', STOCK)).toBeNull();
+    // With DEPTH_AUTO_ROUTE=1 the panel is right, which is the whole reason the
+    // client cannot decide this from `/engines` alone.
+    expect(serverRoute(roster, video, 'auto', { ...STOCK, depthAutoRoute: true })).toBe(
+      'depth-video',
+    );
+  });
+
+  it('still prefers photogrammetry for a video when both engines are installed', () => {
+    // route() step 2 reaches for photogrammetry by name. The client has to get
+    // there from capabilities alone, and it does it on the GPU tiebreak —
+    // photogrammetry declares requires_gpu, depth-video does not.
+    const route = chooseAutoEngine(REGISTRY_ORDER, { type: 'video', count: 1 }, 'auto');
+    expect(route.engine?.name).toBe('photogrammetry');
+    expect(route.confident).toBe(false);
+    expect(route.reason).toMatch(/final say/);
+  });
+});
+
+describe('copy that has to fit the panel', () => {
+  it('describes a mixed drop as the video the server will treat it as', () => {
+    // Drop four photos and one clip and the server runs the video branch on the
+    // clip alone. "5 images" would be the panel describing a job that does not
+    // exist.
+    expect(describeSource({ type: 'video', count: 5 })).toBe('5 files (routed as video)');
+    expect(chooseAutoEngine(ALL, { type: 'video', count: 5 }, 'auto').reason).toMatch(
+      /5 files \(routed as video\)/,
+    );
+  });
+
+  it('keeps every intent hint to one line of a 296px column', () => {
+    // These sit under the Intent select, which is 296px wide at the narrowest
+    // supported layout; past roughly 40 characters they wrap and push the
+    // engine summary below the fold on a 360x640 phone.
+    const hints = (['auto', 'object', 'scene'] as Intent[]).map(describeIntent);
+    for (const hint of hints) {
+      expect(hint.length).toBeGreaterThan(0);
+      expect(hint.length).toBeLessThanOrEqual(40);
+    }
+    expect(new Set(hints).size).toBe(3);
+  });
+
+  it('never leaves a blank where a blocking reason belongs', () => {
+    // `unavailable_reason` is Optional in models.py, so an engine can report
+    // available=false and say nothing. Passing that through gives the user a
+    // greyed-out engine with no explanation and no next step.
+    const silent = { ...triposplat, available: false, unavailable_reason: null };
+    expect(explicitEngineBlocker(silent, oneImage)).toBe('triposplat reports itself unavailable.');
+  });
+
+  it('says something usable about an engine whose capability row is empty', () => {
+    // The half-shipped row from normalizeEngines: it survives render, so the
+    // strings it produces have to be readable rather than "it accepts ." and
+    // "intent .".
+    const mystery = wire({ name: 'mystery' });
+    expect(explicitEngineBlocker(mystery, oneImage)).toBe(
+      'mystery does not take 1 image — it accepts nothing this build recognises.',
+    );
+    expect(engineRosterLine(mystery)).toBe(
+      'Takes no input this build recognises · intent no intent · Runs on CPU · splat · Non-commercial',
+    );
+  });
+
+  it('flags a temporally consistent checkpoint, which is the reason to pick one', () => {
+    // The only property that distinguishes the video depth checkpoints from
+    // each other for a user: without it the roster lists two identical lines.
+    const [temporal] = depthVideo.models;
+    expect(modelLine(depthVideo, temporal)).toBe(
+      'default · Apache-2.0 · CPU · temporally consistent · 110 MB · not downloaded yet',
+    );
+  });
+
+  it('classifies a file the browser could not name', () => {
+    // react-dropzone hands through whatever the drop event carried; a
+    // File with an empty name must not throw on `.toLowerCase()`.
+    expect(classifySource([{ name: '' }])).toEqual({ type: 'image', count: 1 });
+    expect(classifySource([{} as { name: string }])).toEqual({ type: 'image', count: 1 });
   });
 });

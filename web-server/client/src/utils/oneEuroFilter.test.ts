@@ -1,4 +1,4 @@
-import { OneEuroFilter, smoothingAlpha } from './oneEuroFilter';
+import { ONE_EURO_DEFAULTS, OneEuroFilter, smoothingAlpha } from './oneEuroFilter';
 
 /**
  * Deterministic noise. `Math.random()` would make the jitter and lag figures
@@ -78,6 +78,10 @@ const runOneEuro = (samples: Sample[], options: { minCutoff: number; beta: numbe
   const f = new OneEuroFilter({ ...options, dCutoff: 1.0 });
   return samples.map((s) => f.filter(s.measured, s.t));
 };
+
+/** Same, but for a filter that was already constructed — used to compare tunings. */
+const runWith = (f: OneEuroFilter, samples: Sample[]) =>
+  samples.map((s) => f.filter(s.measured, s.t));
 
 /** The tuning the hook actually ships for the lateral axes. */
 const SHIPPED = { minCutoff: 1.2, beta: 16 };
@@ -203,6 +207,83 @@ describe('OneEuroFilter', () => {
   });
 });
 
+describe('OneEuroFilter numeric edges', () => {
+  it('constructs with the documented defaults when given nothing', () => {
+    // The hook constructs per-axis filters from a config object, and a missing
+    // key has to mean "the default", not "undefined" — which would make
+    // `minCutoff + beta * speed` NaN on the second sample and freeze the axis
+    // at its first value for the rest of the session.
+    const bare = new OneEuroFilter();
+    const explicit = new OneEuroFilter(ONE_EURO_DEFAULTS);
+    const track = sweepTrack();
+    expect(runWith(bare, track)).toEqual(runWith(explicit, track));
+    expect(runWith(new OneEuroFilter(), track).every(Number.isFinite)).toBe(true);
+  });
+
+  it('takes a partial option object without poisoning the untouched knobs', () => {
+    const partial = new OneEuroFilter({ beta: 8 });
+    const full = new OneEuroFilter({ beta: 8, minCutoff: ONE_EURO_DEFAULTS.minCutoff, dCutoff: ONE_EURO_DEFAULTS.dCutoff });
+    const track = sweepTrack();
+    expect(runWith(partial, track)).toEqual(runWith(full, track));
+  });
+
+  it('never overshoots the sample it is chasing, at any speed', () => {
+    /*
+      An exponential smoother is a convex combination — output always lands
+      between the previous output and the new sample, because alpha is
+      1 / (1 + tau/dt), which is in (0, 1) for every positive tau and dt. That
+      is the property that distinguishes this from the spring/critically-damped
+      smoothers people reach for instead, and losing it is the difference
+      between a window that follows your head and one that rings around it.
+
+      Checked with a very large beta, because that is where the cutoff (and so
+      alpha) is pushed hardest towards 1, and against a step, because that is
+      the input with the largest instantaneous derivative available.
+    */
+    for (const beta of [0, 16, 1e3, 1e6]) {
+      const f = new OneEuroFilter({ minCutoff: 1.2, beta });
+      let previous = f.filter(0, 0);
+      for (let i = 1; i < 30; i += 1) {
+        const target = i < 10 ? 0 : 0.3;
+        const out = f.filter(target, i * DT);
+        const lo = Math.min(previous, target);
+        const hi = Math.max(previous, target);
+        expect(out).toBeGreaterThanOrEqual(lo - 1e-12);
+        expect(out).toBeLessThanOrEqual(hi + 1e-12);
+        previous = out;
+      }
+      expect(previous).toBeCloseTo(0.3, beta > 100 ? 6 : 1);
+    }
+  });
+
+  it('stays finite and keeps converging after a non-finite timestamp', () => {
+    // `performance.now()` cannot be NaN, but the hook also feeds this filter
+    // from `requestVideoFrameCallback` metadata on the browsers that have it.
+    // One bad timestamp must not leave the axis stuck: the value is what drives
+    // the camera, and a frozen axis is indistinguishable from lost tracking.
+    const f = new OneEuroFilter({ minCutoff: 1, beta: 0 });
+    f.filter(0, 0);
+    expect(Number.isFinite(f.filter(1, NaN))).toBe(true);
+    for (let i = 2; i < 200; i += 1) f.filter(1, i * DT);
+    expect(f.value).toBeCloseTo(1, 3);
+  });
+
+  it('holds its output when the signal stops arriving and resumes cleanly', () => {
+    // Tracking loss leaves a gap of arbitrary length. The next sample after a
+    // two-second gap has dt = 2, which drives alpha to almost 1 — i.e. the
+    // filter trusts a sample that arrives after a long silence, rather than
+    // spending the next half second sweeping the camera in from the stale pose.
+    const f = new OneEuroFilter({ minCutoff: 1.2, beta: 16 });
+    for (let i = 0; i < 60; i += 1) f.filter(0, i * DT);
+    const held = f.value;
+    expect(held).toBeCloseTo(0, 6);
+
+    const afterGap = f.filter(0.25, 60 * DT + 2);
+    expect(afterGap).toBeGreaterThan(0.2);
+    expect(afterGap).toBeLessThanOrEqual(0.25);
+  });
+});
+
 describe('smoothingAlpha', () => {
   it('matches the RC low-pass definition', () => {
     for (const cutoff of [0.5, 1, 5, 30]) {
@@ -214,5 +295,22 @@ describe('smoothingAlpha', () => {
   it('approaches 1 as the cutoff rises and 0 as the sample spacing shrinks', () => {
     expect(smoothingAlpha(1e6, DT)).toBeGreaterThan(0.999);
     expect(smoothingAlpha(1, 0)).toBeLessThan(0.01);
+  });
+
+  it('stays inside (0, 1) for cutoffs and spacings that should not happen', () => {
+    // A negative alpha does not smooth, it reflects: each step moves the output
+    // AWAY from the sample and the filter diverges within a few frames. Zero
+    // and negative cutoffs are reachable through a mis-set config, and a
+    // negative dt through a clock that steps backwards.
+    for (const cutoff of [0, -1, -1e9]) {
+      const alpha = smoothingAlpha(cutoff, DT);
+      expect(alpha).toBeGreaterThan(0);
+      expect(alpha).toBeLessThan(1);
+    }
+    for (const dt of [0, -1]) {
+      const alpha = smoothingAlpha(1, dt);
+      expect(alpha).toBeGreaterThan(0);
+      expect(alpha).toBeLessThan(1);
+    }
   });
 });

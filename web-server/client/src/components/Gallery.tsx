@@ -32,6 +32,12 @@ const Gallery: React.FC<GalleryProps> = ({ onSelect, refreshKey }) => {
 
   useEffect(() => {
     setLoading(true);
+    // Clear the previous failure before retrying. `error` is checked ahead of
+    // both `loading` and the grid below, so an error left standing pins this
+    // panel to "Could not load your memories" for as long as it stays mounted —
+    // one transient 502 on the first load and every later refresh renders the
+    // stale error instead of the assets it just fetched.
+    setError(null);
     api
       .listAssets()
       .then((r) => setAssets(r.assets))

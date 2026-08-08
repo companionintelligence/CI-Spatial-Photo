@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Sun, Moon, Eye, EyeOff, Settings, X, Crosshair } from 'lucide-react';
 import {
   HeadTracking,
@@ -7,6 +7,24 @@ import {
   MAX_SENSITIVITY,
   MIN_SENSITIVITY,
 } from '../hooks/useHeadTracking';
+/*
+  `screenGeometry` imports NOTHING — no three, no React. That is what makes it
+  safe here: this component is in the entry bundle, and App.tsx code-splits the
+  viewers precisely so that three, Spark and MediaPipe are not. The value it
+  stores is read by `SplatViewer` from its render loop, and the two talk through
+  that module's own tiny store rather than through App, which owns neither piece
+  of state and should not have to.
+*/
+import {
+  computeScreenMetrics,
+  getDisplayDiagonalInches,
+  isValidDiagonalInches,
+  MAX_DIAGONAL_INCHES,
+  MIN_DIAGONAL_INCHES,
+  readScreenSize,
+  setDisplayDiagonalInches,
+  subscribeDisplayCalibration,
+} from '../utils/screenGeometry';
 
 interface TopBarProps {
   isXREnabled: boolean;
@@ -157,6 +175,91 @@ const TopBar: React.FC<TopBarProps> = ({
 
   const sensitivityLabel = useMemo(() => `${snapshot.sensitivity.toFixed(2)}x`, [snapshot.sensitivity]);
 
+  /*
+    Physical display calibration.
+
+    Held in `screenGeometry`'s module store and read here through
+    `useSyncExternalStore`, not in component state. The value has two consumers
+    that never meet — this control writes it, `SplatViewer`'s render loop reads
+    it — and their only common ancestor is `App.tsx`, which owns neither piece
+    of state. A local copy would drift the moment anything else set the value.
+  */
+  const storedDiagonal = useSyncExternalStore(
+    subscribeDisplayCalibration,
+    getDisplayDiagonalInches,
+    getDisplayDiagonalInches,
+  );
+  const [diagonalDraft, setDiagonalDraft] = useState(() => {
+    const stored = getDisplayDiagonalInches();
+    return stored === null ? '' : String(stored);
+  });
+
+  const draftIsBlank = diagonalDraft.trim() === '';
+  const draftInvalid = !draftIsBlank && !isValidDiagonalInches(Number.parseFloat(diagonalDraft));
+
+  /*
+    Is a metric window actually LIVE, or is that just a number in a box?
+
+    A stored diagonal is necessary but not sufficient — `computeScreenMetrics`
+    returns null when the browser reports a zero-sized screen, and the viewer
+    then falls back to the relative projection without saying so. Running the
+    same first link of the viewer's own chain here is what keeps this badge from
+    claiming a calibration the projection is not using. (The one thing it cannot
+    check is the canvas size, which is positive whenever the viewer is on
+    screen.)
+  */
+  const calibrated = useMemo(() => {
+    if (storedDiagonal === null) return false;
+    const size = readScreenSize();
+    return size !== null && computeScreenMetrics({ diagonalInches: storedDiagonal, screen: size }) !== null;
+  }, [storedDiagonal]);
+
+  /*
+    Calibration is necessary for 1:1 but not sufficient, and saying otherwise
+    was this badge committing the exact sin it was written to prevent.
+
+    `mapHeadPoseToEye` multiplies the lateral terms by `sensitivity * blend`,
+    and the Parallax slider ships at 1.5x by default (DEFAULT_SENSITIVITY) —
+    chosen because exaggerated parallax reads better on a first encounter. So a
+    user who measures their monitor, types 27, and never touches the slider was
+    shown "calibrated 1:1" over a view moving half again as far as their head.
+
+    Three states, because there are three: no measurement; measured and
+    faithful; measured but deliberately exaggerated. The third is a legitimate
+    place to be — it just is not 1:1, and the badge is the only thing on screen
+    that claims otherwise. Tolerance is 0.005 because the slider's own readout
+    is 2dp, so anything that displays as "1.00x" must not contradict the badge.
+  */
+  const trueToLife = Math.abs(snapshot.sensitivity - 1) < 0.005;
+  const calibrationBadge = !calibrated
+    ? { text: 'relative', tone: 'text-gray-500', title: 'Parallax is proportional, but not matched to a real display' }
+    : trueToLife
+      ? { text: 'calibrated 1:1', tone: 'text-emerald-300', title: 'Parallax matches real head movement one to one' }
+      : {
+          text: `calibrated, ${snapshot.sensitivity.toFixed(2)}x`,
+          tone: 'text-amber-300',
+          title: `Measured against your display, then exaggerated ${snapshot.sensitivity.toFixed(2)}x by the Parallax slider. Set it to 1.00x for true to life.`,
+        };
+
+  const commitDiagonal = (raw: string) => {
+    setDiagonalDraft(raw);
+    if (raw.trim() === '') {
+      setDisplayDiagonalInches(null);
+      return;
+    }
+    /*
+      An out-of-range entry stores null rather than nothing.
+
+      `setDisplayDiagonalInches` already refuses anything outside 4-150 inches,
+      so an absurd value can never reach the frustum — but skipping the call
+      would leave the PREVIOUS calibration live while the field showed a number
+      the app is not using, which is the one state in which the badge lies. This
+      way "the field is wrong" and "the window is relative" are the same fact,
+      and the message below says so.
+    */
+    setDisplayDiagonalInches(Number.parseFloat(raw));
+  };
+
   return (
     <div className="flex items-center justify-between p-4 pointer-events-auto bg-gradient-to-b from-black/70 to-transparent">
       {/* Product name, not the repo name — this string is on camera in every
@@ -281,6 +384,63 @@ const TopBar: React.FC<TopBarProps> = ({
                   aria-label="Head tracking parallax sensitivity"
                 />
               </label>
+
+              {/*
+                Display calibration.
+
+                Without it the window is self-consistent but not physical: the
+                parallax assumes the screen subtends exactly the virtual
+                camera's field of view, so a 13" laptop and a 27" monitor move
+                the scene by the same amount for the same head movement — wrong
+                by a factor of two between those two. There is no browser API
+                for physical display size (the CSS `mm` unit is defined as
+                96/25.4 px, i.e. a fiction), so the one number nobody has to
+                look up is the one we ask for: the diagonal printed on the box.
+              */}
+              <div className="border-t border-gray-800 pt-2">
+                <label className="block">
+                  <span className="flex items-baseline justify-between text-gray-400">
+                    <span>Screen size</span>
+                    <span
+                      className={calibrationBadge.tone}
+                      title={calibrationBadge.title}
+                    >
+                      {calibrationBadge.text}
+                    </span>
+                  </span>
+                  <span className="mt-1 flex items-center gap-2">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min={MIN_DIAGONAL_INCHES}
+                      max={MAX_DIAGONAL_INCHES}
+                      step={0.5}
+                      value={diagonalDraft}
+                      onChange={(e) => commitDiagonal(e.target.value)}
+                      placeholder="27"
+                      aria-label="Display diagonal in inches"
+                      aria-invalid={draftInvalid || undefined}
+                      className={`w-20 rounded border bg-gray-800 px-2 py-1 tabular-nums text-gray-100 ${
+                        draftInvalid ? 'border-red-500' : 'border-gray-700'
+                      }`}
+                    />
+                    <span className="text-gray-500">inch diagonal</span>
+                  </span>
+                </label>
+
+                {draftInvalid ? (
+                  <p role="alert" className="mt-1.5 text-[11px] leading-snug text-red-300">
+                    Enter a diagonal between {MIN_DIAGONAL_INCHES} and {MAX_DIAGONAL_INCHES} inches.
+                    Until then the window uses relative parallax.
+                  </p>
+                ) : (
+                  <p className="mt-1.5 text-[11px] leading-snug text-gray-500">
+                    {calibrated
+                      ? 'The window now moves 1:1 with your head. Assumes this browser window is on the display you measured.'
+                      : 'Optional. Without it the parallax is proportional rather than life-sized.'}
+                  </p>
+                )}
+              </div>
 
               {/*
                 The app's pitch is that nothing leaves the box. Head tracking
