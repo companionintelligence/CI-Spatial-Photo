@@ -82,7 +82,15 @@ memory client, OIDC auth.
   transitions `queued → running → done | error`. GPU work never blocks the request thread.
 - **Engines** implement one `Engine` protocol (`can_handle`, `run`). Bundled adapters:
   `TripoSplatEngine` (default), `SharpEngine` (research‑gated), `PhotogrammetryEngine`
-  (COLMAP→gsplat, video/multi‑image). Adding TRELLIS/Hunyuan/4DGS = one new file + register.
+  (COLMAP→gsplat, video/multi‑image), `DepthImageEngine` and `DepthVideoEngine` (monocular
+  depth → back‑projected Gaussians, CPU‑viable). Adding TRELLIS/Hunyuan/4DGS = one new file +
+  register.
+- **Multi‑model engines.** An engine that wraps a family of interchangeable checkpoints
+  advertises them in `EngineCapabilities.models` and takes the choice from
+  `JobInput.requested_model`, rather than registering one engine per checkpoint. Six
+  near‑identical rows in an engine picker would be noise, and a single `available` boolean on
+  the engine cannot express "Small is ready, Large is a 1.3 GB download away". See
+  [`DEPTH-ENGINES.md`](./DEPTH-ENGINES.md).
 - **Asset store** persists a master artifact (`.ply` / `.glb`), transcodes (`.spz`/`.sog` for
   splats), a thumbnail, and a metadata record on disk under a stable `asset_id`.
 
@@ -177,7 +185,8 @@ Jobs carry `{ job_id, owner, status, engine, error?, asset_id? }` and a progress
 - FastAPI server: jobs, asset store, REST, engine registry + input router.
 - MCP server with the tools above; CI memory client; Companion OIDC middleware.
 - Engine adapters: TripoSplat (default), SHARP (research‑gated, wraps the bundled CLI),
-  Photogrammetry (COLMAP→gsplat) — each with a clean `Engine` interface and clear GPU/weights
+  Photogrammetry (COLMAP→gsplat), and the depth engines (`depth-image`, `depth-video`, with six
+  selectable checkpoints) — each with a clean `Engine` interface and clear GPU/weights
   boundaries.
 - Docker + compose + marketplace manifest; viewer share route + mesh support.
 - `.spz` transcode (`server/app/transcode.py`): every splat's master `.ply` is compressed to
@@ -191,3 +200,8 @@ Hunyuan mesh engines; 4DGS temporal splats; VGGT pose init; SuperSplat‑style i
 > not exercised in CI. The server, router, MCP surface, auth, memory client, and viewer are fully
 > functional and tested without a GPU; engines degrade gracefully with a clear "weights/GPU
 > required" error when their runtime isn't present.
+>
+> The depth engines are the partial exception: they run on CPU with a ~100 MB download, so
+> `pip install '.[depth]'` is enough to get real reconstructed geometry out of the stack on a
+> laptop. Their maths (normalisation, back-projection, edge rejection, temporal alignment) is
+> pure numpy and *is* covered in CI — only the neural network is mocked.

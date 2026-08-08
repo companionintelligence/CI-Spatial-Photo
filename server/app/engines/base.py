@@ -15,7 +15,7 @@ from typing import Optional
 from PIL import Image
 
 from ..config import Settings
-from ..models import EngineCapabilities, EngineResult, JobInput
+from ..models import EngineCapabilities, EngineModelInfo, EngineResult, JobInput
 
 
 class EngineError(RuntimeError):
@@ -39,6 +39,25 @@ class Engine(ABC):
     @abstractmethod
     def run(self, job_input: JobInput, workdir: Path, settings: Settings) -> EngineResult:
         """Produce a 3D asset. Runs in a worker thread; may block. Raise EngineError on failure."""
+
+    # ── optional: engines that wrap a family of interchangeable checkpoints ────
+    def available_models(self, settings: Settings) -> list[EngineModelInfo]:
+        """Selectable checkpoints inside this engine, for ``EngineCapabilities.models``.
+
+        Empty for engines with exactly one model, which is every engine that predates the depth
+        backends. They ignore ``JobInput.requested_model`` entirely.
+        """
+        return []
+
+    def resolve_model(self, job_input: JobInput, settings: Settings) -> Optional[str]:
+        """The checkpoint id this job will actually run, or None for single-model engines.
+
+        Must raise :class:`EngineError` if ``job_input.requested_model`` names something unknown
+        or unusable. The router calls this before dispatch, so a bad model id fails on the job's
+        first tick with the same loudness as a bad engine name — not after the media has been
+        pulled from memory and decoded.
+        """
+        return None
 
     # ── helpers for subclasses ─────────────────────────────────────────────────
     @staticmethod

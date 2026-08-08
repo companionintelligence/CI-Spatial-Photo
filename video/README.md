@@ -218,6 +218,26 @@ file**, so the script and the screenshots cannot drift apart.
 Adding a beat is: add a scene, add its shot's `capture` block, `npm run capture -- --only <id>`,
 then `npm run build && npm run render`.
 
+### Why `memory-grid` has no `focus` rect any more
+
+It used to, framing `x: 0.005, w: 0.37` — the left third, which was where the control panel sat
+when the panel was pinned top-left. The empty-state recompose moved the panel to the right of a
+centred composition, so that rect started framing the **hero** instead. The move had to go, not
+just move, and the reason is geometric rather than editorial:
+
+`focusState` in the kit **contains** the declared rectangle (`min()`, never `cover()`), so a
+16:9 window that holds all of a `0.374 x 0.621` panel is `0.621` wide — 62% of the frame. The
+panel's right edge is at `0.912`, so that window cannot be centred on it without running off the
+canvas; it slides back to `x = 0.378` and slices the hero mid-word. Tightening it until the left
+edge clears the hero (`0.4747`) needs `h <= 0.50`, which then cuts through the second row of
+photo tiles. Either way something is sliced, which is the exact defect class PR #32 fixed.
+
+So the scene keeps the legacy 1.045 push and shows the whole frame. That is affordable now: the
+composition is no longer 85% black, the grid occupies a real share of the frame, and each tile
+renders ~205px wide in the 1920 cut — legible without a crop. **Check this with
+`ci-video focus-preview --scene <id>` before adding a rect back**; it prints the window a rect
+will actually produce and says out loud when the subject ends up anchored to a canvas edge.
+
 Prefer **adding a shot to an existing scene** over adding a scene. Two shots in one scene
 cross-dissolve across that scene's dwell, so the beat gains motion and shows causality without
 making the video longer. A new scene only earns its place when a whole screen is missing.

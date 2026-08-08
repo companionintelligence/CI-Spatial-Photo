@@ -83,10 +83,14 @@ class JobManager:
                     job_input.original_filenames = [f.name for f in files]
 
             engine = self.registry.route(job_input, self.settings)
+            # Engines that wrap several checkpoints report which one this job will use, so the
+            # progress line and the stored asset both name it. None for single-model engines.
+            engine_model = engine.resolve_model(job_input, self.settings)
             # The client renders "Status: {status} — {message}", so a message that
             # opens with the status word stutters: with the CPU preview engine this
             # read "Status: running — running preview". Name the phase, not the state.
-            self._touch(job, engine=engine.name, message=f"reconstructing with {engine.name}")
+            label = f"{engine.name} ({engine_model})" if engine_model else engine.name
+            self._touch(job, engine=engine.name, message=f"reconstructing with {label}")
 
             result = await asyncio.to_thread(engine.run, job_input, workdir, self.settings)
 
@@ -98,11 +102,12 @@ class JobManager:
                 owner=job_input.owner,
                 kind=result.kind,
                 engine=engine.name,
+                engine_model=engine_model,
                 source_type=job_input.source_type,
                 source_origin=job_input.origin,
                 source_filenames=job_input.original_filenames,
                 source_memory_refs=job_input.memory_refs,
-                tags=["3d", result.kind, engine.name],
+                tags=["3d", result.kind, engine.name] + ([engine_model] if engine_model else []),
             )
             asset.share_url = self.settings.share_url(asset.asset_id)
             asset = self.store.persist_asset(asset, result)

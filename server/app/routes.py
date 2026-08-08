@@ -48,6 +48,11 @@ async def create_job(
     request: Request,
     files: list[UploadFile] = File(default=[]),
     engine: Optional[str] = Form(default=None),
+    # Which checkpoint to run inside the chosen engine — see EngineCapabilities.models. Optional
+    # and ignored by engines with a single model, so pre-existing clients that never send it are
+    # unaffected. `engine="depth-image:depth-anything-v2-large"` is an equivalent shorthand for
+    # clients that only have one field to spend.
+    model: Optional[str] = Form(default=None),
     intent: str = Form(default="auto"),
     format: Optional[str] = Form(default=None),
     memory_refs: Optional[str] = Form(default=None),
@@ -84,6 +89,7 @@ async def create_job(
         intent=intent if intent in ("auto", "object", "scene") else "auto",  # type: ignore[arg-type]
         requested_engine=engine or None,
         requested_format=format or None,
+        requested_model=model or None,
     )
     return _jobs(request).create_job(job_input)
 

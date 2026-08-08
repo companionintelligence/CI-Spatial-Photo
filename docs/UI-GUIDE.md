@@ -35,9 +35,9 @@ The top bar is always visible; the controls card can be hidden for an immersive 
 
 | # | Element | Type | Behavior | Technical notes |
 | --- | --- | --- | --- | --- |
-| 1 | **"CI Photo Time Machine"** | Title | Static branding | `<h1>`, drop-shadow over the viewer |
-| 2 | **Webcam preview** | Canvas (only in XR mode) | Mirrored live webcam with a green face-tracking dot | 160×120 canvas; dot drawn at the tracked nose position; green border signals tracking active |
-| 3 | **XR toggle** | Icon button (eye / eye-off) | Enables/disables head-tracked parallax | Gray = off, **green = on**. Toggles `useHeadTracking(enabled)`: requests `getUserMedia` camera, loads MediaPipe FaceLandmarker (WASM from CDN), streams `headPosition {x,y,z}` into the viewer camera each frame |
+| 1 | **"Photo Time Machine"** | Title | Static branding | `<h1>`, drop-shadow over the viewer |
+| 2 | **XR toggle** | Icon button (eye / eye-off) | Enables/disables the head-tracked magic window | Gray = off, **green = on**. Toggles `useHeadTracking(enabled)`; nothing is downloaded and no camera is requested until this is on (see [§6](#6-xr-mode-the-head-tracked-magic-window)) |
+| 3 | **XR panel** | Card (only in XR mode) | Webcam preview, tracking status, **Recentre**, parallax slider | Drops below the top bar while XR is on. Detailed in [§6](#6-xr-mode-the-head-tracked-magic-window) |
 | 4 | **Theme toggle** | Icon button (sun / moon) | Switches light/dark text scheme | Local state only; viewer canvas is always dark |
 | 5 | **Controls toggle** | Icon button (X / gear) | Shows/hides the controls card | Blue button. X when visible, gear when hidden (see [§7](#7-immersive-mode-controls-hidden)) |
 
@@ -63,7 +63,9 @@ footer. Tab buttons highlight the active tab with a darker background.
 | Element | Type | Behavior | API |
 | --- | --- | --- | --- |
 | **Dropzone** | Drag-and-drop area + click-to-browse | Accepts `image/*` and `video/*`, multiple files. Blue highlight while dragging. Shows the selected file names once chosen | — (`react-dropzone`) |
-| **Engine** select | Dropdown | `Auto (recommended)` + one option per engine; engines whose runtime/weights are missing render **disabled** with "(unavailable)" | Populated from `GET /api/v1/engines` on mount |
+| **Engine** select | Dropdown | `Auto (recommended)` + one option per engine. Engines whose runtime/weights are missing are marked `⚠` and stay **selectable**: choosing one shows the server's `unavailable_reason` verbatim and disables Create, rather than hiding an instruction behind a `disabled` option nobody can reach | Populated from `GET /api/v1/engines` on mount |
+| **Model** select | Dropdown | Only rendered for an explicitly chosen engine that advertises more than one checkpoint (the depth engines). `Default (<name>)` sends no `model` field and lets the server apply `default_model`; any other option pins that checkpoint. Uncached checkpoints show their download size, and an unavailable one blocks Create with its own reason | Options from `models[]`; sent as the `model` form field |
+| **Engine detail** | `<details>` disclosure | Always-visible summary names the engine, tags it `Auto's pick` / `Auto chose`, and prints `GPU · output · licence · commercial` for the checkpoint that will actually run. Expanding lists every engine with its description, per-checkpoint licence and download state, and any `unavailable_reason` | `GET /api/v1/engines` |
 | **Intent** select | Dropdown | `Auto` / `Object (full 3D)` / `Scene (portal)` — biases the router: *object* → generation engines, *scene* → SHARP (if enabled) | Sent as `intent` form field |
 | **Create 3D** | Primary button | Disabled until ≥1 file is selected; label flips to `Processing…` while a job runs | `POST /api/v1/jobs` then polls `GET /jobs/:id` every 1.5 s |
 | **Status line** | Text | Live job progress: `Status: running — running preview` | Mirrors `Job.status` + `Job.message` |
@@ -165,6 +167,7 @@ sequenceDiagram
 | **Format selection** | The viewer downloads the smallest format Spark can parse: **spz → sog → ply** | `viewerSplatFormat()` in `api.ts`; `.spz` is ~10× smaller than `.ply` |
 | **Camera framing** | If the PLY carries SHARP camera metadata: exact intrinsics/extrinsics projection (portal-accurate). Otherwise: automatic bounding-box framing | `makeProjectionFromIntrinsics` / `getBoundingBox` paths |
 | **Coordinate handling** | ml-sharp/3DGS assets are OpenCV-convention; the viewer applies a CV→GL axis flip | `makeAxisFlipCvToGl()` |
+| **Head tracking** | While XR is on, orbit/zoom/pan are suspended and the camera is driven by an off-axis frustum instead (see [§6](#6-xr-mode-the-head-tracked-magic-window)). Turning XR off restores the exact pose it left | Only one writer touches the camera per frame; `controls.update()` is not called in XR mode |
 
 ### Mesh viewer (`components/MeshViewer.tsx` — `<model-viewer>`)
 
@@ -184,31 +187,126 @@ flowchart TD
 
 ---
 
-## 6. XR mode (head-tracked "magic portal")
+## 6. XR mode (the head-tracked "magic window")
 
 ![XR mode enabled](images/07-xr-enabled.png)
 
-Click the **eye** button to enable XR. The button turns green and a mirrored webcam preview
-appears beside it.
+> The screenshot above predates the XR panel described here and shows the older inline preview.
+> Re-capture it the next time the shot list is refreshed.
+
+Click the **eye** button to enable XR. The button turns green, the browser asks for the camera,
+and a panel drops below the top bar.
+
+**XR is off by default and stays off until this button is pressed.** Nothing is downloaded and
+`getUserMedia` is never called before then — which is also what keeps the headless product-video
+capture (`video/storyboard.json`, no camera present) working.
+
+### What "magic window" means here
+
+The screen is treated as a fixed pane of glass hanging in the scene, not as a camera you steer.
+Move your head and the *projection* becomes asymmetric — the four corners of the glass stay
+welded to the four corners of the viewport while everything behind it slides. That is
+**off-axis perspective projection** (Robert Kooima, *Generalized Perspective Projection*, 2008),
+implemented in `utils/magicWindow.ts`:
+
+```
+vr, vu, vn = screen right / up / normal        pa, pb, pc = screen corners
+va = pa - eye,  vb = pb - eye,  vc = pc - eye  d  = -dot(vn, va)
+
+left   = dot(vr, va) · near / d     right = dot(vr, vb) · near / d
+bottom = dot(vu, va) · near / d     top   = dot(vu, vc) · near / d
+```
+
+The camera's *orientation* never changes while XR is on — a window does not turn to follow you.
+`magicWindow.test.ts` asserts the corner-pinning property directly, and asserts that the
+"move the camera and `lookAt` the subject" construction fails it.
+
+The glass is placed 55% of the way from the orbit camera to its target
+(`WINDOW_DEPTH_FRACTION` in `SplatViewer.tsx`), so the whole subject sits *behind* it like a
+diorama in a box. That matters for the default `preview` engine, which produces a flat plane of
+Gaussians: with the glass on the subject plane there would be no parallax at all. At the
+calibration pose the projection is bit-identical to the ordinary orbit view, so switching XR on
+never re-frames the memory.
+
+### The XR panel
 
 | Element | Behavior |
 | --- | --- |
-| **Webcam preview** | Live mirrored feed (green border). A green dot marks the tracked nose position — instant feedback that tracking is locked |
-| **Viewer camera** | Your head position drives the camera: move left/right/up/down for parallax, lean in/out to dolly — the screen becomes a window into the scene |
-| **Eye button (green)** | Click again to disable: camera stream stops, tracking model unloads, orbit controls take back over |
+| **Webcam preview** | Live mirrored feed. A green reticle marks the eye midpoint the geometry actually uses. The border colour follows the status |
+| **Status** | `Starting camera…` (sky) → `Looking for your face` (amber) → `Tracking` (green); `Camera blocked` / `Camera unavailable` (red) with the reason spelled out |
+| **Recentre** | Treats your current head position and distance as dead centre. Enabled only while tracking. Use it after you move your chair, or if the view feels off-axis at rest |
+| **Parallax** | Sensitivity, 0.25×–3×, default 1.5×. **1.00× is physically true to life**; above it the parallax is deliberately exaggerated, which most people prefer at a laptop where head movement is small |
+| **Eye button (green)** | Click again to disable: the camera stream stops, the landmark model is `close()`d, the camera is restored to the exact orbit pose it left, and orbit/zoom/pan take back over |
 
-Technical pipeline (`hooks/useHeadTracking.ts`):
+Orbit controls and head tracking never run at the same time. `OrbitControls.update()` rewrites
+the camera position and orientation on every call regardless of its `enabled` flag, so while a
+tracker is attached the viewer does not call it at all.
+
+### Technical pipeline (`hooks/useHeadTracking.ts`)
 
 ```mermaid
 flowchart LR
-    A[getUserMedia camera] --> B[MediaPipe FaceLandmarker\nWASM, GPU delegate]
-    B --> C[nose landmark per frame\nrequestAnimationFrame]
-    C --> D["headPosition {x,y,z} ∈ [-1,1]"]
-    D --> E[SplatViewer camera:\nx·2.0, y·2.0, 2.5 + z·5.0\nlookAt scene center]
+    A[getUserMedia 640x480] --> B[MediaPipe FaceLandmarker\nWASM, GPU delegate, CPU fallback]
+    B --> C[outer eye corners 33 / 263\nper new video frame]
+    C --> D[metric pose:\ndistance from eye span,\nx/y from eye midpoint]
+    D --> E[1 euro filter\nper axis]
+    E --> F["pose {x, y, z} relative to\nthe recentre calibration"]
+    F --> G[SplatViewer render loop:\noff-axis frustum, fixed orientation]
 ```
 
-Privacy note: all tracking runs **in the browser** — webcam frames never leave the device; the
-only network fetch is the MediaPipe WASM/model bundle from the CDN on first enable.
+Two things about that chain are worth stating because the obvious shortcuts are wrong:
+
+- **Distance comes from the eye span, not from a landmark `z`.** MediaPipe's `z` is depth
+  relative to the centre of the head, in a normalized scale — it is not a distance and barely
+  moves when you lean in. The distance is computed by pinhole from the outer-canthal span
+  (landmarks 33 and 263, ~90 mm in adults) against an assumed 60° webcam field of view. Both
+  assumptions only affect the absolute scale, and **Recentre** divides that out.
+- **The pose is never React state.** It is published by mutating one long-lived object that the
+  render loop reads. Only the status and the sensitivity go through React, via
+  `useSyncExternalStore`. Putting the pose in state re-rendered the whole app at camera
+  framerate.
+
+### Privacy and configuration
+
+All tracking runs **in the browser**: webcam frames are decoded into a WebGL texture, measured,
+and discarded. No image data is uploaded, and the app never records or stores video.
+
+By default, however, the landmark model and its WASM runtime (~12 MB, cached after first use)
+are fetched from public CDNs. On an air-gapped appliance that is not a leak so much as a feature
+that will not start, so both locations are configurable at build time
+(`utils/headTrackingConfig.ts`):
+
+| Env var | Default | Purpose |
+| --- | --- | --- |
+| `REACT_APP_MEDIAPIPE_WASM_BASE` | `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@<version>/wasm` | Directory holding `vision_wasm_internal.{js,wasm}`. Trailing slashes are trimmed |
+| `REACT_APP_FACE_LANDMARKER_MODEL_URL` | `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task` | The `.task` bundle |
+| `REACT_APP_FACE_LANDMARKER_DELEGATE` | `GPU` | `GPU` or `CPU`. `GPU` already falls back to `CPU` automatically; set `CPU` to skip the attempt on a machine where the WebGL context is contended |
+
+These are Create React App variables, so they are **baked in at build time**, exactly like
+`REACT_APP_API_BASE`. Setting them at container runtime has no effect — pass them as build args.
+
+To serve both from the appliance itself:
+
+```bash
+# from web-server/client/, after npm install
+mkdir -p public/mediapipe
+cp -R node_modules/@mediapipe/tasks-vision/wasm public/mediapipe/wasm
+curl -Lo public/mediapipe/face_landmarker.task \
+  https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+
+REACT_APP_MEDIAPIPE_WASM_BASE=/mediapipe/wasm \
+REACT_APP_FACE_LANDMARKER_MODEL_URL=/mediapipe/face_landmarker.task \
+  npm run build
+```
+
+`nginx.conf` already serves `.wasm` from the static root; `.task` falls through the SPA rule and
+is served as a file because `try_files $uri /index.html` matches the file first. When both
+point at this origin the panel's footnote changes to say so.
+
+The WASM version in the default URL is pinned to the installed `@mediapipe/tasks-vision`
+(`MEDIAPIPE_TASKS_VISION_VERSION`). The JS bundle and the WASM are one program split across two
+files and do not version-negotiate; a mismatch aborts inside the Emscripten runtime with no
+usable error. `headTrackingConfig.test.ts` fails if the constant and `package.json` drift apart.
 
 ---
 

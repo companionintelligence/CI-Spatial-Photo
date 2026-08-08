@@ -20,6 +20,18 @@ dependencies = [
 [project.optional-dependencies]
 # MCP server/client surface. Kept optional so the REST API + tests run without it.
 mcp = ["mcp>=1.2"]
+# Monocular / video depth estimation for the depth-image and depth-video engines.
+# Deliberately NOT in `dependencies`: torch is a multi-hundred-megabyte wheel (multi-gigabyte
+# with CUDA) and the API, router, MCP surface and test suite all run without it — the depth
+# engines just report themselves unavailable with an install hint. `pip install '.[depth]'`
+# pulls the CPU/MPS wheel; for CUDA install torch from the PyTorch index first, then this extra.
+# transformers 4.48 is the floor: `post_process_depth_estimation` and the Depth Pro
+# architecture both land there, and without them the Depth Pro checkpoint cannot be loaded and
+# the focal-length path silently degrades to the assumed 60-degree field of view.
+# torchvision is here despite never being imported by this project: transformers 5's
+# AutoImageProcessor hard-requires it, and its absence surfaces as an unreadable ImportError
+# from inside from_pretrained rather than as a missing dependency.
+depth = ["torch>=2.1", "torchvision>=0.16", "transformers>=4.48", "safetensors>=0.4"]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
 
 [build-system]

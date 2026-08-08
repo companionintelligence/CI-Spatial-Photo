@@ -82,6 +82,25 @@ support both rather than picking one.
   restrictions* (notably excludes some regions and very‑large‑MAU deployments). **Verify.**
 - **Fit:** production‑ready meshes for engines/AR; heavier than TripoSplat.
 
+### Monocular depth → back‑projection — **shipped as `depth-image`**
+The cheapest route to real parallax, and the only one on this page that runs usefully on a CPU
+with no GPU at all. A depth model predicts one value per pixel; back‑projecting through a
+pinhole camera yields a 2.5D Gaussian cloud. Nothing behind the subject, but within the ±20° the
+XR portal uses it reads as a real 3D moment — and it is a category jump from the flat Preview
+plane, which has no parallax whatsoever.
+
+- **Depth Anything V2** (TikTok/HKU): the current quality/speed leader for relative depth.
+  **Licence split matters**: Small is **Apache‑2.0**, Base and Large are **CC BY‑NC 4.0** — so
+  Small is the product default and the larger two sit behind the same non‑commercial gate as
+  SHARP.
+- **MiDaS 3.0 / DPT** (Intel, **Apache‑2.0**): older and softer, fully permissive at every size.
+  Worth keeping as a second opinion when Depth Anything hallucinates a plane.
+- **Depth Pro** (Apple, non‑commercial research licence): predicts **metric** depth *and* the
+  shot's focal length, which is the only way to get a geometrically correct back‑projection
+  instead of an assumed 60° field of view. Same licence posture as SHARP.
+- **Trade‑off vs. TripoSplat:** TripoSplat invents the unseen back of an object; depth
+  estimation does not. Depth wins on scenes, speed and hardware; TripoSplat wins on objects.
+
 ### Faster/older baselines
 - **TripoSR** (MIT) and **SF3D/Stable‑Fast‑3D** (Stability community license): fast single‑image
   → mesh; good low‑VRAM fallbacks.
@@ -111,9 +130,26 @@ support both rather than picking one.
 - **Verdict:** use a feed‑forward model *only* as an optional pose/geometry initializer with a
   license flag; keep COLMAP as the commercially clean default.
 
+### Temporally consistent video depth — **shipped as `depth-video`**
+The counterpart to `depth-image` for clips, and the answer for the video people actually have:
+a few seconds of a mostly‑still phone, where photogrammetry has no inter‑frame parallax to work
+with and fails outright.
+- **Video Depth Anything** (Small **Apache‑2.0**, Large **CC BY‑NC 4.0**): a genuinely temporal
+  network. Not on PyPI and does not load through `transformers`, so it is integrated as a
+  subprocess adapter like TripoSplat rather than in‑process.
+- **Per‑frame image depth + scale/shift alignment** — the default, because it needs no extra
+  binary. Each frame's disparity is in arbitrary units, so normalising frames independently
+  makes the scene *breathe*; fitting each frame onto its predecessor removes that entirely. It
+  does **not** give true 4D consistency under a moving camera, which is precisely the gap the
+  purpose‑built video checkpoints fill.
+- **DepthCrafter / ChronoDepth**: stronger temporal priors, diffusion‑based, slow and
+  research‑licensed. Not integrated.
+
 ### Dynamic / 4D (moving video): 4D Gaussian Splatting, Shape‑of‑Motion
 - Time‑varying splats for motion‑heavy clips. Research‑grade, heavy. Out of scope for v1 but the
-  asset schema reserves a `temporal` flag so 4D can slot in later.
+  asset schema reserves a `temporal` flag so 4D can slot in later. `depth-video` deliberately
+  leaves that flag `false`: it emits one splat from the clip's sharpest frame, and claiming a 4D
+  asset the viewer cannot play would be a lie in the metadata.
 
 ---
 
