@@ -60,7 +60,17 @@ async def create_job(
     principal: Principal = Depends(require_principal),
     settings: Settings = Depends(get_settings),
 ):
-    refs: list[str] = json.loads(memory_refs) if memory_refs else []
+    # `memory_refs` is a JSON string on a multipart form, i.e. entirely client-supplied text.
+    # An unguarded `json.loads` turned a typo into an unhandled JSONDecodeError and a 500; and
+    # valid-but-wrong JSON was worse than that. `memory_refs='"abc"'` parses to the *string*
+    # "abc", which `for ref in refs` then iterates one CHARACTER at a time — three phantom
+    # memory lookups for 'a', 'b', 'c'. Both are 400s, not 500s and not silent nonsense.
+    try:
+        refs = json.loads(memory_refs) if memory_refs else []
+    except json.JSONDecodeError as e:
+        raise HTTPException(400, f"memory_refs must be a JSON array of memory ids: {e}") from e
+    if not isinstance(refs, list) or not all(isinstance(r, str) for r in refs):
+        raise HTTPException(400, "memory_refs must be a JSON array of memory ids (strings).")
     if not files and not refs:
         raise HTTPException(400, "Provide one or more files or memory_refs.")
 
@@ -71,7 +81,24 @@ async def create_job(
         staging.mkdir(parents=True, exist_ok=True)
         for uf in files:
             name = Path(uf.filename or "upload").name
+            # `.name` strips any directory part, so "../../etc/passwd" is already reduced to
+            # "passwd". Two inputs survive it and are not filenames at all: `Path("..").name`
+            # is ".." (since Python 3.13) and `Path(".").name` is "". Both make `staging / name`
+            # a *directory* — and ".." escapes the staging dir entirely — so the write below
+            # died with IsADirectoryError and the request 500'd on a one-character filename.
+            if name in ("", ".", ".."):
+                name = "upload"
             dest = staging / name
+            # Distinct uploads legitimately share a name: two IMG_0001.jpg from different
+            # folders, or any camera roll that has wrapped its counter. Writing both to the
+            # same path silently DISCARDED the first and left `saved` holding the same path
+            # twice, so a 40-photo photogrammetry job reconstructed 39 photos with one of them
+            # counted twice — no error anywhere. `names` keeps the original for display; only
+            # the on-disk path is disambiguated.
+            n = 1
+            while dest.exists():
+                dest = staging / f"{n}-{name}"
+                n += 1
             dest.write_bytes(await uf.read())
             saved.append(dest)
             names.append(name)

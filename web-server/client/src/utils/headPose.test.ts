@@ -223,3 +223,83 @@ describe('estimateHeadPose', () => {
     expect(pose.span).toBeGreaterThan(0);
   });
 });
+
+describe('estimateHeadPose degrades instead of breaking', () => {
+  it('keeps tracking when the landmarks carry no usable z', () => {
+    /*
+      z is the one component this estimator uses that a landmark set can
+      plausibly arrive without: it is the only field MediaPipe documents as an
+      approximation, some tooling emits landmarks as {x, y} pairs, and a dropped
+      frame can hand back NaN. Every one of those has to degrade to the
+      image-plane estimate rather than to "no face" — the failure that matters
+      is not a few percent of depth error, it is the window freezing because the
+      hook was told there was nobody there.
+
+      The value it degrades TO is checked as well: with dz = 0 the measured span
+      is the frontal span, so a head-on face still measures its true distance,
+      and only a turned head loses the yaw correction.
+    */
+    const truth = 0.55;
+    const zless = synthesizeFace({ distance: truth }).map(({ x, y }) => ({ x, y })) as Landmark[];
+    const zNaN = synthesizeFace({ distance: truth }).map((l) => ({ ...l, z: NaN }));
+
+    for (const landmarks of [zless, zNaN]) {
+      const pose = estimateHeadPose(landmarks, { aspect: ASPECT });
+      expect(pose).not.toBeNull();
+      expect(Number.isFinite(pose!.distanceMeters)).toBe(true);
+      expect(pose!.distanceMeters).toBeCloseTo(truth, 6);
+    }
+  });
+
+  it('returns null for a landmark set from a model with a different topology', () => {
+    // A 21-point hand model, or a face mesh truncated by a partial decode:
+    // indices 33 and 263 are simply absent, and reading `.x` off undefined is a
+    // TypeError inside the webcam frame callback — which kills the rAF loop,
+    // not just this frame.
+    const short = synthesizeFace({ distance: 0.5 }).slice(0, 100);
+    expect(estimateHeadPose(short, { aspect: ASPECT })).toBeNull();
+
+    const holes = synthesizeFace({ distance: 0.5 });
+    (holes as unknown as (Landmark | undefined)[])[OUTER_EYE_CORNER_B] = undefined;
+    expect(estimateHeadPose(holes, { aspect: ASPECT })).toBeNull();
+  });
+
+  it('clamps a face pressed against the lens instead of inverting the parallax', () => {
+    // Leaning in until the eyes span most of the frame gives a sub-decimetre
+    // distance. The calibration divides by it, so an unclamped 3 cm turns the
+    // sensitivity gain into a multiplier of ~20 and the scene snaps off screen.
+    const close = estimateHeadPose(synthesizeFace({ distance: 0.04 }), { aspect: ASPECT })!;
+    expect(close.distanceMeters).toBeGreaterThanOrEqual(0.15);
+    expect(close.distanceMeters).toBeLessThan(0.2);
+  });
+
+  it('survives a head turned almost side-on', () => {
+    // 1.3 rad is 75 degrees: the eye span has collapsed to a quarter of its
+    // frontal width in the image plane and nearly all of the separation is in
+    // z. Nothing here may divide by the vanishing image-plane span.
+    const truth = 0.55;
+    const pose = estimateHeadPose(synthesizeFace({ distance: truth, yaw: 1.3 }), {
+      aspect: ASPECT,
+    })!;
+    expect(pose.distanceMeters / truth).toBeGreaterThan(0.9);
+    expect(pose.distanceMeters / truth).toBeLessThan(1.1);
+    expect(Number.isFinite(pose.xMeters)).toBe(true);
+  });
+
+  it('never emits NaN metres, whatever the video element reports as its aspect', () => {
+    // `aspect` is `video.videoWidth / video.videoHeight`, which is 0/0 — NaN —
+    // for the frame or two between `play()` and the first decoded frame, and
+    // stays NaN if the track ends. A NaN reaching the camera matrix does not
+    // throw; it blanks the canvas, which is a much harder symptom to trace.
+    const landmarks = synthesizeFace({ distance: 0.5 });
+    expect(estimateHeadPose(landmarks, { aspect: NaN })).toBeNull();
+    expect(estimateHeadPose(landmarks, { aspect: -1 })).toBeNull();
+
+    // Infinity is admitted (it is > 0) and must still produce finite metres:
+    // an infinitely wide frame has zero vertical extent, so the answer is 0.
+    const degenerate = estimateHeadPose(landmarks, { aspect: Infinity })!;
+    expect(degenerate.yMeters).toBeCloseTo(0, 12);
+    expect(Number.isFinite(degenerate.xMeters)).toBe(true);
+    expect(Number.isFinite(degenerate.distanceMeters)).toBe(true);
+  });
+});

@@ -235,3 +235,277 @@ export const mapHeadPoseToEye = ({
 
   return { x, y, z };
 };
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Physical screen calibration.
+
+   Everything above is unit-free: the caller hands over a window half-size and
+   an eye position in the SAME units, and the projection depends only on their
+   ratios (scale halfWidth, halfHeight and eye by any common factor and
+   `computeOffAxisFrustum` returns the identical frustum — the tests assert
+   this). That invariance is what lets a physically calibrated window drop in
+   without a second projection path.
+
+   The uncalibrated construction assumes the physical screen subtends exactly
+   the virtual camera's field of view. Write that assumption out: with the glass
+   `d` world units in front of the eye and half-height `h = tan(fov/2)*d`, it
+   claims
+
+       h / d  =  halfHeight_metres / viewingDistance_metres
+
+   i.e. tan(theta_virtual) = tan(theta_physical). It is false for every display
+   that is not exactly the size the assumption implies, and the error is a pure
+   gain on the parallax: a 13" laptop at 60 cm subtends about 16 degrees
+   vertically while a 60-degree virtual camera claims 60, so the true parallax
+   is understated by a factor of ~3.6.
+
+   ── What calibration actually has to change ─────────────────────────────────
+
+   The physically correct requirement is one ratio:
+
+       ndc_x  =  eye_x_metres / halfWidth_metres          (and the same in y)
+
+   Substituting the window construction, `ndc_x = eye_x_world / halfWidth_world`,
+   so the fix is to make the world-space ratio equal the metric one. There are
+   two knobs — the glass's world size and the eye's world distance from it — and
+   only their ratio matters, so exactly one degree of freedom is real.
+
+   Pin it with the property the product cares about: switching XR on must not
+   re-frame the memory. Keep the glass rectangle at the size the uncalibrated
+   path gives it (`tan(fov/2) * WINDOW_DEPTH_FRACTION * L`, from the orbit
+   camera's own framing) and move the EYE instead, from `d = f*L` back to
+   `d = f*L*A` where
+
+       A  =  tan(fov/2) * calibrationDistance_metres / halfHeight_metres
+          =  tan(theta_virtual) / tan(theta_physical)
+
+   is the ratio the old assumption asserted was 1. Check both consequences:
+
+     • Parallax.  eye_x_world / halfWidth_world
+                  = (pose.x * f*L*A) / (tan(fov/2) * aspect * f*L)
+                  = pose.x * calDist / (halfHeight_m * aspect)
+                  = (dx_metres / calDist) * calDist / halfWidth_m
+                  = dx_metres / halfWidth_m.                      1:1, exactly.
+
+     • Framing.   At the neutral pose the camera sits `d = f*L*A` behind a glass
+                  of half-height `tan(fov/2)*f*L`, i.e. `L*A` from the orbit
+                  target. Visible half-height at the target plane is
+                  `tan(fov/2)*f*L * (L*A)/(f*L*A) = tan(fov/2)*L` — precisely
+                  what the orbit camera framed. Unchanged, to the last digit.
+
+   So calibration is a DOLLY, not a zoom: the camera pulls back to `L*A` and the
+   projection narrows to the true angle the screen subtends, and the two cancel
+   at the neutral pose. The perspective flattens (a longer lens on the same
+   subject) — that is not a bug, it is what looking at a small window from a
+   normal viewing distance actually looks like, and it is the visible signature
+   of the calibration being real.
+
+   `A` is typically 1.5-4 for a desk display, so the calibrated camera is
+   genuinely much further from the subject; the caller has to widen `far` to
+   match or the subject clips out of the back of the frustum.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Fallback eye-to-screen distance when the tracker has not yet produced a
+ * metric reading. 0.6 m is the middle of the range people actually sit at from
+ * a desk display; it is only ever used for the frames before the first
+ * detection and while tracking is lost, and it exists so the calibrated dolly
+ * does not lurch between two camera distances every time a face is dropped.
+ */
+export const DEFAULT_VIEWING_DISTANCE_M = 0.6;
+
+/**
+ * Angular scale `A` above: how much narrower the real screen is than the
+ * virtual camera claims.
+ *
+ * Clamped, because it multiplies the camera's distance from the subject and the
+ * inputs are user-supplied. A mistyped 2.7" diagonal would put `A` near 40 and
+ * park the camera forty subject-distances away, where the near/far planes and
+ * float depth precision both give up; a 270" one would push it under 0.1 and
+ * bury the camera inside the subject. Neither is recoverable by the user
+ * without understanding what went wrong, so they are bounded to a range that
+ * stays renderable and merely looks wrong.
+ */
+export const MIN_ANGULAR_SCALE = 0.2;
+export const MAX_ANGULAR_SCALE = 12;
+
+export interface AngularScaleInput {
+  /** Virtual camera's VERTICAL field of view, in degrees. */
+  fovDeg: number;
+  /** True half-height of the canvas rectangle, in metres. */
+  halfHeightM: number;
+  /** Metric eye-to-screen distance at the calibration (Recentre) pose. */
+  calibrationDistanceM: number;
+}
+
+/**
+ * @returns the dolly factor, or exactly 1 when any input is unusable — which
+ *          reproduces the uncalibrated projection bit for bit, so a bad
+ *          calibration degrades to the old behaviour rather than to a broken
+ *          one.
+ */
+export const computeAngularScale = ({
+  fovDeg,
+  halfHeightM,
+  calibrationDistanceM,
+}: AngularScaleInput): number => {
+  if (!(fovDeg > 0) || !(fovDeg < 180)) return 1;
+  if (!(halfHeightM > 0) || !Number.isFinite(halfHeightM)) return 1;
+  if (!(calibrationDistanceM > 0) || !Number.isFinite(calibrationDistanceM)) return 1;
+
+  const scale = (Math.tan((fovDeg * Math.PI) / 360) * calibrationDistanceM) / halfHeightM;
+  if (!Number.isFinite(scale)) return 1;
+  return clamp(scale, MIN_ANGULAR_SCALE, MAX_ANGULAR_SCALE);
+};
+
+/**
+ * Recover the metric distance the tracker was calibrated at.
+ *
+ * The hook publishes `z = d / cal.distance` and `distanceMeters = d` from the
+ * same filtered sample, so their quotient is `cal.distance` exactly — no drift,
+ * no extra state, and nothing new to keep in sync in `useHeadTracking`. It is
+ * recovered rather than exposed because `cal.distance` is private to the
+ * controller and only becomes meaningful once a face has been seen.
+ *
+ * @param fallback used whenever no face has been seen yet (the neutral pose has
+ *        `distanceMeters === 0`) or the quotient lands outside the range a
+ *        seated human can occupy. Passing the LAST GOOD value here — not a
+ *        constant — is what stops the calibrated camera dollying every time
+ *        tracking drops for a frame.
+ */
+export const calibrationDistanceMeters = (
+  pose: Pick<HeadPose, 'z' | 'distanceMeters'>,
+  fallback: number = DEFAULT_VIEWING_DISTANCE_M,
+): number => {
+  const { z, distanceMeters } = pose;
+  if (!Number.isFinite(z) || !Number.isFinite(distanceMeters)) return fallback;
+  if (!(z > 0) || !(distanceMeters > 0)) return fallback;
+  const distance = distanceMeters / z;
+  // Same bounds `headPose.ts` clamps its raw estimate to. Outside them the
+  // reading is not a viewing distance, it is a mis-detection.
+  if (!(distance >= 0.15) || !(distance <= 4)) return fallback;
+  return distance;
+};
+
+/** Which regime the window is currently in. Surfaced verbatim in the XR panel. */
+export type WindowCalibrationMode = 'calibrated' | 'relative';
+
+export interface WindowGeometryInput {
+  /** Distance from the orbit camera to its target, world units. */
+  subjectDistance: number;
+  /** Fraction of `subjectDistance` at which the glass sits. */
+  depthFraction: number;
+  /** The live camera's vertical FOV in degrees and viewport aspect. */
+  fovDeg: number;
+  aspect: number;
+  /**
+   * The canvas's true rectangle in metres, or null when uncalibrated. Only the
+   * half-height is used: the half-width is pinned to the viewport aspect, which
+   * the canvas rect already matches (both are the same rectangle) and which
+   * stays right if the two ever disagree because the projection has to fill the
+   * viewport, not the monitor.
+   */
+  screenRect: { halfHeightM: number } | null;
+  /** Metric eye-to-screen distance at the calibration pose. */
+  calibrationDistanceM: number;
+}
+
+export interface WindowGeometry {
+  /** Half-extents of the glass in WORLD units. Identical in both modes. */
+  halfWidth: number;
+  halfHeight: number;
+  /** Eye-to-glass distance at the neutral pose, world units. */
+  windowDistance: number;
+  /** Camera-to-target distance at the neutral pose, world units. `L * A`. */
+  cameraDistance: number;
+  /** Glass-centre-to-target distance, world units. */
+  glassToTarget: number;
+  angularScale: number;
+  mode: WindowCalibrationMode;
+}
+
+/**
+ * `clamp` above is not NaN-safe and cannot be made so without changing what it
+ * means everywhere else: `Math.max(NaN, lo)` is NaN, so a non-finite value walks
+ * through every bound untouched. That only matters here, because
+ * `computeWindowGeometry` is the one function in this module whose numeric
+ * inputs come straight off a live `THREE.PerspectiveCamera` and a DOM
+ * measurement, and every one of its outputs lands in `computeOffAxisFrustum`
+ * and then in `camera.projectionMatrix`.
+ *
+ * The reachable case is mundane, not exotic. `SplatViewer`'s `handleResize` runs
+ * once unconditionally on mount, before layout is guaranteed to have given the
+ * container a height, and does `camera.aspect = clientWidth / clientHeight` —
+ * `0 / 0`, i.e. NaN — while on the intrinsics path it also sets
+ * `camera.fov = 2 * atan(clientHeight / …)`, i.e. exactly 0. A NaN in the
+ * projection matrix throws nothing and warns nothing, it just blanks the canvas;
+ * a zero FOV collapses `right - left` to 0 and puts an Infinity there instead.
+ * That is the same silent failure `mapHeadPoseToEye` already guards `pose.z`
+ * against, and the same one the `[data-splat-status="ready"]` capture would
+ * report as a healthy black frame.
+ */
+const clampFinite = (value: number, lo: number, hi: number, fallback: number): number =>
+  Number.isFinite(value) ? clamp(value, lo, hi) : fallback;
+
+/**
+ * The one place that decides where the glass is and how far behind it the eye
+ * sits. Derived per frame rather than cached on the anchor so that a viewport
+ * resize (which changes `aspect`, and `fov` too on the intrinsics path) and a
+ * Recentre (which changes `calibrationDistanceM`) are both picked up without
+ * re-anchoring — re-anchoring would re-measure from the already-dollied camera
+ * and compound the dolly on every resize.
+ */
+export const computeWindowGeometry = ({
+  subjectDistance,
+  depthFraction,
+  fovDeg,
+  aspect,
+  screenRect,
+  calibrationDistanceM,
+}: WindowGeometryInput): WindowGeometry => {
+  // Upper bounds as well as lower ones: `Math.max(Infinity, 0.05)` is Infinity,
+  // and an infinite half-height produces `Infinity - Infinity` = NaN one step
+  // later in the frustum. The fallbacks are only ever reached by a genuinely
+  // unusable input, and 0.55 / 50 deg / 1:1 are chosen to be the least
+  // surprising thing to render for the frame or two before the next resize.
+  const L = clampFinite(subjectDistance, 0.05, 1e6, 0.05);
+  const f = clampFinite(depthFraction, 0.05, 0.95, 0.55);
+  const fov = clampFinite(fovDeg, 1, 179, 50);
+  const viewAspect = clampFinite(aspect, 1e-6, 1e6, 1);
+
+  const angularScale = screenRect
+    ? computeAngularScale({
+        // The SANITIZED fov, not the raw one. `computeAngularScale` returns 1
+        // for a non-finite or zero fov while the glass below would still be
+        // built from the 50-degree fallback, and the two disagreeing is exactly
+        // what breaks the framing invariant this whole construction is pinned
+        // on — the dolly `A` and the glass half-height must come from one fov.
+        fovDeg: fov,
+        halfHeightM: screenRect.halfHeightM,
+        calibrationDistanceM,
+      })
+    : 1;
+
+  // The glass keeps the size the orbit framing gives it — see the block comment
+  // above. This is the term that makes the calibrated and uncalibrated views
+  // frame identically at the neutral pose.
+  const halfHeight = Math.tan(THREE.MathUtils.degToRad(fov) / 2) * f * L;
+  const halfWidth = halfHeight * viewAspect;
+
+  const cameraDistance = L * angularScale;
+  const windowDistance = f * cameraDistance;
+
+  return {
+    halfWidth,
+    halfHeight,
+    windowDistance,
+    cameraDistance,
+    glassToTarget: cameraDistance - windowDistance,
+    angularScale,
+    // `angularScale === 1` with a screen rect present is not a failure, it just
+    // means the display happens to subtend the virtual FOV; the mode still
+    // reports calibrated because the parallax IS being computed from a measured
+    // screen. Only the absence of a usable rect is "relative".
+    mode: screenRect ? 'calibrated' : 'relative',
+  };
+};

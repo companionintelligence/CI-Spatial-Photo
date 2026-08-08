@@ -3,7 +3,8 @@
 A complete functional + technical tour of the CI Photo Time Machine web app. Screenshots are
 captured from the real app driving the real server (Preview engine, no GPU). For the API
 behind each interaction see [`API.md`](API.md); for system design see
-[`ARCHITECTURE.md`](ARCHITECTURE.md).
+[`ARCHITECTURE.md`](ARCHITECTURE.md); for immersive AR and the physical display calibration see
+[`AR.md`](AR.md).
 
 The app is a single-page React application (`web-server/client/`) with three layers:
 
@@ -37,7 +38,7 @@ The top bar is always visible; the controls card can be hidden for an immersive 
 | --- | --- | --- | --- | --- |
 | 1 | **"Photo Time Machine"** | Title | Static branding | `<h1>`, drop-shadow over the viewer |
 | 2 | **XR toggle** | Icon button (eye / eye-off) | Enables/disables the head-tracked magic window | Gray = off, **green = on**. Toggles `useHeadTracking(enabled)`; nothing is downloaded and no camera is requested until this is on (see [§6](#6-xr-mode-the-head-tracked-magic-window)) |
-| 3 | **XR panel** | Card (only in XR mode) | Webcam preview, tracking status, **Recentre**, parallax slider | Drops below the top bar while XR is on. Detailed in [§6](#6-xr-mode-the-head-tracked-magic-window) |
+| 3 | **XR panel** | Card (only in XR mode) | Webcam preview, tracking status, **Recentre**, parallax slider, **screen-size calibration** | Drops below the top bar while XR is on. Detailed in [§6](#6-xr-mode-the-head-tracked-magic-window) |
 | 4 | **Theme toggle** | Icon button (sun / moon) | Switches light/dark text scheme | Local state only; viewer canvas is always dark |
 | 5 | **Controls toggle** | Icon button (X / gear) | Shows/hides the controls card | Blue button. X when visible, gear when hidden (see [§7](#7-immersive-mode-controls-hidden)) |
 
@@ -168,6 +169,7 @@ sequenceDiagram
 | **Camera framing** | If the PLY carries SHARP camera metadata: exact intrinsics/extrinsics projection (portal-accurate). Otherwise: automatic bounding-box framing | `makeProjectionFromIntrinsics` / `getBoundingBox` paths |
 | **Coordinate handling** | ml-sharp/3DGS assets are OpenCV-convention; the viewer applies a CV→GL axis flip | `makeAxisFlipCvToGl()` |
 | **Head tracking** | While XR is on, orbit/zoom/pan are suspended and the camera is driven by an off-axis frustum instead (see [§6](#6-xr-mode-the-head-tracked-magic-window)). Turning XR off restores the exact pose it left | Only one writer touches the camera per frame; `controls.update()` is not called in XR mode |
+| **View in your room** (bottom-right) | Enters immersive AR: the memory stands on your real floor. **Only rendered on a device that confirmed `immersive-ar` support** — Android Chrome, Quest browser — and only once a memory is loaded. On iPhone/iPad a disclosure explains why there is no button instead. See [`AR.md`](AR.md) | `utils/webxrSession.ts` + `utils/arPlacement.ts`; the session runs on this same renderer via `renderer.xr` and `setAnimationLoop` |
 
 ### Mesh viewer (`components/MeshViewer.tsx` — `<model-viewer>`)
 
@@ -228,6 +230,17 @@ Gaussians: with the glass on the subject plane there would be no parallax at all
 calibration pose the projection is bit-identical to the ordinary orbit view, so switching XR on
 never re-frames the memory.
 
+#### Relative vs. calibrated
+
+Out of the box the window is *relative*: the parallax assumes the physical screen subtends
+exactly the virtual camera's field of view, which is self-consistent but not true of any
+particular display — a 13" laptop and a 27" monitor move the scene by the same amount for the
+same head movement. Entering the panel diagonal (**Screen size**, below) makes it *calibrated
+1:1*: the camera dollies back by `A = tan(θ_virtual)/tan(θ_physical)` and the lens narrows by
+`1/A`, which leaves the framing at the target plane identical while making head movement
+life-sized. The full derivation, the known error cases, and why the two projection matrices are
+deliberately **not** equal are in [`AR.md`](AR.md#2-display-calibration).
+
 ### The XR panel
 
 | Element | Behavior |
@@ -236,11 +249,38 @@ never re-frames the memory.
 | **Status** | `Starting camera…` (sky) → `Looking for your face` (amber) → `Tracking` (green); `Camera blocked` / `Camera unavailable` (red) with the reason spelled out |
 | **Recentre** | Treats your current head position and distance as dead centre. Enabled only while tracking. Use it after you move your chair, or if the view feels off-axis at rest |
 | **Parallax** | Sensitivity, 0.25×–3×, default 1.5×. **1.00× is physically true to life**; above it the parallax is deliberately exaggerated, which most people prefer at a laptop where head movement is small |
+| **Screen size** | The display's diagonal in inches — the number printed on the box. Optional, persisted (`ptm:display-diagonal-inches`), and applied as you type. The badge beside it says which projection is actually live: **calibrated 1:1** or **relative**. Anything outside 4–150 inches is refused inline *and* clears the stored value, so the badge can never claim a calibration the viewer is not using. There is no browser API for physical display size, which is why the app has to ask |
 | **Eye button (green)** | Click again to disable: the camera stream stops, the landmark model is `close()`d, the camera is restored to the exact orbit pose it left, and orbit/zoom/pan take back over |
 
 Orbit controls and head tracking never run at the same time. `OrbitControls.update()` rewrites
 the camera position and orientation on every call regardless of its `enabled` flag, so while a
 tracker is attached the viewer does not call it at all.
+
+### Immersive AR — a different feature with a similar name
+
+The eye button is the *magic window*. **View in your room**, bottom-right of the viewer, is
+immersive AR: a real WebXR `immersive-ar` session in which the memory stands on your floor.
+
+| | Magic window | Immersive AR |
+| --- | --- | --- |
+| Control | Eye button, top bar | "View in your room", over the viewer |
+| Needs | A webcam | WebXR `immersive-ar` + a camera permission |
+| Works on | Anything with `getUserMedia`, **including iOS** | Android Chrome, Quest browser. **Never iOS** |
+| Interaction | Move your head | Tap to place, drag to move, pinch/twist to size and turn |
+
+The AR control is rendered **only** after `navigator.xr.isSessionSupported('immersive-ar')` has
+resolved exactly `true`, and only once a memory is loaded — which is also what keeps it out of
+every product-video frame, since headless Chromium has no WebXR. On an iPhone or iPad the button
+is replaced by a disclosure saying that no browser on iOS implements WebXR and pointing at the
+head-tracked window, which does work there.
+
+Leaving AR restores the orbit view exactly: `fov`, `aspect`, `zoom`, position, orientation,
+near/far, the grid and the scene background are all snapshotted on entry, because three's
+WebXR manager overwrites every one of them per frame.
+
+Full detail — session lifecycle, Spark's WebXR update ordering, why there is no
+`<model-viewer>`/USDZ path, why `immersive-vr` is not shipped, and the on-device test
+recipe — is in [`AR.md`](AR.md).
 
 ### Technical pipeline (`hooks/useHeadTracking.ts`)
 

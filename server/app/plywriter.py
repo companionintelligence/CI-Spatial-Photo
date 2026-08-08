@@ -177,6 +177,16 @@ def _edge_mask(depth: np.ndarray, drop_percent: float) -> np.ndarray:
     """
     if drop_percent <= 0:
         return np.ones(depth.shape, dtype=bool)
+    if min(depth.shape) < 2:
+        # `np.gradient` needs at least two samples along EVERY axis and raises a bare
+        # `ValueError: Shape of array too small to calculate a numerical gradient` otherwise.
+        # A one-pixel-wide or one-pixel-tall image is a legal upload, and before this guard it
+        # reached the user as "Depth map from 'depth-anything-v2-small' was unusable: Shape of
+        # array too small…" — a numpy internal blaming the model for a perfectly good
+        # prediction. A single row or column has no occlusion curtain to remove (the artefact
+        # this mask exists for is a *2D* sheet spanning a boundary), so keep every pixel and
+        # let the caller's own `isfinite & > 0` validation decide whether the map is usable.
+        return np.ones(depth.shape, dtype=bool)
     # Gradient of log-depth: a 10cm step matters at 30cm and not at 30m, and the log makes the
     # threshold scale-free so one percentile works for close-ups and landscapes alike.
     log_d = np.log(np.clip(depth, 1e-6, None))
