@@ -1,0 +1,65 @@
+{
+  "_": "Written by `ci-video narrate`. Records which line each mp3 is a read of, so a later edit to scene.narration can be detected instead of silently keeping the old recording. Commit this with the mp3s.",
+  "voice": "en-GB-SoniaNeural",
+  "scenes": {
+    "open": {
+      "text": "A photograph has no depth. Your own server works it out.",
+      "seconds": 4.44
+    },
+    "drop-media": {
+      "text": "Open the viewer. Drop in a photo, a burst, or a video.",
+      "seconds": 4.68,
+      "adopted": true
+    },
+    "choose-engine": {
+      "text": "Pick an engine and an intent, or leave both on auto.",
+      "seconds": 3.792,
+      "adopted": true
+    },
+    "job-running": {
+      "text": "The server reads the input, picks an engine, and runs the job.",
+      "seconds": 4.368,
+      "adopted": true
+    },
+    "from-memory": {
+      "text": "Your Companion already holds your photos. Turn one into 3D without uploading anything.",
+      "seconds": 6.528,
+      "adopted": true
+    },
+    "engines": {
+      "text": "Six engines behind one interface, now including monocular depth. Preview needs no GPU at all.",
+      "seconds": 7.44,
+      "adopted": true
+    },
+    "explore-gallery": {
+      "text": "Finished assets land in the gallery. Click one to open it.",
+      "seconds": 4.56,
+      "adopted": true
+    },
+    "orbit-memory": {
+      "text": "Hide the panel and orbit the memory itself. Nothing left your hardware to render it.",
+      "seconds": 5.832,
+      "adopted": true
+    },
+    "magic-window": {
+      "text": "Turn on XR and your webcam tracks your head. The screen stops being a picture and becomes a window.",
+      "seconds": 6.84,
+      "adopted": true
+    },
+    "share-link": {
+      "text": "The address bar is the share link. It points at your box.",
+      "seconds": 4.416,
+      "adopted": true
+    },
+    "companion-native": {
+      "text": "Agents create and share these over MCP. The files stay on your hardware.",
+      "seconds": 5.712,
+      "adopted": true
+    },
+    "close": {
+      "text": "Photo Time Machine, from Companion Intelligence. UnCloud your life.",
+      "seconds": 5.688,
+      "adopted": true
+    }
+  }
+}
