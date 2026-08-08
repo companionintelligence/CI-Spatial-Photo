@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "at": "2026-08-08T22:07:26.921Z",
+  "kit": "0.14.0",
+  "shots": {
+    "create-empty.mobile.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "da6700953123dc599b0f619db4bd5eaee02d8153162addac9e288eff975bd295"
+    },
+    "create-empty.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "b9927832a3dba251cc3ff68e06ccff6d84f37a3fe92fe98301ec44f4f2a40735"
+    },
+    "create-engine-picked.mobile.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "c3cb335ba8f8760d791060d6eb6c7d5912c3552f1271d9e6d97003592393a41d"
+    },
+    "create-engine-picked.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "0eeeecef0ff95fa69383a5731c76e55ebb71334c9bed27444cea5e67dee8573c"
+    },
+    "create-processing.mobile.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "f860fb85558723bd4d40663bee231a71c856c2c636579207793f9b798c53076e"
+    },
+    "create-processing.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "a65579f29619f4c836b8fec4b57d894953aa65c1c989434dda3386df88555731"
+    },
+    "create-selected.mobile.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "8662afbb38c07326a4f7e3514800de829bc035bb8920407e900a5ba2466c37c6"
+    },
+    "create-selected.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "80579055b54fba5d32a8ec8854c761636d4587c7957f6927a28f00f29af98f15"
+    },
+    "gallery-assets.mobile.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "04a7602c5ac1364acc8f67e2e9d950a9f66b413749e26568c18cfd0ac4dbebd1"
+    },
+    "gallery-assets.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "9a7876af23f527b8282f860779cfbfec1c03a4d77c70d88e549bcacb389c102a"
+    },
+    "memory-grid.mobile.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "841ecb8daef3e6d278b296f94c8d909e0feff16d1a69ec7b1a5998bc05e9d744"
+    },
+    "memory-grid.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "4410bb0324e33949fae15eb23193a2b2413ab8b4e300d81726930b2b592ea789"
+    },
+    "memory-job.mobile.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "ada2039cb866a44b0f8f15d68f8e5abebb40a05e324d096d68b683a1c0fc78be"
+    },
+    "memory-job.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "e0fe2f0917d0db0d6bd16e4be96ed25000e2ccad1d1f271eba6c4197f7739fb6"
+    },
+    "viewer-orbit.mobile.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "4e0822ae39799f5a65bfbf93b5cb2f0e07f2caf209151a39fe358cb27dd4eb2b"
+    },
+    "viewer-orbit.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "22a9eb6bf32289a61a6eada5997197c929bcd6536aadfbf52d5829ad2c9c7b55"
+    },
+    "viewer-shared.mobile.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "87fb6f904d06cb0c519fe84743ca854b998c7902605c6060c38a0c11bf9918fb"
+    },
+    "viewer-shared.png": {
+      "ok": true,
+      "at": "2026-08-08T22:07:26.921Z",
+      "sha256": "6047d10a09682267d1d3834cdc7a65103e658a1a4386a3ea05053feb73fc5674"
+    }
+  }
+}

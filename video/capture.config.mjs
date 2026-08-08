@@ -49,14 +49,18 @@
  *     genuine article, not a mock. That asset has to be seeded through the real
  *     POST /jobs before capture runs — by hand, per video/README.md "The stage".
  *  5. The viewer is a Three.js + Spark SplatMesh WebGL2 canvas
- *     (components/SplatViewer.tsx). Headless Chromium under the kit's launch args
- *     does expose WebGL2 through ANGLE/SwiftShader, including the
+ *     (components/SplatViewer.tsx), and it needs a REAL GPU. This entry used to
+ *     say the opposite: that ANGLE/SwiftShader exposes the
  *     EXT_color_buffer_float / EXT_float_blend / OES_texture_float_linear set a
- *     3DGS renderer needs, so the viewer shots rasterise on ubuntu-latest with no
- *     GPU. SwiftShader is deterministic within a Chromium build, so these frames
- *     are byte-stable until Playwright is bumped — at which point the drift job
- *     opens a PR, which is exactly what it is for. Left unmasked deliberately: a
- *     masked canvas would defeat the point of the shot.
+ *     3DGS renderer needs, so the viewer shots rasterise anywhere, deterministic
+ *     within a Chromium build. Every clause of that is true and the conclusion
+ *     was still wrong: the extensions are there and the frames do come out, but
+ *     software-rasterising this scene at 3840x2160 pins the renderer's main
+ *     thread for over thirty seconds, and a page that cannot service a `before`
+ *     step cannot be driven to the state the shot is of. Measured 2026-08-08:
+ *     15 of 18 shots, with `page.click` timing out against a button a probe
+ *     found in the DOM at every step. Hence `launch` below. Left unmasked
+ *     deliberately: a masked canvas would defeat the point of the shot.
  *  6. XR mode calls `getUserMedia` and pulls the MediaPipe FaceLandmarker WASM
  *     from a CDN (hooks/useHeadTracking.ts). Never enable XR during capture —
  *     no camera in CI, and the CDN fetch is a network dependency.
@@ -104,6 +108,38 @@ const FIXTURE_PNG =
 export default {
   // The CRA viewer. `npm run capture` never boots it — see video/README.md.
   baseURL: process.env.PTM_VIEWER_URL ?? process.env.APP_URL ?? "http://localhost:3000",
+
+  /**
+   * Hardware GL, because this app draws a real 3D scene (video-kit >= 0.15.0).
+   *
+   * video-kit's default launch resolves WebGL to SwiftShader, Chromium's
+   * software rasteriser:
+   *
+   *   default              ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device ...))
+   *   channel: "chromium"  ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Max)
+   *
+   * Software-rasterising the splat at 3840x2160 blocks the renderer's main
+   * thread for over thirty seconds, and a blocked page cannot service a
+   * `before` step. Measured 2026-08-08 on the same stage, same steps, twice:
+   *
+   *   default              viewer-orbit (both cuts) failed on `page.click` for
+   *                        button[title="Toggle Controls"] — an element the DOM
+   *                        carried the entire time, count 1 at every probe —
+   *                        and viewer-shared.mobile failed on a waitForSelector
+   *                        whose own call log reads "resolved to visible".
+   *                        Even `locator('body')` timed out at 30s.
+   *   channel: "chromium"  every step passed, click included.
+   *
+   * That failure mode is the loud one, and it still left three stale PNGs on
+   * disk (see the receipt in assets/shots/). The quiet one is a splat shot
+   * mid-composite, which reads in review as an art problem.
+   *
+   * Turning this on re-rasterises text as well, so every shot in this project
+   * moved in the same commit that added it. Do not copy this line into a
+   * project that has no WebGL — it would rewrite that project's PNGs for
+   * nothing.
+   */
+  launch: { channel: "chromium" },
 
   // The app hard-codes dark chrome (App.tsx defaults isDarkMode = true, the
   // viewer background is bg-black), so the context matches it. Pinned

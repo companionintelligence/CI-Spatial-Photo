@@ -13,9 +13,8 @@
     "pacing": "fit"
   },
   "chapters": {
-    "create": "Create",
-    "explore": "Explore",
-    "share": "Share"
+    "create": "Make one",
+    "explore": "Open it"
   },
   "media": {
     "music": null,
@@ -23,21 +22,44 @@
   },
   "scenes": [
     {
+      "id": "flat",
+      "kind": "feature",
+      "seconds": 5.5,
+      "minSeconds": 4.5,
+      "title": "1998. The porch, the sun going down.",
+      "caption": "You were standing in it. The file kept one angle.",
+      "narration": "A photograph has no depth. Your own server works it out.",
+      "reveal": "paced"
+    },
+    {
+      "id": "most-people-stop",
+      "kind": "feature",
+      "seconds": 5.5,
+      "title": "Most people quit right about here.",
+      "caption": "Depth normally means a GPU, or your picture on someone's disk.",
+      "narration": "Depth normally means a GPU you do not own, or a service that keeps your file.",
+      "reveal": "paced",
+      "transition": "hold"
+    },
+    {
       "id": "open",
       "kind": "intro",
       "seconds": 5,
+      "minSeconds": 4.5,
       "title": "Photo Time Machine",
-      "caption": "A photo goes in. A 3D memory comes out.",
-      "narration": "A photograph has no depth. Your own server works it out.",
-      "mark": "./assets/app-icon.png"
+      "caption": "One image in. A surface you can move around.",
+      "narration": "Photo Time Machine does that work on hardware you already own.",
+      "mark": "./assets/app-icon.png",
+      "reveal": "paced",
+      "transition": "cut"
     },
     {
       "id": "drop-media",
       "kind": "screen",
       "chapter": "create",
       "seconds": 6,
-      "caption": "Drop an image, a set of images, or a video.",
-      "narration": "Open the viewer. Drop in a photo, a burst, or a video.",
+      "caption": "Drop an image, a burst, or a video.",
+      "narration": "Open the viewer and drop one in. It goes to your own server, not a queue.",
       "shots": [
         {
           "id": "create-empty",
@@ -85,41 +107,81 @@
       ]
     },
     {
-      "id": "choose-engine",
+      "id": "from-memory",
       "kind": "screen",
       "chapter": "create",
-      "seconds": 6,
-      "caption": "Pick an engine and an intent, or leave both on auto.",
-      "narration": "Pick an engine and an intent, or leave both on auto.",
+      "seconds": 7.5,
+      "caption": "Or take one straight from Companion Memory.",
+      "narration": "Your Companion already holds your library. Turn one into 3D without uploading anything.",
       "shots": [
         {
-          "id": "create-selected",
+          "id": "memory-grid",
           "url": "photo-time-machine.local",
-          "alt": "The armed Create tab with Engine on Auto (recommended) and Intent on Auto.",
+          "alt": "The From Memory tab: a Photos/Videos toggle above a grid of images already held in Companion Memory.",
           "motion": "drift-down",
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
             "waitUntil": "networkidle",
-            "settle": 500,
+            "settle": 600,
             "before": [
               {
-                "waitFor": "select:has(option[value=\"preview\"])"
+                "click": "button:has-text(\"From Memory\")"
               },
               {
-                "eval": "window.__ciVideoPickFixture()"
+                "waitFor": "button:has-text(\"Photos\")"
               },
               {
-                "waitFor": "text=file(s) selected"
+                "waitFor": "img[alt=\"Porch at sunset, 1998\"]"
               }
             ]
           }
         },
         {
+          "id": "memory-job",
+          "url": "photo-time-machine.local",
+          "alt": "One tap on the 1998 porch tile and the job is already reconstructing with preview — the library never left the box.",
+          "motion": "drift-down",
+          "capture": {
+            "path": "/",
+            "waitFor": "button:has-text(\"Create 3D\")",
+            "waitUntil": "networkidle",
+            "settle": 600,
+            "before": [
+              {
+                "click": "button:has-text(\"From Memory\")"
+              },
+              {
+                "waitFor": "button:has-text(\"Photos\")"
+              },
+              {
+                "waitFor": "img[alt=\"Porch at sunset, 1998\"]"
+              },
+              {
+                "click": "button[title=\"Porch at sunset, 1998\"]"
+              },
+              {
+                "waitFor": "text=Status: running"
+              }
+            ]
+          }
+        }
+      ],
+      "transition": "cut"
+    },
+    {
+      "id": "choose-engine",
+      "kind": "screen",
+      "chapter": "create",
+      "seconds": 6,
+      "caption": "Name the engine, or leave it on auto.",
+      "narration": "Name the engine yourself, or leave it on auto and let the server infer it.",
+      "shots": [
+        {
           "id": "create-engine-picked",
           "url": "photo-time-machine.local",
-          "alt": "The same two selects driven off auto: Engine now reads preview, Intent now reads Scene (portal).",
-          "motion": "drift-down",
+          "alt": "The two selects driven off auto: Engine now reads preview, Intent now reads Scene (portal), with Create 3D live beneath them.",
+          "motion": "push-in",
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
@@ -155,37 +217,14 @@
       "kind": "screen",
       "chapter": "create",
       "seconds": 6,
-      "caption": "The server classifies the input and routes it to an engine.",
-      "narration": "The server reads the input, picks an engine, and runs the job.",
+      "caption": "Reconstructing with preview, on your own box.",
+      "narration": "It reads the input, picks an engine, and runs the job where the file already is.",
       "shots": [
-        {
-          "id": "create-selected",
-          "url": "photo-time-machine.local",
-          "alt": "Create 3D armed and waiting, one image staged in the dropzone.",
-          "motion": "push-in",
-          "capture": {
-            "path": "/",
-            "waitFor": "button:has-text(\"Create 3D\")",
-            "waitUntil": "networkidle",
-            "settle": 500,
-            "before": [
-              {
-                "waitFor": "select:has(option[value=\"preview\"])"
-              },
-              {
-                "eval": "window.__ciVideoPickFixture()"
-              },
-              {
-                "waitFor": "text=file(s) selected"
-              }
-            ]
-          }
-        },
         {
           "id": "create-processing",
           "url": "photo-time-machine.local",
-          "alt": "The same button one click later: it reads Processing, and a status line reads reconstructing with preview.",
-          "motion": "push-in",
+          "alt": "The Create button one click later: it reads Processing, and the status line beneath reads reconstructing with preview.",
+          "motion": "drift-down",
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
@@ -214,116 +253,52 @@
       "transition": "cut"
     },
     {
-      "id": "from-memory",
-      "kind": "screen",
-      "chapter": "create",
-      "seconds": 7.5,
-      "caption": "Pull straight from Companion memory. No upload step.",
-      "narration": "Your Companion already holds your photos. Turn one into 3D without uploading anything.",
-      "shots": [
-        {
-          "id": "memory-grid",
-          "url": "photo-time-machine.local",
-          "alt": "The From Memory tab: a Photos/Videos toggle above a grid of photos already in Companion memory.",
-          "motion": "drift-down",
-          "capture": {
-            "path": "/",
-            "waitFor": "button:has-text(\"Create 3D\")",
-            "waitUntil": "networkidle",
-            "settle": 600,
-            "before": [
-              {
-                "click": "button:has-text(\"From Memory\")"
-              },
-              {
-                "waitFor": "button:has-text(\"Photos\")"
-              },
-              {
-                "waitFor": "img[alt=\"Porch at sunset, 1998\"]"
-              }
-            ]
-          }
-        },
-        {
-          "id": "memory-job",
-          "url": "photo-time-machine.local",
-          "alt": "One tap on the 1998 porch photo and the job is already reconstructing with preview — the library never left the box.",
-          "motion": "drift-down",
-          "capture": {
-            "path": "/",
-            "waitFor": "button:has-text(\"Create 3D\")",
-            "waitUntil": "networkidle",
-            "settle": 600,
-            "before": [
-              {
-                "click": "button:has-text(\"From Memory\")"
-              },
-              {
-                "waitFor": "button:has-text(\"Photos\")"
-              },
-              {
-                "waitFor": "img[alt=\"Porch at sunset, 1998\"]"
-              },
-              {
-                "click": "button[title=\"Porch at sunset, 1998\"]"
-              },
-              {
-                "waitFor": "text=Status: running"
-              }
-            ]
-          }
-        }
-      ],
-      "transition": "cut"
-    },
-    {
       "id": "engines",
       "kind": "feature",
       "seconds": 7.5,
-      "title": "Pluggable engines",
-      "caption": "One interface. Swap the reconstruction underneath.",
-      "narration": "Six engines behind one interface, now including monocular depth. Preview needs no GPU at all.",
+      "title": "What each engine actually does",
+      "caption": "Preview lays it flat. Depth adds parallax. Many views rebuild.",
+      "narration": "Preview lays the picture on a plane. Depth adds real parallax. Many views rebuild the scene.",
       "items": [
         {
           "label": "Preview",
-          "value": "CPU, always on"
+          "value": "flat plane, no GPU"
         },
         {
           "label": "Depth image",
-          "value": "one photo, real parallax"
+          "value": "real parallax, on CPU"
         },
         {
           "label": "Depth video",
-          "value": "a clip to a splat"
+          "value": "a clip, on CPU"
         },
         {
           "label": "TripoSplat",
           "value": "MIT, default"
         },
         {
-          "label": "SHARP",
-          "value": "research only"
+          "label": "Photogrammetry",
+          "value": "many views, GPU"
         },
         {
-          "label": "Photogrammetry",
-          "value": "video to splat"
+          "label": "SHARP",
+          "value": "research only"
         }
       ],
       "reveal": "paced"
     },
     {
-      "id": "explore-gallery",
-      "kind": "screen",
+      "id": "plate-to-space",
+      "kind": "split",
       "chapter": "explore",
-      "seconds": 6,
-      "caption": "Every finished memory becomes a tile you can open.",
-      "narration": "Finished assets land in the gallery. Click one to open it.",
+      "seconds": 6.5,
+      "caption": "The tile is flat. Open it and it stands in space.",
+      "narration": "This one is the Preview engine: the picture itself, lifted onto a plane and turned.",
       "shots": [
         {
           "id": "gallery-assets",
           "url": "photo-time-machine.local",
-          "alt": "The Explore tab: the finished splat as a gallery tile, labelled with its kind, engine and creation time.",
-          "motion": "drift-down",
+          "alt": "The Explore tab: the finished splat as a gallery tile, labelled Splat, Preview and its creation date.",
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
@@ -340,96 +315,9 @@
           }
         },
         {
-          "id": "viewer-shared",
-          "url": "photo-time-machine.local/view/a7989c36",
-          "alt": "The same tile clicked: the splat is loaded behind the panel and the address bar has become the share link.",
-          "motion": "drift-down",
-          "capture": {
-            "path": "/",
-            "waitFor": "button:has-text(\"Create 3D\")",
-            "waitUntil": "networkidle",
-            "settle": 2500,
-            "before": [
-              {
-                "click": "button:has-text(\"Explore\")"
-              },
-              {
-                "click": "button:has(img[alt=\"preview\"])"
-              },
-              {
-                "waitFor": "button:has-text(\"Copy link\")"
-              },
-              {
-                "waitFor": "canvas"
-              },
-              {
-                "waitFor": "[data-splat-status=\"ready\"]"
-              },
-              {
-                "wait": 5000
-              },
-              {
-                "eval": "(() => { window.requestAnimationFrame = () => 0; window.webkitRequestAnimationFrame = () => 0; })()"
-              },
-              {
-                "eval": "() => { const s = document.createElement('style'); s.textContent = '[data-splat-status]{display:none !important}'; document.head.appendChild(s); }"
-              }
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "orbit-memory",
-      "kind": "screen",
-      "chapter": "explore",
-      "seconds": 7,
-      "caption": "Hide the panel and orbit the memory itself.",
-      "narration": "Hide the panel and orbit the memory itself. Nothing left your hardware to render it.",
-      "shots": [
-        {
-          "id": "viewer-shared",
-          "url": "photo-time-machine.local/view/a7989c36",
-          "alt": "The viewer with the control panel still up, the splat rendering behind it.",
-          "motion": "push-in",
-          "capture": {
-            "path": "/",
-            "waitFor": "button:has-text(\"Create 3D\")",
-            "waitUntil": "networkidle",
-            "settle": 2500,
-            "before": [
-              {
-                "click": "button:has-text(\"Explore\")"
-              },
-              {
-                "click": "button:has(img[alt=\"preview\"])"
-              },
-              {
-                "waitFor": "button:has-text(\"Copy link\")"
-              },
-              {
-                "waitFor": "canvas"
-              },
-              {
-                "waitFor": "[data-splat-status=\"ready\"]"
-              },
-              {
-                "wait": 5000
-              },
-              {
-                "eval": "(() => { window.requestAnimationFrame = () => 0; window.webkitRequestAnimationFrame = () => 0; })()"
-              },
-              {
-                "eval": "() => { const s = document.createElement('style'); s.textContent = '[data-splat-status]{display:none !important}'; document.head.appendChild(s); }"
-              }
-            ]
-          }
-        },
-        {
           "id": "viewer-orbit",
           "url": "photo-time-machine.local/view/a7989c36",
-          "alt": "The panel toggled away: the reconstructed splat alone, full bleed, on its grid.",
-          "motion": "push-in",
+          "alt": "The same asset open in the viewer with the panel toggled away: one textured plane of Gaussians, tilted on its grid.",
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
@@ -467,54 +355,23 @@
                 "eval": "() => { const s = document.createElement('style'); s.textContent = '[data-splat-status]{display:none !important}'; document.head.appendChild(s); }"
               }
             ]
-          },
-          "focus": {
-            "landscape": {
-              "x": 0.2,
-              "y": 0.07,
-              "w": 0.76,
-              "h": 0.88
-            }
           }
         }
       ],
       "transition": "cut"
     },
     {
-      "id": "magic-window",
-      "kind": "feature",
-      "seconds": 8,
-      "title": "Look around it",
-      "caption": "Your webcam tracks your head. The screen becomes a window.",
-      "narration": "Turn on XR and your webcam tracks your head. The screen stops being a picture and becomes a window.",
-      "items": [
-        {
-          "label": "Off-axis projection",
-          "value": "true parallax"
-        },
-        {
-          "label": "Any webcam",
-          "value": "no headset"
-        },
-        {
-          "label": "On device",
-          "value": "frames never upload"
-        }
-      ],
-      "reveal": "paced"
-    },
-    {
-      "id": "share-link",
+      "id": "whose-hardware",
       "kind": "screen",
-      "chapter": "share",
-      "seconds": 5,
-      "caption": "Every memory gets a link, ready to copy.",
-      "narration": "The address bar is the share link. It points at your box.",
+      "chapter": "explore",
+      "seconds": 6,
+      "caption": "Splat · Preview, and a link that points at your box.",
+      "narration": "Move around it. The panel names the engine, and the link points at your own box.",
       "shots": [
         {
           "id": "viewer-shared",
           "url": "photo-time-machine.local/view/a7989c36",
-          "alt": "The panel back up, showing the share URL for this memory beside a Copy link button.",
+          "alt": "The viewer with its control panel up over the splat: the asset labelled Splat, Preview, and the share URL beside a Copy link button.",
           "motion": "push-in",
           "capture": {
             "path": "/",
@@ -553,28 +410,32 @@
       "transition": "cut"
     },
     {
-      "id": "companion-native",
+      "id": "stays-yours",
       "kind": "feature",
-      "seconds": 6,
-      "title": "Companion-native",
-      "caption": "Agents can drive it. The 3D stays on your hardware.",
-      "narration": "Agents create and share these over MCP. The files stay on your hardware.",
+      "seconds": 6.5,
+      "title": "What stays yours",
+      "caption": "The file, the engine, the link. All on your hardware.",
+      "narration": "The file, the engine and the link all stay on hardware you own. Nothing to cancel.",
       "items": [
         {
-          "label": "MCP tools",
-          "value": "seven"
+          "label": "Files",
+          "value": "your disk"
         },
         {
-          "label": "Sign-in",
-          "value": "Companion OIDC"
+          "label": "Engines",
+          "value": "your hardware"
         },
         {
-          "label": "Memory",
-          "value": "Companion Memory"
+          "label": "Share link",
+          "value": "your box"
         },
         {
-          "label": "Viewer",
-          "value": "browser, webcam, WebXR AR"
+          "label": "From Memory",
+          "value": "no upload step"
+        },
+        {
+          "label": "Monthly fee",
+          "value": "$0"
         }
       ],
       "reveal": "paced"
