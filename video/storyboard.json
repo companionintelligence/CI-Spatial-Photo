@@ -242,14 +242,6 @@
                 "waitFor": "img[alt=\"Porch at sunset, 1998\"]"
               }
             ]
-          },
-          "focus": {
-            "landscape": {
-              "x": 0.005,
-              "y": 0.09,
-              "w": 0.37,
-              "h": 0.66
-            }
           }
         },
         {
@@ -287,14 +279,22 @@
     {
       "id": "engines",
       "kind": "feature",
-      "seconds": 6,
+      "seconds": 7.5,
       "title": "Pluggable engines",
       "caption": "One interface. Swap the reconstruction underneath.",
-      "narration": "Four engines behind one interface. Preview needs no GPU at all.",
+      "narration": "Six engines behind one interface, now including monocular depth. Preview needs no GPU at all.",
       "items": [
         {
           "label": "Preview",
           "value": "CPU, always on"
+        },
+        {
+          "label": "Depth image",
+          "value": "one photo, real parallax"
+        },
+        {
+          "label": "Depth video",
+          "value": "a clip to a splat"
         },
         {
           "label": "TripoSplat",
@@ -479,6 +479,29 @@
         }
       ],
       "transition": "cut"
+    },
+    {
+      "id": "magic-window",
+      "kind": "feature",
+      "seconds": 8,
+      "title": "Look around it",
+      "caption": "Your webcam tracks your head. The screen becomes a window.",
+      "narration": "Turn on XR and your webcam tracks your head. The screen stops being a picture and becomes a window.",
+      "items": [
+        {
+          "label": "Off-axis projection",
+          "value": "true parallax"
+        },
+        {
+          "label": "Any webcam",
+          "value": "no headset"
+        },
+        {
+          "label": "On device",
+          "value": "frames never upload"
+        }
+      ],
+      "reveal": "paced"
     },
     {
       "id": "share-link",

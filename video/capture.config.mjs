@@ -214,6 +214,94 @@ export default {
         available: true,
         unavailable_reason: null,
       },
+      /*
+        The two depth engines. They belong here for the same reason the other
+        four do — a capture machine has no GPU and no downloaded weights, so a
+        live /engines would report them unavailable — but ALSO because the
+        `engines` scene now narrates "Six engines behind one interface". A stub
+        pinned at four would put that sentence over a dropdown showing four,
+        which is the kind of contradiction only a viewer notices.
+
+        `models` and `default_model` are the real shapes from models.py, so the
+        panel's per-checkpoint licence line is exercised by the capture rather
+        than only by unit tests. `default_model` must be a checkpoint that is
+        `available` here — the panel prints ITS licence, and the server now
+        guarantees the advertised default is the one a job would run.
+      */
+      {
+        name: "depth-image",
+        description:
+          "Single image -> monocular depth -> back-projected Gaussian cloud. Real parallax from one photo.",
+        inputs: ["image"],
+        intents: ["auto", "scene"],
+        output_kind: "splat",
+        output_formats: ["ply"],
+        commercial: true,
+        requires_gpu: false,
+        license: "Per-model — see models[].license",
+        available: true,
+        unavailable_reason: null,
+        default_model: "depth-anything-v2-small",
+        models: [
+          {
+            id: "depth-anything-v2-small",
+            label: "Depth Anything V2 — Small",
+            description: "Fastest, runs on CPU in seconds.",
+            license: "Apache-2.0",
+            commercial: true,
+            requires_gpu: false,
+            temporal: false,
+            approx_download_mb: 100,
+            weights_cached: true,
+            available: true,
+            unavailable_reason: null,
+          },
+          {
+            id: "depth-anything-v2-large",
+            label: "Depth Anything V2 — Large",
+            description: "Best quality; non-commercial weights.",
+            license: "CC-BY-NC-4.0",
+            commercial: false,
+            requires_gpu: true,
+            temporal: false,
+            approx_download_mb: 1340,
+            weights_cached: false,
+            available: false,
+            unavailable_reason:
+              "Non-commercial weights are disabled. Set DEPTH_ALLOW_NONCOMMERCIAL=1 to enable for research use.",
+          },
+        ],
+      },
+      {
+        name: "depth-video",
+        description:
+          "Video -> temporally consistent depth -> Gaussian cloud of the clip's sharpest frame.",
+        inputs: ["video"],
+        intents: ["auto", "scene"],
+        output_kind: "splat",
+        output_formats: ["ply"],
+        commercial: true,
+        requires_gpu: false,
+        license: "Per-model — see models[].license",
+        available: true,
+        unavailable_reason: null,
+        default_model: "depth-anything-v2-small",
+        models: [
+          {
+            id: "depth-anything-v2-small",
+            label: "Depth Anything V2 — Small (per frame)",
+            description: "Per-frame depth, aligned across the clip.",
+            license: "Apache-2.0",
+            commercial: true,
+            requires_gpu: false,
+            temporal: false,
+            approx_download_mb: 100,
+            weights_cached: true,
+            available: true,
+            unavailable_reason: null,
+          },
+        ],
+      },
     ];
 
     // A fixed Companion memory library (hazard 7). Thumbnails are inlined as data

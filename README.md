@@ -14,7 +14,11 @@ with its gallery and share link. See the full tour in [docs/UI-GUIDE.md](docs/UI
 
 - 🧠 **MCP API** — Hermes, OpenClaw, and Claude Code can create and share 3D assets as tools.
 - 🧩 **Pluggable engines** — TripoSplat (default), Apple SHARP (research), COLMAP→gsplat
-  photogrammetry, with TRELLIS/Hunyuan mesh engines slotting in behind one interface.
+  photogrammetry, and **monocular depth** for images and video, with TRELLIS/Hunyuan mesh
+  engines slotting in behind one interface.
+- 🎚️ **Pick your model** — the depth engines expose six image checkpoints (Depth Anything V2
+  S/B/L, MiDaS DPT Hybrid/Large, Apple Depth Pro) and Video Depth Anything, selectable per job.
+  See [docs/DEPTH-ENGINES.md](docs/DEPTH-ENGINES.md).
 - 🐳 **Containerized** — one `docker compose up` for the processing server + web viewer.
 - 🔐 **Companion‑native** — Companion OIDC auth; created assets are written to CI‑Server /
   Hermes memory so your digital twin remembers them.
@@ -28,6 +32,7 @@ with its gallery and share link. See the full tour in [docs/UI-GUIDE.md](docs/UI
 | --- | --- |
 | [**UI Guide**](docs/UI-GUIDE.md) | Every screen, button, and UI element — with real screenshots, behavior/API tables, and mermaid user flows. |
 | [**API Reference**](docs/API.md) | REST + MCP surfaces, job state machine, engine routing, data-at-rest layout, configuration, error contract. |
+| [**Depth Engines**](docs/DEPTH-ENGINES.md) | `depth-image` / `depth-video`: the model catalog, how to pick one, the licence gates, the back-projection maths, and the limitations. |
 | [**Architecture**](docs/ARCHITECTURE.md) | System design: MCP-first core, pluggable engines, Companion OIDC + memory integration. |
 | [**Research**](docs/RESEARCH.md) | The engine & viewer trade studies (with licenses) behind every technology choice. |
 | [**Changelog**](CHANGELOG.md) | Release notes; current release **2.0.0**. |
@@ -67,6 +72,18 @@ The API, MCP surface, input router, auth, and memory client all run **without a 
 *inference* (TripoSplat/SHARP/photogrammetry) needs a CUDA GPU and downloaded weights; without
 them the API still works and engines return a clear "GPU/weights required" error.
 
+The **depth engines are the exception** — they run usefully on CPU, and are one optional extra
+away:
+
+```bash
+pip install -e '.[depth]'    # torch + torchvision + transformers; CPU/MPS/CUDA all work
+curl -F files=@photo.jpg -F engine=depth-image localhost:8000/api/v1/jobs
+```
+
+Weights (~100 MB for the default Depth Anything V2 Small) download on first use. `torch` is
+deliberately *not* a base dependency: without the extra the two depth engines simply report
+`available: false` with the install command in `unavailable_reason`, and everything else works.
+
 ## Using it
 
 ### From the web
@@ -86,7 +103,8 @@ link"_ → `image_to_3d` → poll `get_job` → `get_share_url`.
 ```
 server/                 FastAPI 3D processing server + MCP + engines (the new core)
   app/
-    engines/            Engine protocol, registry/router, TripoSplat/SHARP/photogrammetry
+    engines/            Engine protocol, registry/router, TripoSplat/SHARP/photogrammetry,
+                        depth-image/depth-video + the depth model catalog
     main.py routes.py mcp_server.py jobs.py storage.py memory.py auth.py models.py config.py
 web-server/client/      React + Three.js + Spark web viewer (kept, evolved: /view/:id, meshes)
 src/sharp/              Apple SHARP engine (bundled; research‑licensed weights)
@@ -107,7 +125,13 @@ docker-compose.yml      Viewer + server stack
 | `CI_MEMORY_MCP_URL` | Companion memory MCP endpoint (CI‑Server/Hermes) | — (memory off) |
 | `DEFAULT_ENGINE` | Engine when none requested | `triposplat` |
 | `SHARP_ENABLE_RESEARCH` | Enable the non‑commercial SHARP engine | `0` |
+| `DEPTH_MODEL` / `DEPTH_VIDEO_MODEL` | Default checkpoint for the depth engines | `depth-anything-v2-small` |
+| `DEPTH_ALLOW_NONCOMMERCIAL` | Unlock the CC‑BY‑NC / Apple‑research depth weights | `0` |
+| `DEPTH_AUTO_ROUTE` | Let the depth engines join automatic routing | `0` |
 | `ASSET_DIR` | Where assets/jobs are persisted | `./data/assets` |
+
+The depth engines have several more tuning knobs (field of view, depth range, splat budget,
+frame sampling) — see [docs/DEPTH-ENGINES.md](docs/DEPTH-ENGINES.md#configuration).
 
 ## Testing
 

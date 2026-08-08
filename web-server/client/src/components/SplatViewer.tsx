@@ -12,12 +12,134 @@ import {
   makeProjectionFromIntrinsics,
   fitDistanceToBox,
 } from '../utils/cameraUtils';
-import { HeadPosition } from '../hooks/useHeadTracking';
+import { computeOffAxisFrustum, makeOffAxisProjection, mapHeadPoseToEye } from '../utils/magicWindow';
+import { HeadTracking } from '../hooks/useHeadTracking';
 
 /** Ground plane, in units of the subject's widest horizontal dimension. */
 const GRID_SPAN_FACTOR = 2.4;
 /** The GridHelper is built at this size, so scaling is relative to it. */
 const GRID_BASE_SIZE = 2.5;
+
+/**
+ * Where the plane of the "glass" sits, as a fraction of the distance from the
+ * orbit camera to its target.
+ *
+ * This one number decides whether the magic window has anything to show. Put
+ * the glass ON the subject (1.0) and a subject with no depth — which is exactly
+ * what the default `preview` engine produces, a flat textured plane of
+ * Gaussians (server/app/plywriter.py) — sits in the plane of the window and
+ * therefore never parallaxes at all: you would move your head and see nothing
+ * happen. Pulling the glass forward puts the whole subject BEHIND it, like a
+ * diorama in a box, so even a flat photo slides within the window frame the way
+ * a poster seen through a doorway does.
+ *
+ * Any value gives an identical picture at the calibration pose — the window is
+ * cut from the same view cone, so it frames exactly what the orbit camera
+ * framed. It only changes how much the scene moves per centimetre of head
+ * travel, and how quickly the window edge starts cropping.
+ */
+const WINDOW_DEPTH_FRACTION = 0.55;
+
+/**
+ * Seconds to ramp between "no face" and "tracking". Snapping the frustum from
+ * a large off-axis offset back to centre in a single frame is a visible lurch,
+ * and losing the face for a moment is routine.
+ */
+const TRACKING_FADE_SECONDS = 0.25;
+
+/**
+ * The fixed rectangle the head-tracked camera looks through, captured from the
+ * orbit camera at the instant XR is switched on. Everything here is world
+ * space; `normal` points out of the glass, towards the viewer.
+ */
+interface WindowAnchor {
+  /** The orbit pose to restore when XR is switched off. */
+  position: THREE.Vector3;
+  quaternion: THREE.Quaternion;
+  right: THREE.Vector3;
+  up: THREE.Vector3;
+  normal: THREE.Vector3;
+  /** Centre of the glass. */
+  center: THREE.Vector3;
+  /** Distance from the calibrated eye to the glass. */
+  distance: number;
+}
+
+const captureWindowAnchor = (
+  camera: THREE.PerspectiveCamera,
+  target: THREE.Vector3,
+): WindowAnchor => {
+  const quaternion = camera.quaternion.clone();
+  // Taken from the quaternion rather than from `target - position`, because the
+  // quaternion is what is actually on screen: it carries the roll that a
+  // metadata-driven extrinsic can introduce, and reconstructing the basis from
+  // the target direction alone would silently level the horizon the moment XR
+  // was enabled.
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(quaternion);
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(quaternion);
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(quaternion);
+
+  const subjectDistance = Math.max(camera.position.distanceTo(target), 0.05);
+  const distance = subjectDistance * WINDOW_DEPTH_FRACTION;
+
+  return {
+    position: camera.position.clone(),
+    quaternion,
+    right,
+    up,
+    normal: forward.clone().negate(),
+    center: camera.position.clone().addScaledVector(forward, distance),
+    distance,
+  };
+};
+
+/**
+ * Place the camera at the tracked eye and rebuild its projection so the four
+ * corners of the glass stay welded to the four corners of the viewport.
+ *
+ * The camera's ORIENTATION never changes — that is the whole point, and the
+ * difference between this and the `lookAt(0, 0, 0)` it replaces. A window does
+ * not turn to follow you.
+ */
+const applyMagicWindow = (
+  camera: THREE.PerspectiveCamera,
+  anchor: WindowAnchor,
+  tracker: HeadTracking,
+  blend: number,
+) => {
+  const eye = mapHeadPoseToEye({
+    pose: tracker.pose,
+    windowDistance: anchor.distance,
+    sensitivity: tracker.sensitivity,
+    blend,
+  });
+
+  camera.position
+    .copy(anchor.center)
+    .addScaledVector(anchor.right, eye.x)
+    .addScaledVector(anchor.up, eye.y)
+    .addScaledVector(anchor.normal, eye.z);
+  camera.quaternion.copy(anchor.quaternion);
+  camera.updateMatrixWorld(true);
+
+  // Recomputed per frame rather than stored on the anchor so that a window
+  // resize — which changes `camera.aspect`, and `camera.fov` too on the
+  // intrinsics path — is picked up without having to re-calibrate the user.
+  const halfHeight = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * anchor.distance;
+  const halfWidth = halfHeight * camera.aspect;
+
+  makeOffAxisProjection(
+    computeOffAxisFrustum({
+      halfWidth,
+      halfHeight,
+      eye,
+      near: camera.near,
+      far: camera.far,
+    }),
+    camera.projectionMatrix,
+  );
+  camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+};
 
 /** Sit the ground grid under the loaded subject, scaled to it. */
 const fitGridToSubject = (
@@ -35,10 +157,27 @@ interface SplatViewerProps {
   fileUrl?: string;
   file?: File;
   className?: string;
-  headPosition?: HeadPosition | null;
+  /**
+   * The live head-tracking handle, or null for ordinary orbit control.
+   *
+   * Both names accept the same object. `headPosition` is what `App.tsx` passes
+   * today and is kept so the wiring there does not have to change in lockstep
+   * with this file; `headTracking` is the name to use in new code. This is NOT
+   * a per-frame value — it is a stable handle whose `pose` field is mutated in
+   * place, so this prop changes identity at most twice per session and no
+   * React render is ever driven by head motion.
+   */
+  headPosition?: HeadTracking | null;
+  headTracking?: HeadTracking | null;
 }
 
-const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, headPosition }) => {
+const SplatViewer: React.FC<SplatViewerProps> = ({
+  fileUrl,
+  file,
+  className,
+  headPosition,
+  headTracking,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -48,7 +187,21 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
   const gridRef = useRef<THREE.GridHelper | null>(null);
   const requestRef = useRef<number>();
   const currentMeshRef = useRef<any>(null);
-  
+
+  /*
+    Head tracking is read from refs inside the render loop, never from props
+    inside an effect. The version this replaces applied the pose in a
+    `useEffect` keyed on a `headPosition` state value that the hook updated once
+    per webcam frame, so every head movement re-rendered App and its entire
+    control panel in order to move a camera — and then `controls.update()`, one
+    rAF tick later, overwrote the result anyway (see the animate loop).
+  */
+  const trackerRef = useRef<HeadTracking | null>(null);
+  const anchorRef = useRef<WindowAnchor | null>(null);
+  const trackingBlendRef = useRef(0);
+  /** Set by the init effect so the XR-exit path can rebuild the ordinary projection. */
+  const applyProjectionRef = useRef<(() => void) | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string>('');
@@ -92,9 +245,47 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
     scene.add(grid);
     gridRef.current = grid;
 
+    /*
+      Exactly one thing may write the camera per frame.
+
+      Both modes used to run at once, and the result was not "a bit of both" —
+      it was orbit winning. `OrbitControls.update()` does not check `enabled`
+      (only its pointer handlers do): every call re-derives the camera position
+      from `target + spherical(offset)` and then calls `object.lookAt(target)`.
+      So the head-tracking effect's `camera.lookAt(0, 0, 0)` was overwritten one
+      rAF tick later by a lookAt at the orbit target, the head-driven position
+      was pushed back onto the orbit sphere with `_spherical.makeSafe()` pinning
+      it away from the poles and `_clampDistance` bounding its radius, and any
+      leftover damping from the user's last drag kept rotating underneath it.
+      Hence: while a tracker is attached, `controls.update()` is not called at
+      all, and `controls.enabled` is false so it also stops consuming input.
+    */
+    let lastFrameMs = performance.now();
     const animate = () => {
       requestRef.current = requestAnimationFrame(animate);
-      controls.update();
+
+      const now = performance.now();
+      // Clamped because a backgrounded tab resumes with a multi-second gap, and
+      // the tracking fade would otherwise jump straight to its end state.
+      const dt = Math.min(Math.max((now - lastFrameMs) / 1000, 0), 0.1);
+      lastFrameMs = now;
+
+      const tracker = trackerRef.current;
+      if (tracker) {
+        if (!anchorRef.current) {
+          anchorRef.current = captureWindowAnchor(camera, controls.target);
+        }
+        const goal = tracker.pose.tracking ? 1 : 0;
+        const step = dt / TRACKING_FADE_SECONDS;
+        trackingBlendRef.current =
+          goal > trackingBlendRef.current
+            ? Math.min(goal, trackingBlendRef.current + step)
+            : Math.max(goal, trackingBlendRef.current - step);
+        applyMagicWindow(camera, anchorRef.current, tracker, trackingBlendRef.current);
+      } else {
+        controls.update();
+      }
+
       renderer.render(scene, camera);
     };
     animate();
@@ -155,12 +346,28 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
     };
 
     const container = containerRef.current;
+    // Exposed so that leaving XR can rebuild whichever projection this asset is
+    // supposed to have (intrinsics-derived or plain perspective). The XR frame
+    // loop writes `camera.projectionMatrix` directly, and nothing else in this
+    // component would ever undo that.
+    applyProjectionRef.current = handleResize;
     window.addEventListener('resize', handleResize);
     handleResize();
 
     return () => {
+      applyProjectionRef.current = null;
       window.removeEventListener('resize', handleResize);
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      /*
+        OrbitControls owns pointer/wheel/touch listeners on the canvas and a
+        contextmenu listener, and it is the only object here that was never
+        torn down. This component genuinely unmounts in normal use — App.tsx
+        renders no viewer in the empty state — so closing an asset and opening
+        another left the previous controls attached to a detached canvas.
+        Dispose before the renderer, while its DOM element still exists.
+      */
+      controlsRef.current?.dispose();
+      controlsRef.current = null;
       if (renderer) {
         renderer.dispose();
         container?.removeChild(renderer.domElement);
@@ -169,26 +376,87 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
     };
   }, []);
 
-  // Handle Head Tracking
+  /*
+    Enter and leave the magic window.
+
+    This effect runs at most twice per session — when XR is switched on and when
+    it is switched off — because the prop it watches is a stable handle, not a
+    pose. It does no per-frame work; it only decides which of the two writers in
+    the animate loop is allowed to touch the camera, and it restores the orbit
+    camera bit-for-bit on the way out so that turning XR off does not silently
+    re-frame the user's memory.
+  */
   useEffect(() => {
-    if (!cameraRef.current || !headPosition) return;
+    const supplied = headTracking ?? headPosition ?? null;
 
     const camera = cameraRef.current;
-    
-    // Scale factors - tune these for better feel
-    const movementScale = 2.0; 
-    const depthScale = 5.0;
-    const baseDistance = 2.5;
+    const controls = controlsRef.current;
+    if (!camera || !controls) {
+      trackerRef.current = supplied;
+      return;
+    }
 
-    // Update position
-    const x = headPosition.x * movementScale;
-    const y = headPosition.y * movementScale;
-    const z = baseDistance + (headPosition.z * depthScale);
+    const takeOver = () => {
+      trackerRef.current = supplied;
+      // Anchored lazily in the frame loop rather than here: a freshly loaded
+      // asset may still be re-framing the camera in its own effect, and the
+      // window has to be cut from the pose the user can actually see.
+      anchorRef.current = null;
+      trackingBlendRef.current = 0;
+      controls.enabled = false;
+    };
 
-    camera.position.set(x, y, Math.max(0.5, z));
-    camera.lookAt(0, 0, 0);
-    
-  }, [headPosition]);
+    const giveBack = () => {
+      trackerRef.current = null;
+      const anchor = anchorRef.current;
+      if (anchor) {
+        camera.position.copy(anchor.position);
+        camera.quaternion.copy(anchor.quaternion);
+        camera.updateMatrixWorld(true);
+        anchorRef.current = null;
+      }
+      trackingBlendRef.current = 0;
+      controls.enabled = true;
+      applyProjectionRef.current?.();
+      controls.update();
+    };
+
+    if (!supplied) {
+      giveBack();
+      return;
+    }
+
+    /*
+      Having a tracker is NOT the same as the tracker working, and conflating
+      the two made the viewer unusable.
+
+      App.tsx hands this prop down on `isXREnabled` alone, so pressing the Eye
+      button surrenders the camera immediately: `controls.enabled = false` and
+      the animate loop stops calling `controls.update()`. If `getUserMedia`
+      then rejects — permission denied, no camera, or plain http, all of which
+      are ordinary — the controller parks in a terminal state, `pose.tracking`
+      never becomes true, and `applyMagicWindow` re-pins the camera to the
+      anchor every frame. The user is left with a viewer they cannot orbit,
+      cannot zoom, and cannot recover except by finding the same Eye button
+      again. The status badge explains the camera; nothing explains the dead
+      mouse.
+
+      So the camera follows the tracker's STATUS, not its existence: the two
+      terminal states hand orbit straight back, and a tracker that later
+      recovers takes it again. Subscribing here rather than lifting status into
+      React state keeps this off the render path — the pose is deliberately not
+      React state, and neither should this be.
+    */
+    const isDead = (status: string) => status === 'denied' || status === 'unavailable';
+
+    const sync = () => {
+      if (isDead(supplied.getSnapshot().status)) giveBack();
+      else takeOver();
+    };
+
+    sync();
+    return supplied.subscribe(sync);
+  }, [headTracking, headPosition]);
 
   // Load File
   useEffect(() => {
@@ -260,9 +528,13 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
              // Store metadata for resize
              mesh.userData.cameraMetadata = cameraMetadata;
 
-             // Use metadata if available
-             const { intrinsics, extrinsicCv } = cameraMetadata;
-             
+             // Only the extrinsic is needed here. The intrinsics are consumed by
+             // `handleResize`, which reads them back off `userData.cameraMetadata`
+             // — that is why this block ends by dispatching a resize rather than
+             // building a projection itself: one code path owns the projection,
+             // and it has to re-run on every viewport change anyway.
+             const { extrinsicCv } = cameraMetadata;
+
              // Apply extrinsic
              const e = extrinsicCv;
              const extrinsicCvMat = new THREE.Matrix4().set(
@@ -318,9 +590,20 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
                 mesh.userData.cameraMetadata.far = far;
              }
 
-             controlsRef.current.enabled = true;
-             controlsRef.current.update();
-             
+             /*
+               Only if the magic window is not currently driving the camera.
+               Loading an asset while XR is on used to re-enable OrbitControls
+               unconditionally, which puts two writers back on one camera: the
+               next `controls.update()` re-derives position from the orbit
+               target and overwrites the head-tracked pose, and — worse — a pan
+               during XR then corrupts the anchor that leaving XR restores, so
+               the user's framing does not come back.
+             */
+             if (!trackerRef.current) {
+               controlsRef.current.enabled = true;
+               controlsRef.current.update();
+             }
+
              // Trigger resize to apply projection
              window.dispatchEvent(new Event('resize'));
 
@@ -374,6 +657,12 @@ const SplatViewer: React.FC<SplatViewerProps> = ({ fileUrl, file, className, hea
             // at a fixed y = -0.5, i.e. cutting through the middle of it.
             fitGridToSubject(gridRef.current, worldCenter, size);
         }
+
+        // Both framing branches above have just moved the camera and the orbit
+        // target. If XR is on, the window was cut from the PREVIOUS asset's
+        // framing and is now pointing at nothing; dropping the anchor makes the
+        // frame loop re-cut it from the new pose on its next tick.
+        anchorRef.current = null;
 
         sparkRef.current.update({ scene: sceneRef.current });
         setInfo(`Loaded ${mesh.packedSplats.numSplats} splats`);

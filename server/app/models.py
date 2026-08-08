@@ -35,6 +35,32 @@ class JobInput(BaseModel):
     intent: Intent = "auto"
     requested_engine: Optional[str] = None
     requested_format: Optional[str] = None
+    # Which checkpoint to run *inside* the chosen engine (see EngineCapabilities.models).
+    # Optional and ignored by engines that expose a single model, so every pre-existing caller
+    # — including the MCP tools, which have no model argument — keeps working untouched.
+    requested_model: Optional[str] = None
+
+
+class EngineModelInfo(BaseModel):
+    """One selectable checkpoint within an engine.
+
+    Engines that wrap a family of interchangeable weights (the depth engines) advertise them
+    here instead of registering one engine per checkpoint. Splitting them would have put six
+    near-identical rows in the client's engine dropdown and made ``available`` on the engine
+    meaningless — the small model can be ready while the large one is a 1.3 GB download away.
+    """
+
+    id: str
+    label: str
+    description: str = ""
+    license: str = ""
+    commercial: bool = True
+    requires_gpu: bool = False
+    temporal: bool = False           # the checkpoint itself is temporally consistent
+    approx_download_mb: Optional[int] = None
+    weights_cached: bool = False     # a local snapshot exists; no download needed on first run
+    available: bool = True
+    unavailable_reason: Optional[str] = None
 
 
 class EngineCapabilities(BaseModel):
@@ -49,6 +75,10 @@ class EngineCapabilities(BaseModel):
     license: str
     available: bool = True
     unavailable_reason: Optional[str] = None
+    # Additive and defaulted: single-model engines emit an empty list and a null default, so
+    # the payload shape older clients parse is unchanged.
+    models: list[EngineModelInfo] = Field(default_factory=list)
+    default_model: Optional[str] = None
 
 
 class EngineResult(BaseModel):
@@ -67,6 +97,10 @@ class Asset(BaseModel):
     owner: str
     kind: AssetKind
     engine: str
+    # Checkpoint the engine actually ran, when it has a choice. Recorded because "made with
+    # depth-image" is not reproducible information — the small and large Depth Anything
+    # checkpoints produce visibly different geometry from the same photo.
+    engine_model: Optional[str] = None
     source_type: SourceType
     source_origin: SourceOrigin = "upload"
     source_filenames: list[str] = Field(default_factory=list)

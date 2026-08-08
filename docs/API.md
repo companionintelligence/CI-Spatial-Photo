@@ -32,7 +32,7 @@ sequenceDiagram
     participant API as REST or MCP surface
     participant JM as JobManager
     participant M as Companion memory (MCP)
-    participant E as Engine (preview / triposplat / sharp / photogrammetry)
+    participant E as Engine (preview / triposplat / sharp / photogrammetry / depth-*)
     participant S as Store (ASSET_DIR)
 
     C->>API: POST /api/v1/jobs (files or memory_refs)
@@ -80,15 +80,25 @@ flowchart TD
     B -- no --> D{source_type}
     D -- images / video --> E{photogrammetry available?}
     E -- yes --> E1[photogrammetry]
-    E -- no --> E2[error: install COLMAP + Brush]
+    E -- no --> E3{DEPTH_AUTO_ROUTE AND video AND depth-video available?}
+    E3 -- yes --> E4[depth-video]
+    E3 -- no --> E2[error: install COLMAP + Brush]
     D -- image --> F{intent = scene AND sharp enabled?}
     F -- yes --> F1[sharp]
     F -- no --> G{DEFAULT_ENGINE available?}
     G -- yes --> G1[triposplat by default]
-    G -- no --> H[preview — always available]
+    G -- no --> G2{DEPTH_AUTO_ROUTE AND depth-image available?}
+    G2 -- yes --> G3[depth-image]
+    G2 -- no --> H[preview — always available]
 ```
 
+`DEPTH_AUTO_ROUTE` defaults to `0`, so **automatic routing is unchanged** from 2.0.0: installing
+the optional `[depth]` extra must not silently move which engine processes existing uploads.
+Set `DEFAULT_ENGINE=depth-image` or pass `engine=` per job to reach the depth engines without
+the flag.
+
 Implementation: [`server/app/engines/registry.py`](../server/app/engines/registry.py).
+Depth engine details: [`DEPTH-ENGINES.md`](./DEPTH-ENGINES.md).
 
 ## REST endpoints
 
@@ -102,10 +112,16 @@ Base path: `/api/v1`. All responses are JSON unless noted.
 | --- | --- | --- | --- |
 | `files` | file[] | one of files/memory_refs | One image → single-image path; several images or one video → photogrammetry. |
 | `memory_refs` | JSON string array | one of files/memory_refs | Companion-memory refs (or URLs); media is downloaded server-side before the engine runs. |
-| `engine` | string | no | Force a specific engine (`preview`, `triposplat`, `sharp`, `photogrammetry`). Fails loudly if unavailable. |
+| `engine` | string | no | Force a specific engine (`preview`, `triposplat`, `sharp`, `photogrammetry`, `depth-image`, `depth-video`). Fails loudly if unavailable. Also accepts the `"<engine>:<model>"` shorthand. |
+| `model` | string | no | Checkpoint to run *inside* the engine, for engines that offer a choice — see `models[].id` from `GET /engines`. Ignored by single-model engines. Unknown or unusable ids end the job in `error` on its first tick, before any download or inference. |
 | `intent` | `auto` \| `object` \| `scene` | no | `object` = full 3D you can orbit; `scene` = monocular portal (routes to SHARP when enabled). Default `auto`. |
 | `format` | string | no | Reserved: preferred delivery format. |
 | `source_type` | `image` \| `images` \| `video` | no | Override auto-classification (rarely needed). |
+
+`model` is additive and optional; a client that never sends it behaves exactly as before. The
+`engine="depth-image:depth-anything-v2-large"` shorthand is equivalent, and exists for callers
+that only have an engine field to spend (the MCP tools, a single-select UI). When both are
+given, the explicit `model` field wins.
 
 Returns a `Job` (`202`-style; work continues in the background):
 
@@ -133,6 +149,7 @@ Returns the `Job`. `404` if unknown **or owned by someone else** (jobs are owner
   "owner": "dev@local",
   "kind": "splat",
   "engine": "preview",
+  "engine_model": null,
   "source_type": "image",
   "source_origin": "upload",
   "source_filenames": ["memory-photo.png"],
@@ -145,6 +162,11 @@ Returns the `Job`. `404` if unknown **or owned by someone else** (jobs are owner
   "memory_id": null
 }
 ```
+
+`engine_model` (added alongside the depth engines, `null` for single-model engines) records the
+checkpoint that produced the asset. "Made with `depth-image`" is not reproducible information:
+the Small and Large Depth Anything checkpoints give visibly different geometry from the same
+photo. The id also appears in `tags`.
 
 Note: asset *metadata* reads are not owner-restricted — that is what makes `/view/:assetId`
 share links work for recipients. Treat asset ids as unguessable capability URLs.
@@ -170,6 +192,25 @@ Streams the artifact (`ply`, `spz`, `glb`, …). Without `format`, serves the fi
 | `requires_gpu` | Whether inference needs CUDA. |
 | `license` | License summary string. |
 | `available` / `unavailable_reason` | Live availability (runtime/weights/flags present?) with a fix-it hint. |
+| `models` | **New, optional.** Selectable checkpoints inside this engine. `[]` for single-model engines — every engine that predates the depth backends. |
+| `default_model` | **New, optional.** The `models[].id` a job with no `model` field would run, or `null`. |
+
+Both additions are defaulted, so the payload an older client parses is unchanged. Each `models`
+entry:
+
+| Field | Meaning |
+| --- | --- |
+| `id` | The value to send as `model` on `POST /jobs`. |
+| `label` / `description` | Human-readable name and what it is good for. |
+| `license` / `commercial` | Per-checkpoint licence; `commercial: false` weights are gated behind `DEPTH_ALLOW_NONCOMMERCIAL=1`. |
+| `requires_gpu` | Whether a GPU is strongly recommended for this size. |
+| `temporal` | The checkpoint is temporally consistent by construction (video models). |
+| `approx_download_mb` | Size of the first-use download — warn the user before a 1.3 GB pull. |
+| `weights_cached` | A local snapshot already exists, so selecting it downloads nothing. |
+| `available` / `unavailable_reason` | Per-checkpoint gating. Three independent things can close it — the `[depth]` extra missing, the licence gate, or uncached weights with downloads disabled — and the reason names which. |
+
+Engine-level `available` is true when **any** checkpoint is usable, which is why a
+licence-gated Large entry does not make the engine look broken.
 
 ### `GET /memory/media?type=image|video` — browse Companion memory
 
@@ -191,6 +232,10 @@ Implementation: [`server/app/mcp_server.py`](../server/app/mcp_server.py).
 | `list_assets` | — | `Asset[]` | Assets with share URLs. |
 | `get_asset` | `asset_id` | `Asset` | Full metadata. |
 | `get_share_url` | `asset_id` | `{asset_id, share_url}` | The `/view/:assetId` link. |
+
+The MCP tools have no separate `model` argument — pass the shorthand through `engine` instead:
+`image_to_3d(source=…, engine="depth-image:depth-anything-v2-large")`. `list_engines` returns
+the same `models` array as `GET /engines`, so an agent can discover the valid ids first.
 
 Agent recipe — "turn this photo into 3D and give me a link":
 
@@ -237,9 +282,17 @@ Every setting is an environment variable (see [`.env.example`](../.env.example))
 | `CI_MEMORY_WRITE_TOOL` | `create_memory` | Memory-write tool name (deployment-specific). |
 | `DEFAULT_ENGINE` | `triposplat` | Router default for single images. |
 | `SHARP_ENABLE_RESEARCH` | `0` | Gate for the non-commercial SHARP engine. |
-| `MODEL_WEIGHTS_DIR` | `/models` | Where engine weights are mounted. |
+| `MODEL_WEIGHTS_DIR` | `/models` | Where engine weights are mounted; also searched for cached HuggingFace snapshots. |
 | `ASSET_DIR` | `./data/assets` | Persistence root. |
 | `TRIPOSPLAT_CMD` / `BRUSH_CMD` | `triposplat` / `brush` | Engine runtime binaries (subprocess adapters). |
+| `DEPTH_MODEL` / `DEPTH_VIDEO_MODEL` | `depth-anything-v2-small` | Default checkpoint per depth engine. |
+| `DEPTH_ALLOW_NONCOMMERCIAL` | `0` | Unlock CC-BY-NC / Apple-research depth weights. |
+| `DEPTH_AUTO_ROUTE` | `0` | Let the depth engines join automatic routing. |
+| `DEPTH_FOV_DEG` / `DEPTH_RANGE` | `60` / `8` | Assumed field of view; far:near depth ratio. |
+| `DEPTH_MAX_POINTS` / `DEPTH_EDGE_DROP_PERCENT` | `400000` / `2` | Gaussian budget; occlusion-edge rejection. |
+| `DEPTH_VIDEO_FPS` / `DEPTH_VIDEO_MAX_FRAMES` | `2` / `32` | Frame sampling for `depth-video`. |
+| `VIDEO_DEPTH_CMD` | `video-depth-anything` | Binary for the external video-depth adapter. |
+| `HF_HUB_OFFLINE` / `PTM_NO_DOWNLOAD` | — | Forbid weight downloads; uncached checkpoints then report unavailable instead of hanging on a fetch. |
 
 ## Error handling contract
 
