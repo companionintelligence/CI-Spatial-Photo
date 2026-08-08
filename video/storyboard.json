@@ -207,14 +207,6 @@
                 "waitFor": "select:has(option[value=\"scene\"]:checked)"
               }
             ]
-          },
-          "focus": {
-            "landscape": {
-              "x": 0.44,
-              "y": 0.3,
-              "w": 0.55,
-              "h": 0.55
-            }
           }
         }
       ],
@@ -232,7 +224,7 @@
           "id": "create-processing",
           "url": "photo-time-machine.local",
           "alt": "The Create button one click later: it reads Processing, and the status line beneath reads reconstructing with preview.",
-          "motion": "push-in",
+          "motion": "drift-down",
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
@@ -255,14 +247,6 @@
                 "waitFor": "text=Status: running"
               }
             ]
-          },
-          "focus": {
-            "landscape": {
-              "x": 0.44,
-              "y": 0.3,
-              "w": 0.55,
-              "h": 0.55
-            }
           }
         }
       ],
@@ -388,7 +372,7 @@
           "id": "viewer-shared",
           "url": "photo-time-machine.local/view/a7989c36",
           "alt": "The viewer with its control panel up over the splat: the asset labelled Splat, Preview, and the share URL beside a Copy link button.",
-          "motion": "pull-back",
+          "motion": "push-in",
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
@@ -420,14 +404,6 @@
                 "eval": "() => { const s = document.createElement('style'); s.textContent = '[data-splat-status]{display:none !important}'; document.head.appendChild(s); }"
               }
             ]
-          },
-          "focus": {
-            "landscape": {
-              "x": 0.35,
-              "y": 0.2,
-              "w": 0.6,
-              "h": 0.6
-            }
           }
         }
       ],

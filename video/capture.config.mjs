@@ -49,14 +49,18 @@
  *     genuine article, not a mock. That asset has to be seeded through the real
  *     POST /jobs before capture runs — by hand, per video/README.md "The stage".
  *  5. The viewer is a Three.js + Spark SplatMesh WebGL2 canvas
- *     (components/SplatViewer.tsx). Headless Chromium under the kit's launch args
- *     does expose WebGL2 through ANGLE/SwiftShader, including the
+ *     (components/SplatViewer.tsx), and it needs a REAL GPU. This entry used to
+ *     say the opposite: that ANGLE/SwiftShader exposes the
  *     EXT_color_buffer_float / EXT_float_blend / OES_texture_float_linear set a
- *     3DGS renderer needs, so the viewer shots rasterise on ubuntu-latest with no
- *     GPU. SwiftShader is deterministic within a Chromium build, so these frames
- *     are byte-stable until Playwright is bumped — at which point the drift job
- *     opens a PR, which is exactly what it is for. Left unmasked deliberately: a
- *     masked canvas would defeat the point of the shot.
+ *     3DGS renderer needs, so the viewer shots rasterise anywhere, deterministic
+ *     within a Chromium build. Every clause of that is true and the conclusion
+ *     was still wrong: the extensions are there and the frames do come out, but
+ *     software-rasterising this scene at 3840x2160 pins the renderer's main
+ *     thread for over thirty seconds, and a page that cannot service a `before`
+ *     step cannot be driven to the state the shot is of. Measured 2026-08-08:
+ *     15 of 18 shots, with `page.click` timing out against a button a probe
+ *     found in the DOM at every step. Hence `launch` below. Left unmasked
+ *     deliberately: a masked canvas would defeat the point of the shot.
  *  6. XR mode calls `getUserMedia` and pulls the MediaPipe FaceLandmarker WASM
  *     from a CDN (hooks/useHeadTracking.ts). Never enable XR during capture —
  *     no camera in CI, and the CDN fetch is a network dependency.
@@ -106,7 +110,7 @@ export default {
   baseURL: process.env.PTM_VIEWER_URL ?? process.env.APP_URL ?? "http://localhost:3000",
 
   /**
-   * Hardware GL, because this app draws a real 3D scene (video-kit >= 0.14.0).
+   * Hardware GL, because this app draws a real 3D scene (video-kit >= 0.15.0).
    *
    * video-kit's default launch resolves WebGL to SwiftShader, Chromium's
    * software rasteriser:

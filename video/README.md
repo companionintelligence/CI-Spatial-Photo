@@ -114,9 +114,30 @@ and the two viewer shots fail.
 
 ## Current coverage
 
-Nine shots across seven scenes. Most scenes carry **two** of them, because several shots in one
-scene cross-dissolve inside that scene — which is how a beat shows its own state change (empty →
-filled, auto → chosen, panel → hidden) without cutting away.
+Nine shots across six picture scenes, and **every plate is used exactly once**. Three scenes carry
+two of them, because two shots in one scene cross-dissolve inside it — which is how a beat shows
+its own state change (empty → filled, grid → job running) without cutting away. One scene is a
+`split`, showing two plates side by side rather than in sequence: the flat gallery tile beside the
+same asset standing in space.
+
+### No shot in this film declares a `focus`, and that is a measured decision
+
+Three did, briefly, and all three were wrong on the contact sheet. The reason is arithmetic, not
+taste. The kit's tightest landscape window is **52.6% of the plate** (video-kit `AUTHORING.md`,
+"The geometry of a focus move"), and this app puts its control panel on the right of a hero
+headline that runs to about 48% of the plate width. Any window tight enough to be *about* the panel
+therefore still contains the tail of the hero — and lands mid-word. The rendered frames read
+"…a 3D" and "3D" hanging at the left edge, which is the same defect the craft audit named as
+`"Photo Tim"` and the reason it did.
+
+So the film accepts the wider frame and says what it means in the caption, which is what
+`AUTHORING.md` tells you to do when a subject is under the floor. The move on every screen scene is
+the default gentle push (or a `drift-down`), and the punctuation comes from the cut instead:
+`hold`, `cut` and `dissolve` boundaries, paced reveals on the four cards, and the `split`.
+
+The real fix, if a tighter frame is ever wanted, is the other half of that advice — **film the
+subject bigger**: capture the viewer at a narrower viewport so the panel is a larger fraction of
+its own plate. That is a capture-stage change, not a storyboard one.
 
 | Shot | State |
 | --- | --- |
@@ -310,7 +331,7 @@ under, extended to the input.
 
 ## The capture needs hardware GL
 
-`capture.config.mjs` sets `launch: { channel: "chromium" }`, which needs **video-kit >= 0.14.0**.
+`capture.config.mjs` sets `launch: { channel: "chromium" }`, which needs **video-kit >= 0.15.0**.
 On an older kit the key is silently ignored, capture falls back to SwiftShader, and the three
 viewer shots fail while leaving their previous PNGs on disk — 15 of 18, with
 `assets/shots/.capture-receipt.json` the only sign. `make.sh` announces the kit version on every
