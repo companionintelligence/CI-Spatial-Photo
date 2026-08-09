@@ -5,7 +5,7 @@
   "scenes": {
     "open": {
       "text": "Photo Time Machine does that work on hardware you already own.",
-      "seconds": 4.272,
+      "seconds": 4.169,
       "prosody": {
         "rate": "-6%",
         "pitch": "-2Hz",
@@ -14,7 +14,7 @@
     },
     "drop-media": {
       "text": "Open the viewer and drop one in. It goes to your own server, not a queue.",
-      "seconds": 5.424,
+      "seconds": 5.131,
       "prosody": {
         "rate": "-3%",
         "pitch": "+0Hz",
@@ -23,7 +23,7 @@
     },
     "choose-engine": {
       "text": "Name the engine yourself, or leave it on auto and let the server infer it.",
-      "seconds": 4.944,
+      "seconds": 4.829,
       "prosody": {
         "rate": "-3%",
         "pitch": "+0Hz",
@@ -32,7 +32,7 @@
     },
     "job-running": {
       "text": "It reads the input, picks an engine, and runs the job where the file already is.",
-      "seconds": 5.496,
+      "seconds": 5.338,
       "prosody": {
         "rate": "-3%",
         "pitch": "+0Hz",
@@ -41,7 +41,7 @@
     },
     "from-memory": {
       "text": "Your Companion already holds your library. Turn one into 3D without uploading anything.",
-      "seconds": 6.696,
+      "seconds": 6.39,
       "prosody": {
         "rate": "-3%",
         "pitch": "+0Hz",
@@ -50,7 +50,7 @@
     },
     "engines": {
       "text": "Preview lays the picture on a plane. Depth adds real parallax. Many views rebuild the scene.",
-      "seconds": 7.632,
+      "seconds": 7.092,
       "prosody": {
         "rate": "-5%",
         "pitch": "-1Hz",
@@ -84,7 +84,7 @@
     },
     "close": {
       "text": "Photo Time Machine, from Companion Intelligence. UnCloud your life.",
-      "seconds": 6.168,
+      "seconds": 5.828,
       "prosody": {
         "rate": "-8%",
         "pitch": "-2Hz",
@@ -93,7 +93,7 @@
     },
     "flat": {
       "text": "A photograph has no depth. Your own server works it out.",
-      "seconds": 4.68,
+      "seconds": 4.346,
       "prosody": {
         "rate": "-5%",
         "pitch": "-1Hz",
@@ -102,7 +102,7 @@
     },
     "most-people-stop": {
       "text": "Depth normally means a GPU you do not own, or a service that keeps your file.",
-      "seconds": 5.352,
+      "seconds": 5.177,
       "prosody": {
         "rate": "-5%",
         "pitch": "-1Hz",
@@ -111,7 +111,7 @@
     },
     "plate-to-space": {
       "text": "This one is the Preview engine: the picture itself, lifted onto a plane and turned.",
-      "seconds": 5.808,
+      "seconds": 5.639,
       "prosody": {
         "rate": "-3%",
         "pitch": "+0Hz",
@@ -120,7 +120,7 @@
     },
     "whose-hardware": {
       "text": "Move around it. The panel names the engine, and the link points at your own box.",
-      "seconds": 5.832,
+      "seconds": 5.507,
       "prosody": {
         "rate": "-3%",
         "pitch": "+0Hz",
@@ -129,7 +129,7 @@
     },
     "stays-yours": {
       "text": "The file, the engine and the link all stay on hardware you own. Nothing to cancel.",
-      "seconds": 6.288,
+      "seconds": 5.978,
       "prosody": {
         "rate": "-5%",
         "pitch": "-1Hz",
