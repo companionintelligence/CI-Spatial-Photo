@@ -65,11 +65,11 @@
           "id": "create-empty",
           "url": "photo-time-machine.local",
           "alt": "The Create tab, empty: dropzone, engine and intent selects, a disabled Create 3D button.",
-          "motion": "push-in",
+          "motion": "drift-down",
           "focus": {
             "landscape": {
-              "x": 0.42,
-              "y": 0.25,
+              "x": 0.39,
+              "y": 0.29,
               "w": 0.58,
               "h": 0.58
             },
@@ -109,11 +109,11 @@
           "id": "create-selected",
           "url": "photo-time-machine.local",
           "alt": "The same dropzone after a drop: it names porch-1998.png and Create 3D has gone live.",
-          "motion": "pull-back",
+          "motion": "hold",
           "focus": {
             "landscape": {
-              "x": 0.42,
-              "y": 0.3,
+              "x": 0.39,
+              "y": 0.29,
               "w": 0.58,
               "h": 0.58
             },
@@ -142,8 +142,7 @@
             ]
           }
         }
-      ],
-      "transition": "cut"
+      ]
     },
     {
       "id": "from-memory",
@@ -261,7 +260,7 @@
           "motion": "drift-down",
           "focus": {
             "landscape": {
-              "x": 0.45,
+              "x": 0.405,
               "y": 0.28,
               "w": 0.55,
               "h": 0.55
@@ -328,7 +327,7 @@
           "motion": "pull-back",
           "focus": {
             "landscape": {
-              "x": 0.45,
+              "x": 0.405,
               "y": 0.345,
               "w": 0.55,
               "h": 0.55
