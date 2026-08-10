@@ -65,7 +65,31 @@
           "id": "create-empty",
           "url": "photo-time-machine-living-room-server-acme.ci.computer",
           "alt": "The Create tab, empty: dropzone, engine and intent selects, a disabled Create 3D button.",
-          "motion": "push-in",
+          "motion": "drift-down",
+          "focus": {
+            "landscape": {
+              "x": 0.39,
+              "y": 0.29,
+              "w": 0.58,
+              "h": 0.58
+            },
+            "portrait": {
+              "x": 0.05,
+              "y": 0.06,
+              "w": 0.9,
+              "h": 0.9
+            }
+          },
+          "pointer": {
+            "landscape": {
+              "x": 0.679,
+              "y": 0.461
+            },
+            "portrait": {
+              "x": 0.499,
+              "y": 0.49
+            }
+          },
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
@@ -85,7 +109,21 @@
           "id": "create-selected",
           "url": "photo-time-machine-living-room-server-acme.ci.computer",
           "alt": "The same dropzone after a drop: it names porch-1998.png and Create 3D has gone live.",
-          "motion": "push-in",
+          "motion": "hold",
+          "focus": {
+            "landscape": {
+              "x": 0.39,
+              "y": 0.29,
+              "w": 0.58,
+              "h": 0.58
+            },
+            "portrait": {
+              "x": 0.05,
+              "y": 0.06,
+              "w": 0.9,
+              "h": 0.9
+            }
+          },
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
@@ -119,6 +157,30 @@
           "url": "photo-time-machine-living-room-server-acme.ci.computer",
           "alt": "The From Memory tab: a Photos/Videos toggle above a grid of images already held in Companion Memory.",
           "motion": "drift-down",
+          "focus": {
+            "landscape": {
+              "x": 0.42,
+              "y": 0.18,
+              "w": 0.58,
+              "h": 0.58
+            },
+            "portrait": {
+              "x": 0.05,
+              "y": 0.02,
+              "w": 0.9,
+              "h": 0.9
+            }
+          },
+          "pointer": {
+            "landscape": {
+              "x": 0.591,
+              "y": 0.489
+            },
+            "portrait": {
+              "x": 0.22,
+              "y": 0.553
+            }
+          },
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
@@ -141,7 +203,21 @@
           "id": "memory-job",
           "url": "photo-time-machine-living-room-server-acme.ci.computer",
           "alt": "One tap on the 1998 porch tile and the job is already reconstructing with preview — the library never left the box.",
-          "motion": "drift-down",
+          "motion": "push-in",
+          "focus": {
+            "landscape": {
+              "x": 0.44,
+              "y": 0.215,
+              "w": 0.56,
+              "h": 0.56
+            },
+            "portrait": {
+              "x": 0.05,
+              "y": 0.06,
+              "w": 0.9,
+              "h": 0.9
+            }
+          },
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
@@ -181,7 +257,31 @@
           "id": "create-engine-picked",
           "url": "photo-time-machine-living-room-server-acme.ci.computer",
           "alt": "The two selects driven off auto: Engine now reads preview, Intent now reads Scene (portal), with Create 3D live beneath them.",
-          "motion": "push-in",
+          "motion": "drift-down",
+          "focus": {
+            "landscape": {
+              "x": 0.405,
+              "y": 0.28,
+              "w": 0.55,
+              "h": 0.55
+            },
+            "portrait": {
+              "x": 0.05,
+              "y": 0.05,
+              "w": 0.9,
+              "h": 0.9
+            }
+          },
+          "pointer": {
+            "landscape": {
+              "x": 0.614,
+              "y": 0.516
+            },
+            "portrait": {
+              "x": 0.501,
+              "y": 0.568
+            }
+          },
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
@@ -224,7 +324,21 @@
           "id": "create-processing",
           "url": "photo-time-machine-living-room-server-acme.ci.computer",
           "alt": "The Create button one click later: it reads Processing, and the status line beneath reads reconstructing with preview.",
-          "motion": "drift-down",
+          "motion": "pull-back",
+          "focus": {
+            "landscape": {
+              "x": 0.405,
+              "y": 0.345,
+              "w": 0.55,
+              "h": 0.55
+            },
+            "portrait": {
+              "x": 0.05,
+              "y": 0.09,
+              "w": 0.9,
+              "h": 0.9
+            }
+          },
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
@@ -373,6 +487,30 @@
           "url": "photo-time-machine-living-room-server-acme.ci.computer/view/a7989c36",
           "alt": "The viewer with its control panel up over the splat: the asset labelled Splat, Preview, and the share URL beside a Copy link button.",
           "motion": "push-in",
+          "focus": {
+            "landscape": {
+              "x": 0,
+              "y": 0.06,
+              "w": 0.56,
+              "h": 0.56
+            },
+            "portrait": {
+              "x": 0.03,
+              "y": 0.03,
+              "w": 0.95,
+              "h": 0.95
+            }
+          },
+          "pointer": {
+            "landscape": {
+              "x": 0.258,
+              "y": 0.381
+            },
+            "portrait": {
+              "x": 0.499,
+              "y": 0.447
+            }
+          },
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
