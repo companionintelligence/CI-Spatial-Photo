@@ -17,9 +17,57 @@
     "explore": "Open it"
   },
   "media": {
-    "music": null,
-    "musicVolume": 0.14
+    "music": "assets/media/ci-campaign-bed.mp3",
+    "musicLufs": -22
   },
+  "master": [
+    {
+      "ref": "plate-to-space",
+      "chapter": "create",
+      "caption": "A photo becomes a 3D memory you can move through.",
+      "narration": "A single photo can become a 3D memory you can orbit and revisit.",
+      "minSeconds": 7
+    },
+    {
+      "ref": "drop-media",
+      "caption": "Choose a photo, burst, or video.",
+      "narration": "Choose a photo, a burst, or a video to begin.",
+      "minSeconds": 6.5
+    },
+    {
+      "ref": "job-running",
+      "caption": "Watch each stage run on the engine you choose.",
+      "narration": "The job view shows each stage as the engine you choose builds the scene.",
+      "minSeconds": 6.5
+    },
+    {
+      "ref": "whose-hardware",
+      "caption": "Finished scenes land in a gallery you control.",
+      "narration": "Finished scenes land in your gallery, ready to open again.",
+      "minSeconds": 6
+    },
+    {
+      "ref": "from-memory",
+      "caption": "3D memories can join the rest of your Companion timeline.",
+      "narration": "Connect Companion Memory and the finished scene can appear beside the rest of your history.",
+      "minSeconds": 7
+    },
+    {
+      "ref": "stays-yours",
+      "caption": "Keep the file on your hardware. Share only when you choose.",
+      "narration": "Keep the 3D file on hardware you control, and create a link only when you choose to share.",
+      "minSeconds": 7
+    },
+    {
+      "ref": "close",
+      "caption": "ci.computer",
+      "cta": "Turn a photo into a place",
+      "tagline": "UnCloud your life.",
+      "url": "ci.computer",
+      "narration": "Turn a photo into a place with Photo Time Machine. Visit ci dot computer. UnCloud your life.",
+      "minSeconds": 8.2
+    }
+  ],
   "scenes": [
     {
       "id": "flat",
