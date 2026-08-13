@@ -17,46 +17,46 @@
     "explore": "Open it"
   },
   "media": {
-    "music": "assets/media/ci-campaign-bed.mp3",
+    "music": "assets/media/ci-campaign-bed-110.mp3",
     "musicLufs": -22
   },
   "master": [
     {
-      "ref": "plate-to-space",
-      "chapter": "create",
-      "caption": "A photo becomes a 3D memory you can move through.",
-      "narration": "A single photo can become a 3D memory you can orbit and revisit.",
-      "minSeconds": 7
+      "ref": "flat"
+    },
+    {
+      "ref": "most-people-stop"
+    },
+    {
+      "ref": "open"
+    },
+    {
+      "ref": "plate-to-space"
     },
     {
       "ref": "drop-media",
-      "caption": "Choose a photo, burst, or video.",
-      "narration": "Choose a photo, a burst, or a video to begin.",
-      "minSeconds": 6.5
+      "narration": "Open it in a browser and drop one in. It goes to your own server, not a queue."
+    },
+    {
+      "ref": "choose-engine"
+    },
+    {
+      "ref": "engines",
+      "chapter": "create"
     },
     {
       "ref": "job-running",
-      "caption": "Watch each stage run on the engine you choose.",
-      "narration": "The job view shows each stage as the engine you choose builds the scene.",
-      "minSeconds": 6.5
+      "narration": "One click, and the reconstruction runs on the machine the file is already on. The status line names the engine."
     },
     {
-      "ref": "whose-hardware",
-      "caption": "Finished scenes land in a gallery you control.",
-      "narration": "Finished scenes land in your gallery, ready to open again.",
-      "minSeconds": 6
+      "ref": "from-memory"
     },
     {
-      "ref": "from-memory",
-      "caption": "3D memories can join the rest of your Companion timeline.",
-      "narration": "Connect Companion Memory and the finished scene can appear beside the rest of your history.",
-      "minSeconds": 7
+      "ref": "whose-hardware"
     },
     {
       "ref": "stays-yours",
-      "caption": "Keep the file on your hardware. Share only when you choose.",
-      "narration": "Keep the 3D file on hardware you control, and create a link only when you choose to share.",
-      "minSeconds": 7
+      "narration": "Keep the 3D file on hardware you control, and create a link only when you choose to share."
     },
     {
       "ref": "close",
@@ -86,6 +86,20 @@
       "title": "Most people quit right about here.",
       "caption": "Depth normally means a GPU, or your picture on someone's disk.",
       "narration": "Depth normally means a GPU you do not own, or a service that keeps your file.",
+      "items": [
+        {
+          "label": "Send it away",
+          "value": "your file, their disk"
+        },
+        {
+          "label": "Keep it home",
+          "value": "a GPU you do not own"
+        },
+        {
+          "label": "So mostly",
+          "value": "the photo stays flat"
+        }
+      ],
       "reveal": "paced",
       "transition": "hold"
     },
@@ -452,7 +466,6 @@
     {
       "id": "plate-to-space",
       "kind": "split",
-      "chapter": "explore",
       "seconds": 6.5,
       "caption": "The tile is flat. Open it and it stands in space.",
       "narration": "This one is the Preview engine: the picture itself, lifted onto a plane and turned.",
@@ -461,6 +474,15 @@
           "id": "gallery-assets",
           "url": "photo-time-machine-living-room-server-acme.ci.computer",
           "alt": "The Explore tab: the finished splat as a gallery tile, labelled Splat, Preview and its creation date.",
+          "_focusNote": "Landscape only, and deliberately asymmetric with the other cell. A 16:9 split cell is 806px of a 3840px plate, so the uncropped desktop plate puts the Explore card — the thing the caption says is flat — at about a quarter of the cell width, under a hero headline that dominates it. Cropped to 0.36 the card fills the cell and 'porch-1998 / Splat · Preview · Jun 15, 2026' is readable, which is what makes the left half a TILE rather than a screenshot of a website. Checked by cropping the committed PNG to the cell and looking at it, per AUTHORING; not previewable with focus-preview, which reconstructs a camera move and a split has no camera.\n\nPortrait is left at the whole plate on purpose: the 9:16 cell is 475px of a 1080px plate and the mobile layout already presents the card at about 40% of the cell width with its label legible, and the portrait cell floor is 0.594 anyway — a crop tight enough to matter is not reachable there.\n\nThe other cell keeps the whole plate: it is a full-bleed 3D view and cropping it would only throw away the space the caption is pointing at.",
+          "focus": {
+            "landscape": {
+              "x": 0.5,
+              "y": 0.35,
+              "w": 0.36,
+              "h": 0.36
+            }
+          },
           "capture": {
             "path": "/",
             "waitFor": "button:has-text(\"Create 3D\")",
