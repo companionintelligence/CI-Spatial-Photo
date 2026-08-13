@@ -3,27 +3,9 @@
   "engine": "edge",
   "voice": "en-GB-SoniaNeural",
   "scenes": {
-    "open": {
-      "text": "Photo Time Machine does that work on hardware you already own.",
-      "seconds": 4.169,
-      "prosody": {
-        "rate": "-6%",
-        "pitch": "-2Hz",
-        "volume": "+0%"
-      }
-    },
     "drop-media": {
-      "text": "Open the viewer and drop one in. It goes to your own server, not a queue.",
-      "seconds": 5.131,
-      "prosody": {
-        "rate": "-3%",
-        "pitch": "+0Hz",
-        "volume": "+0%"
-      }
-    },
-    "choose-engine": {
-      "text": "Name the engine yourself, or leave it on auto and let the server infer it.",
-      "seconds": 4.829,
+      "text": "Choose a photo, a burst, or a video to begin.",
+      "seconds": 3.726,
       "prosody": {
         "rate": "-3%",
         "pitch": "+0Hz",
@@ -31,87 +13,26 @@
       }
     },
     "job-running": {
-      "text": "It reads the input, picks an engine, and runs the job where the file already is.",
-      "seconds": 5.338,
+      "text": "The job view shows each stage as the engine you choose builds the scene.",
+      "seconds": 4.421,
       "prosody": {
         "rate": "-3%",
         "pitch": "+0Hz",
         "volume": "+0%"
       }
-    },
-    "from-memory": {
-      "text": "Your Companion already holds your library. Turn one into 3D without uploading anything.",
-      "seconds": 6.39,
-      "prosody": {
-        "rate": "-3%",
-        "pitch": "+0Hz",
-        "volume": "+0%"
-      }
-    },
-    "engines": {
-      "text": "Preview lays the picture on a plane. Depth adds real parallax. Many views rebuild the scene.",
-      "seconds": 7.092,
-      "prosody": {
-        "rate": "-5%",
-        "pitch": "-1Hz",
-        "volume": "+0%"
-      }
-    },
-    "explore-gallery": {
-      "text": "Finished assets land in the gallery. Click one to open it.",
-      "seconds": 4.56,
-      "adopted": true
-    },
-    "orbit-memory": {
-      "text": "Hide the panel and orbit the memory itself. Nothing left your hardware to render it.",
-      "seconds": 5.832,
-      "adopted": true
-    },
-    "magic-window": {
-      "text": "Turn on XR and your webcam tracks your head. The screen stops being a picture and becomes a window.",
-      "seconds": 6.84,
-      "adopted": true
-    },
-    "share-link": {
-      "text": "The address bar is the share link. It points at your box.",
-      "seconds": 4.416,
-      "adopted": true
-    },
-    "companion-native": {
-      "text": "Agents create and share these over MCP. The files stay on your hardware.",
-      "seconds": 5.712,
-      "adopted": true
     },
     "close": {
-      "text": "Photo Time Machine, from Companion Intelligence. UnCloud your life.",
-      "seconds": 5.828,
+      "text": "Turn a photo into a place with Photo Time Machine. Visit ci dot computer. UnCloud your life.",
+      "seconds": 7.916,
       "prosody": {
         "rate": "-8%",
         "pitch": "-2Hz",
         "volume": "+0%"
       }
     },
-    "flat": {
-      "text": "A photograph has no depth. Your own server works it out.",
-      "seconds": 4.346,
-      "prosody": {
-        "rate": "-5%",
-        "pitch": "-1Hz",
-        "volume": "+0%"
-      }
-    },
-    "most-people-stop": {
-      "text": "Depth normally means a GPU you do not own, or a service that keeps your file.",
-      "seconds": 5.177,
-      "prosody": {
-        "rate": "-5%",
-        "pitch": "-1Hz",
-        "volume": "+0%"
-      }
-    },
     "plate-to-space": {
-      "text": "This one is the Preview engine: the picture itself, lifted onto a plane and turned.",
-      "seconds": 5.639,
+      "text": "A single photo can become a 3D memory you can orbit and revisit.",
+      "seconds": 4.769,
       "prosody": {
         "rate": "-3%",
         "pitch": "+0Hz",
@@ -119,8 +40,17 @@
       }
     },
     "whose-hardware": {
-      "text": "Move around it. The panel names the engine, and the link points at your own box.",
-      "seconds": 5.507,
+      "text": "Finished scenes land in your gallery, ready to open again.",
+      "seconds": 4.01,
+      "prosody": {
+        "rate": "-3%",
+        "pitch": "+0Hz",
+        "volume": "+0%"
+      }
+    },
+    "from-memory": {
+      "text": "Connect Companion Memory and the finished scene can appear beside the rest of your history.",
+      "seconds": 5.444,
       "prosody": {
         "rate": "-3%",
         "pitch": "+0Hz",
@@ -128,8 +58,8 @@
       }
     },
     "stays-yours": {
-      "text": "The file, the engine and the link all stay on hardware you own. Nothing to cancel.",
-      "seconds": 5.978,
+      "text": "Keep the 3D file on hardware you control, and create a link only when you choose to share.",
+      "seconds": 5.911,
       "prosody": {
         "rate": "-5%",
         "pitch": "-1Hz",
