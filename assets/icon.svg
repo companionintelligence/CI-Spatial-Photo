@@ -4,23 +4,31 @@
     companion-app.json points at) and video/assets/app-icon.png (the film's first
     frame). Regenerate both with scripts/generate-icon.sh after editing this file.
 
-    Palette is the CI teal ramp the rest of the app already uses: surface
-    #041620 -> #0F717A, light #ABD4D8, mint accent #2EE6C8. The mark is the
+    Palette is the CI phthalo ramp the rest of the app already uses: surface
+    #041620 -> #0A6358, light #ABD4D8, mint accent #2EE6C8. The mark is the
     original two-photo-frames idea — one frame behind another is the "time
     machine" — recoloured; the geometry is unchanged in spirit, only the purple
     (#7D62F1) that predated the teal move is gone.
+
+    #0F717A was the app's original teal endpoint; CI-Common's v0.3.1 rework
+    moved the brand primary to phthalo #0A6358 (#0F717A survives only as a
+    ramp rung, teal-600, no longer the primary; see
+    web-server/client/tailwind.config.js). The tile gradient's middle stop and
+    the sheen highlight are re-derived from the old #0B4C54/#58B6BC by rotating
+    hue+saturation onto the new phthalo anchor while keeping each stop's
+    relative lightness, matching that same tailwind config's ramp math.
   -->
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0.85" y2="1">
       <stop offset="0" stop-color="#061A23"/>
-      <stop offset="0.55" stop-color="#0B4C54"/>
-      <stop offset="1" stop-color="#0F717A"/>
+      <stop offset="0.55" stop-color="#07453D"/>
+      <stop offset="1" stop-color="#0A6358"/>
     </linearGradient>
     <!-- Soft top-left sheen, same trick the Spatial Companion tile uses to stop
          a flat gradient reading as a dead rectangle. -->
     <radialGradient id="sheen" cx="0.28" cy="0.2" r="0.75">
-      <stop offset="0" stop-color="#58B6BC" stop-opacity="0.28"/>
-      <stop offset="1" stop-color="#58B6BC" stop-opacity="0"/>
+      <stop offset="0" stop-color="#14C7B1" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#14C7B1" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="glass" x1="0" y1="0" x2="0.6" y2="1">
       <stop offset="0" stop-color="#FFFFFF"/>

@@ -217,7 +217,7 @@ function App() {
             between "the app is composed on a dark surface" and "the app failed
             to fill its window".
 
-            Two accents from the app's own palette (primary-600 #0F717A and
+            Two accents from the app's own palette (primary-600 #0A6358 and
             cyan-700 — the Create button and the tab underline live in that
             family) over a very dark teal-black.
 
