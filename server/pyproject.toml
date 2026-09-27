@@ -19,7 +19,14 @@ dependencies = [
 
 [project.optional-dependencies]
 # MCP server/client surface. Kept optional so the REST API + tests run without it.
-mcp = ["mcp>=1.2"]
+#
+# Upper-bounded on purpose. `mcp` 2.0 renamed FastMCP to MCPServer and changed the tool and
+# transport APIs, so `from mcp.server.fastmcp import FastMCP` — what app/mcp_server.py is
+# written against — raises ModuleNotFoundError there. build_mcp() catches that and returns
+# None, so an unpinned install did not fail loudly: it silently shipped a server with no MCP
+# surface at all, which is the one thing this app exists to provide. Lift the bound in the
+# same change that ports mcp_server.py to the 2.x API, not before.
+mcp = ["mcp>=1.2,<2"]
 # Monocular / video depth estimation for the depth-image and depth-video engines.
 # Deliberately NOT in `dependencies`: torch is a multi-hundred-megabyte wheel (multi-gigabyte
 # with CUDA) and the API, router, MCP surface and test suite all run without it — the depth

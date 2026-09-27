@@ -55,6 +55,20 @@ class Settings(BaseSettings):
     # per-job `engine=` both work regardless of this flag.
     depth_auto_route: bool = False
 
+    # MCP transport security. FastMCP turns on DNS-rebinding protection whenever its bind
+    # host is loopback (which it is here), and the allowlist it derives is loopback-only:
+    # ["127.0.0.1:*", "localhost:*", "[::1]:*"]. Behind any reverse proxy the inbound Host
+    # is the public hostname instead, so /mcp answers 421 "Invalid Host header" to every
+    # agent while REST carries on working. List the hostnames the server is reached by —
+    # comma-separated, `host:*` to accept any port — e.g.
+    #   MCP_ALLOWED_HOSTS=photo.ci.computer,ptm-origin.ci.computer
+    # The loopback patterns are always kept, so local development needs nothing set.
+    mcp_allowed_hosts: str = ""
+    # Origins allowed to speak MCP from a browser. Agents send no Origin header and are
+    # unaffected; this exists for a browser-based MCP client. Defaults to https:// + each
+    # allowed host.
+    mcp_allowed_origins: str = ""
+
     # Storage
     asset_dir: Path = Path("./data/assets")
 
@@ -68,6 +82,33 @@ class Settings(BaseSettings):
 
     def share_url(self, asset_id: str) -> str:
         return f"{self.public_base_url.rstrip('/')}/view/{asset_id}"
+
+    @property
+    def mcp_host_allowlist(self) -> list[str]:
+        """Loopback patterns plus any operator-configured hostnames."""
+        hosts = ["127.0.0.1:*", "localhost:*", "[::1]:*", "127.0.0.1", "localhost"]
+        for entry in self.mcp_allowed_hosts.split(","):
+            entry = entry.strip()
+            if not entry or entry in hosts:
+                continue
+            hosts.append(entry)
+            # A bare hostname is how an operator writes it and how a proxy on :443 sends
+            # it, but a proxy on any other port sends "host:port". Accept both.
+            if ":" not in entry:
+                hosts.append(f"{entry}:*")
+        return hosts
+
+    @property
+    def mcp_origin_allowlist(self) -> list[str]:
+        """Explicitly configured origins, else https:// + each configured host."""
+        configured = [o.strip() for o in self.mcp_allowed_origins.split(",") if o.strip()]
+        if configured:
+            return configured
+        return [
+            f"https://{h.strip()}"
+            for h in self.mcp_allowed_hosts.split(",")
+            if h.strip() and not h.strip().endswith(":*")
+        ]
 
 
 @lru_cache
