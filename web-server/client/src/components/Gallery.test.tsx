@@ -4,7 +4,7 @@ import React from 'react';
 import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import Gallery from './Gallery';
-import { API_BASE, Asset } from '../api';
+import { getApiBase, Asset } from '../api';
 
 /**
  * Driven through `global.fetch` rather than a mocked `api`, so the four states
@@ -159,7 +159,7 @@ describe('Gallery cards', () => {
     // src is a broken image on every card.
     expect(screen.getByAltText('sharp')).toHaveAttribute(
       'src',
-      `${API_BASE}/api/v1/assets/withthumb/thumbnail`,
+      `${getApiBase()}/api/v1/assets/withthumb/thumbnail`,
     );
     expect(screen.queryByAltText('preview')).not.toBeInTheDocument();
     expect(screen.getByText('mesh')).toBeInTheDocument();

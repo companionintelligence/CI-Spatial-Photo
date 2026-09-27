@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Sun, Moon, Eye, EyeOff, Settings, X, Crosshair } from 'lucide-react';
+import { Sun, Moon, Eye, EyeOff, Settings, X, Crosshair, Server } from 'lucide-react';
+import { ServerPanel } from './ServerPicker';
 import {
   HeadTracking,
   HeadTrackingSnapshot,
@@ -41,6 +42,12 @@ interface TopBarProps {
   headPosition?: HeadTracking | null;
   headTracking?: HeadTracking | null;
   videoRef: React.RefObject<HTMLVideoElement>;
+  /**
+   * The configured processing server, or null before one is chosen. Passed down rather
+   * than read here so there is a single subscriber to the store (App), and so this stays
+   * a presentational component the tests can drive directly.
+   */
+  serverTarget?: string | null;
 }
 
 /**
@@ -82,8 +89,10 @@ const TopBar: React.FC<TopBarProps> = ({
   headPosition,
   headTracking,
   videoRef,
+  serverTarget = null,
 }) => {
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [showServer, setShowServer] = useState(false);
   const tracker = headTracking ?? headPosition ?? null;
 
   /*
@@ -314,6 +323,27 @@ const TopBar: React.FC<TopBarProps> = ({
         >
           {showControls ? <X size={20} /> : <Settings size={20} />}
         </button>
+
+        {/*
+            Which server, and a way to change it. Hidden until one is configured: the
+            first-run card already owns that job, and offering a second entry point to
+            the same setting while it is on screen would just be two things to get out
+            of sync.
+          */}
+        {serverTarget !== null && (
+          <button
+            onClick={() => setShowServer((v) => !v)}
+            aria-pressed={showServer}
+            className="p-2 text-white transition-colors bg-gray-700 rounded-full hover:bg-gray-600"
+            title={`Processing server: ${serverTarget === 'same-origin' ? 'this host' : serverTarget}`}
+          >
+            <Server size={20} />
+          </button>
+        )}
+
+        {showServer && serverTarget !== null && (
+          <ServerPanel target={serverTarget} onClose={() => setShowServer(false)} />
+        )}
 
         {isXREnabled && (
           <div className="absolute right-0 top-full z-20 mt-2 w-64 overflow-hidden rounded-xl border border-gray-700 bg-gray-900/95 text-xs shadow-2xl backdrop-blur">

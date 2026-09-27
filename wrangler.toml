@@ -28,14 +28,20 @@ not_found_handling = "single-page-application"
 run_worker_first = true
 
 [vars]
-# Base URL of the processing server (server/app/main.py), e.g. a Cloudflare Tunnel
-# hostname in front of the GPU box. Empty here on purpose: an unconfigured deployment
-# answers API calls with a 503 that says what to set, which is far easier to debug than a
-# hostname baked into git. Set the real value per environment below, with
-#   npx wrangler deploy --var ORIGIN_API_BASE:https://...
-# or in the dashboard (Settings -> Variables). It is not a secret — it is a public
-# hostname — so a plain var is right; the OIDC token the browser sends is the access
-# control.
+# Normally left empty, and empty is the shipped design.
+#
+# This deployment is a STATIC viewer: each browser names its own processing server on
+# first visit and remembers it locally (web-server/client/src/utils/apiTarget.ts), so the
+# edge never proxies, never sees a photo, and does not need to know where any server is.
+# Unset, the Worker answers the API paths with a 503 explaining exactly that.
+#
+# Setting it turns the Worker into a reverse proxy in front of ONE shared server, which
+# is a different product: single-origin, so no CORS and no local-network permissions, at
+# the cost of every user's photos passing through one machine. Worth it for a team
+# instance; wrong for a personal one. To do it:
+#   npx wrangler deploy --env "" --var ORIGIN_API_BASE:https://<origin-host>
+# and choose "Same host as this page" in the viewer. Not a secret — it is a public
+# hostname — so a plain var is right.
 ORIGIN_API_BASE = ""
 
 [[routes]]
