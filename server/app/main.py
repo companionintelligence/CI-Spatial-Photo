@@ -28,7 +28,21 @@ async def lifespan(app: FastAPI):
         "on" if settings.memory_enabled else "off",
         settings.default_engine,
     )
-    yield
+
+    # The mounted MCP app is an ASGI app, but it is not self-starting: its
+    # StreamableHTTPSessionManager owns an anyio task group that only exists inside
+    # `session_manager.run()`. Mounting it without entering that context produced a server
+    # that looked healthy and answered every REST call, while *every* request to /mcp died
+    # with `RuntimeError: Task group is not initialized` — a 500 on the repo's headline
+    # feature, reachable only by actually speaking MCP to it. A mount does not inherit the
+    # sub-app's lifespan, so the host has to run it here.
+    mcp = getattr(app.state, "mcp", None)
+    if mcp is None:
+        yield
+        return
+    async with mcp.session_manager.run():
+        log.info("MCP session manager running")
+        yield
 
 
 def create_app() -> FastAPI:
@@ -65,11 +79,12 @@ def create_app() -> FastAPI:
     app.state.store = store
     app.state.jobs = jobs
     mcp = build_mcp(jobs, store, settings)
+    app.state.mcp = mcp
     if mcp is not None:
         app.mount("/mcp", mcp.streamable_http_app())
         log.info("MCP server mounted at /mcp")
     else:
-        log.warning("mcp package not installed; /mcp disabled (REST still available)")
+        log.warning("mcp unavailable; /mcp disabled (REST still available)")
 
     return app
 

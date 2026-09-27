@@ -25,10 +25,29 @@ def build_mcp(jobs: JobManager, store: Store, settings: Settings):
     """Create the FastMCP app, or return None if the mcp package is unavailable."""
     try:
         from mcp.server.fastmcp import FastMCP
-    except Exception:  # noqa: BLE001
+        from mcp.server.transport_security import TransportSecuritySettings
+    except Exception as exc:  # noqa: BLE001
+        # Log it. This used to swallow the reason, and when `mcp` 2.0 renamed FastMCP to
+        # MCPServer the only trace of a completely absent MCP surface was a line claiming
+        # the package was "not installed" — while it was installed and importable.
+        import logging
+
+        logging.getLogger("ptm").warning("MCP surface unavailable: %s: %s", type(exc).__name__, exc)
         return None
 
-    mcp = FastMCP("photo-time-machine", streamable_http_path="/")
+    # Hand FastMCP an explicit allowlist. Left to itself it derives a loopback-only one from
+    # its (unused) bind host, and behind a reverse proxy — which is every deployment — the
+    # inbound Host is the public name, so every agent request gets 421. See
+    # Settings.mcp_host_allowlist.
+    mcp = FastMCP(
+        "photo-time-machine",
+        streamable_http_path="/",
+        transport_security=TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=settings.mcp_host_allowlist,
+            allowed_origins=settings.mcp_origin_allowlist,
+        ),
+    )
     owner = _default_owner(settings)
 
     @mcp.tool()
