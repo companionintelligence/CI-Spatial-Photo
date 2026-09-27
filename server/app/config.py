@@ -55,11 +55,12 @@ class Settings(BaseSettings):
     # per-job `engine=` both work regardless of this flag.
     depth_auto_route: bool = False
 
-    # MCP transport security. FastMCP turns on DNS-rebinding protection whenever its bind
-    # host is loopback (which it is here), and the allowlist it derives is loopback-only:
-    # ["127.0.0.1:*", "localhost:*", "[::1]:*"]. Behind any reverse proxy the inbound Host
-    # is the public hostname instead, so /mcp answers 421 "Invalid Host header" to every
-    # agent while REST carries on working. List the hostnames the server is reached by —
+    # MCP transport security. The MCP streamable-HTTP transport turns on DNS-rebinding
+    # protection whenever its bind host is loopback (which it is here), and the allowlist
+    # it derives is loopback-only: ["127.0.0.1:*", "localhost:*", "[::1]:*"]. Behind any
+    # reverse proxy the inbound Host is the public hostname instead, so /mcp answers 421
+    # "Invalid Host header" to every agent while REST carries on working. These two feed
+    # TransportSecuritySettings; list the hostnames the server is reached by —
     # comma-separated, `host:*` to accept any port — e.g.
     #   MCP_ALLOWED_HOSTS=photo.ci.computer,ptm-origin.ci.computer
     # The loopback patterns are always kept, so local development needs nothing set.

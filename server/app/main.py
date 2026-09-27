@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .jobs import JobManager
-from .mcp_server import build_mcp
+from .mcp_server import build_mcp, build_mcp_app
 from .routes import router
 from .storage import Store
 
@@ -81,7 +81,9 @@ def create_app() -> FastAPI:
     mcp = build_mcp(jobs, store, settings)
     app.state.mcp = mcp
     if mcp is not None:
-        app.mount("/mcp", mcp.streamable_http_app())
+        # Mounting is also what constructs the session manager the lifespan runs, so this
+        # has to happen here at build time and not lazily on first request.
+        app.mount("/mcp", build_mcp_app(mcp, settings))
         log.info("MCP server mounted at /mcp")
     else:
         log.warning("mcp unavailable; /mcp disabled (REST still available)")

@@ -7,14 +7,15 @@ headline feature — "MCP-native, point your agent at /mcp" — was entirely dea
 
   1. `mcp` 2.0 renamed FastMCP to MCPServer, so `build_mcp()`'s import failed and its
      `except Exception: return None` turned that into a silent "/mcp disabled" warning in
-     the log. Fixed by bounding the extra at `mcp<2` in pyproject.toml.
+     the log. Fixed first by bounding the extra at `mcp<2`, then properly by porting
+     `mcp_server.py` to the 2.x API and flooring the extra at `mcp>=2`.
   2. The sub-app was mounted without its StreamableHTTPSessionManager ever being started,
      so it answered every request with `RuntimeError: Task group is not initialized`.
      Fixed by running `session_manager.run()` in the host app's lifespan.
 
-  3. FastMCP derived a loopback-only Host allowlist and turned DNS-rebinding protection on,
-     so behind a reverse proxy (photo.ci.computer -> the GPU origin) every agent request
-     came back 421 "Invalid Host header". Fixed by MCP_ALLOWED_HOSTS.
+  3. The transport derived a loopback-only Host allowlist and turned DNS-rebinding
+     protection on, so behind a reverse proxy (photo.ci.computer -> the GPU origin) every
+     agent request came back 421 "Invalid Host header". Fixed by MCP_ALLOWED_HOSTS.
 
 All three are invisible unless something actually speaks MCP over the mount, which is what
 this does. Two details are load-bearing: `TestClient` used as a context manager runs the
@@ -26,7 +27,7 @@ singleton.
 import pytest
 from fastapi.testclient import TestClient
 
-pytest.importorskip("mcp.server.fastmcp", reason="MCP surface needs the [mcp] extra")
+pytest.importorskip("mcp.server.mcpserver", reason="MCP surface needs the [mcp] extra")
 
 from app.config import Settings, get_settings  # noqa: E402
 from app.main import create_app  # noqa: E402
@@ -132,7 +133,7 @@ def test_a_proxied_host_is_rejected_until_it_is_allowed(monkeypatch):
 
 
 def test_the_allowlist_keeps_loopback_and_accepts_a_bare_hostname():
-    """Unit-level: what Settings hands FastMCP."""
+    """Unit-level: what Settings hands TransportSecuritySettings."""
     settings = Settings(mcp_allowed_hosts="photo.ci.computer, ptm-origin.ci.computer:8443")
     hosts = settings.mcp_host_allowlist
     assert "127.0.0.1:*" in hosts and "localhost:*" in hosts
