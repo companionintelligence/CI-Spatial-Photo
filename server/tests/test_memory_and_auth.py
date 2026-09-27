@@ -10,6 +10,7 @@ No network anywhere. `_call_tool` short-circuits when `CI_MEMORY_MCP_URL` is emp
 tests that need a response substitute one.
 """
 
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -54,9 +55,65 @@ def test_structured_content_is_used_when_there_are_no_text_blocks():
     assert _extract_content(result) == {"url": "https://x/y.png"}
 
 
+def test_structured_content_is_also_read_under_its_2x_snake_case_name():
+    """Every protocol field was renamed to snake_case in mcp 2.x, this one included.
+
+    Reading only the camelCase spelling meant a 2.x CallToolResult whose payload was
+    structured rather than text came back as None — a memory lookup that silently found
+    nothing, which is indistinguishable from a memory that holds nothing.
+    """
+    result = SimpleNamespace(content=[], structured_content={"url": "https://x/y.png"})
+    assert _extract_content(result) == {"url": "https://x/y.png"}
+
+
 def test_blocks_with_no_text_at_all_yield_nothing_rather_than_raising():
     result = SimpleNamespace(content=[SimpleNamespace(other="x")], structuredContent=None)
     assert _extract_content(result) is None
+
+
+def test_the_memory_client_can_actually_import_the_mcp_client_it_calls():
+    """The import `_call_tool` does at runtime, done here where a failure is visible.
+
+    Every other test on this client stubs `_call_tool` or leaves memory unconfigured, so
+    none of them ever resolves this import — and `_call_tool` catches ImportError and
+    returns None, turning a broken client into a memory that merely looks empty. That is
+    how the *server* side stayed dead through two releases. mcp 2.x renamed this symbol
+    (`streamablehttp_client` -> `streamable_http_client`) and changed what it yields from
+    three values to two, so both spellings of the mistake are worth pinning.
+    """
+    pytest.importorskip("mcp.client.streamable_http", reason="memory client needs the [mcp] extra")
+
+    import typing
+
+    from mcp import ClientSession  # noqa: F401
+    from mcp.client.streamable_http import TransportStreams, streamable_http_client  # noqa: F401
+
+    # `_call_tool` unpacks the yielded value as `(r, w)`. 1.x yielded a third element (a
+    # get_session_id callback), so the arity is the thing to pin, not just the name.
+    assert len(typing.get_args(TransportStreams)) == 2, TransportStreams
+
+
+async def test_a_memory_call_gets_as_far_as_the_network(caplog):
+    """`_call_tool` must fail at the *connection*, not at its own import.
+
+    The one above pins the SDK; this one pins our use of it, and is the test that would
+    have caught the 2.x rename. Both failures return None and log a warning, so only the
+    warning tells them apart: an import that no longer resolves makes every memory read
+    return empty and every write vanish, with the server perfectly healthy.
+
+    Port 1 on loopback refuses immediately — no network, no waiting.
+    """
+    pytest.importorskip("mcp.client.streamable_http", reason="memory client needs the [mcp] extra")
+
+    client = MemoryClient(_settings(ci_memory_mcp_url="http://127.0.0.1:1/mcp"))
+    with caplog.at_level(logging.WARNING, logger="ptm.memory"):
+        assert await client._call_tool("search_memory", {}) is None
+
+    messages = " ".join(r.getMessage() for r in caplog.records)
+    assert "mcp client unavailable" not in messages, (
+        f"_call_tool never reached the network; the import itself failed: {messages}"
+    )
+    assert "search_memory failed" in messages, messages
 
 
 @pytest.mark.parametrize("key", ["results", "items", "memories", "media"])

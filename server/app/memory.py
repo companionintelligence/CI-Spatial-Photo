@@ -38,14 +38,25 @@ class MemoryClient:
         """Call a tool on the Companion memory MCP server. Returns parsed content or None."""
         if not self.enabled:
             return None
+        # streamable_http_client was `streamablehttp_client` before mcp 2.x. This client is
+        # the reason the [mcp] extra is described as the server *and client* surface, so it
+        # moves with the same pin.
         try:
             from mcp import ClientSession
-            from mcp.client.streamable_http import streamablehttp_client
-        except Exception:  # noqa: BLE001
-            log.warning("mcp client not installed; skipping memory call %s", tool)
+            from mcp.client.streamable_http import streamable_http_client
+        except Exception as exc:  # noqa: BLE001
+            # Log the reason rather than asserting a cause. Claiming "not installed" when the
+            # package is installed but renamed is exactly how the /mcp surface stayed dead
+            # through two releases; memory fails just as quietly, so it gets the same
+            # treatment.
+            log.warning(
+                "mcp client unavailable (%s: %s); skipping memory call %s",
+                type(exc).__name__, exc, tool,
+            )
             return None
         try:
-            async with streamablehttp_client(self.settings.ci_memory_mcp_url) as (r, w, _):
+            # 2.x yields (read, write); 1.x yielded a third get_session_id callback.
+            async with streamable_http_client(self.settings.ci_memory_mcp_url) as (r, w):
                 async with ClientSession(r, w) as session:
                     await session.initialize()
                     result = await session.call_tool(tool, arguments=args)
@@ -124,7 +135,12 @@ def _extract_content(result: Any) -> Optional[Any]:
     """Pull JSON/text out of an MCP call_tool result."""
     content = getattr(result, "content", None)
     if not content:
-        return getattr(result, "structuredContent", None)
+        # mcp 2.x renamed every protocol field to snake_case; a server or an SDK on either
+        # side of that rename can put the payload under either spelling.
+        structured = getattr(result, "structured_content", None)
+        if structured is None:
+            structured = getattr(result, "structuredContent", None)
+        return structured
     for block in content:
         text = getattr(block, "text", None)
         if text:
