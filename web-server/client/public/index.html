@@ -2,19 +2,55 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta
-      name="description"
-      content="Web GUI for ML Sharp"
-    />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+
+    <!-- The whole product is a link you send someone: /view/:assetId. So this shell is not
+         just chrome, it is the preview card in every message thread the app's output travels
+         through. It previously shipped Apple's sample-app metadata — title "XR Time Machine
+         Playground", description "Web GUI for ML Sharp", a favicon and an apple-touch-icon
+         that both 404'd because the files were never in public/. -->
+    <title>Photo Time Machine</title>
+    <meta name="description" content="Turn any image or video into a shareable 3D memory." />
+    <meta name="application-name" content="Photo Time Machine" />
+    <!-- #041620: the canon CI ground. See web-server/client/tailwind.config.js on why this
+         is never pure black. -->
+    <meta name="theme-color" content="#041620" />
+
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" sizes="any" />
+    <link rel="icon" href="%PUBLIC_URL%/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/apple-touch-icon.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <title>XR Time Machine Playground</title>
+
+    <!-- Open Graph / Twitter. og:image must be absolute — a relative one is skipped by most
+         scrapers — so the product domain is written out here. A staging deploy therefore
+         previews with the production card, which is the right trade for not having a
+         build-time template. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Companion Intelligence" />
+    <meta property="og:title" content="Photo Time Machine" />
+    <meta
+      property="og:description"
+      content="Turn any image or video into a shareable 3D memory — explore it in the browser or step into it in XR."
+    />
+    <meta property="og:url" content="https://photo.ci.computer/" />
+    <meta property="og:image" content="https://photo.ci.computer/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="A photo reconstructed as a Gaussian splat in the Photo Time Machine viewer."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- The head-tracked portal reads the camera and the XR viewer reads device pose; both
+         are same-origin-only by default, and the Worker sends a matching Permissions-Policy
+         header (worker/index.js). Stated here too so a plain static host behaves the same. -->
+    <meta http-equiv="Permissions-Policy" content="camera=(self), xr-spatial-tracking=(self)" />
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>
+      Photo Time Machine renders 3D in the browser and needs JavaScript enabled.
+    </noscript>
     <div id="root"></div>
   </body>
 </html>

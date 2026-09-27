@@ -1,7 +1,26 @@
 // API client for the CI Photo Time Machine processing server.
 
+/**
+ * Where the processing server lives, baked in at build time.
+ *
+ * Three cases, and the difference between the last two matters:
+ *   unset          -> `http://localhost:8000`, the dev default (`npm start`, and the
+ *                     Docker viewer, whose Dockerfile passes the same value explicitly).
+ *   set to a URL   -> that URL, e.g. a separately hosted API on another origin.
+ *   set to empty   -> same-origin, so every request is a relative `/api/v1/...`.
+ *
+ * The empty case is the Cloudflare deployment (`wrangler.toml` + `worker/index.js`):
+ * photo.ci.computer serves this bundle and proxies the API paths to the GPU origin, so
+ * the browser only ever talks to one host — no CORS preflight on uploads, no mixed
+ * content, and share links that keep working when the backend moves. Which is why this
+ * cannot be a `||` fallback: an empty string is falsy but is a deliberate answer.
+ */
+const configuredApiBase = process.env.REACT_APP_API_BASE as string | undefined;
+
 export const API_BASE =
-  (process.env.REACT_APP_API_BASE as string) || "http://localhost:8000";
+  configuredApiBase === undefined
+    ? "http://localhost:8000"
+    : configuredApiBase.replace(/\/+$/, "");
 
 export type AssetKind = "splat" | "mesh";
 export type Intent = "auto" | "object" | "scene";

@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Photo Time Machine">
+  <!--
+    Photo Time Machine app icon — the source of truth for assets/icon.png (which
+    companion-app.json points at) and video/assets/app-icon.png (the film's first
+    frame). Regenerate both with scripts/generate-icon.sh after editing this file.
+
+    Palette is the CI phthalo ramp the rest of the app already uses: surface
+    #041620 -> #0A6358, light #ABD4D8, mint accent #2EE6C8. The mark is the
+    original two-photo-frames idea — one frame behind another is the "time
+    machine" — recoloured; the geometry is unchanged in spirit, only the purple
+    (#7D62F1) that predated the teal move is gone.
+
+    #0F717A was the app's original teal endpoint; CI-Common's v0.3.1 rework
+    moved the brand primary to phthalo #0A6358 (#0F717A survives only as a
+    ramp rung, teal-600, no longer the primary; see
+    web-server/client/tailwind.config.js). The tile gradient's middle stop and
+    the sheen highlight are re-derived from the old #0B4C54/#58B6BC by rotating
+    hue+saturation onto the new phthalo anchor while keeping each stop's
+    relative lightness, matching that same tailwind config's ramp math.
+  -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#061A23"/>
+      <stop offset="0.55" stop-color="#07453D"/>
+      <stop offset="1" stop-color="#0A6358"/>
+    </linearGradient>
+    <!-- Soft top-left sheen, same trick the Spatial Companion tile uses to stop
+         a flat gradient reading as a dead rectangle. -->
+    <radialGradient id="sheen" cx="0.28" cy="0.2" r="0.75">
+      <stop offset="0" stop-color="#14C7B1" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#14C7B1" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#D3E7EA"/>
+    </linearGradient>
+    <clipPath id="frontInner">
+      <rect x="135" y="213" width="224" height="186" rx="20"/>
+    </clipPath>
+    <!-- Knock the front frame (plus a hairline of breathing room) out of the
+         frame behind it. Without this the back frame's lower edge runs straight
+         through the front picture and the two rectangles read as one flat
+         tangle instead of one photo sitting on top of another. -->
+    <mask id="behindFront">
+      <rect width="512" height="512" fill="#fff"/>
+      <rect x="102" y="180" width="290" height="252" rx="53" fill="#000"/>
+    </mask>
+  </defs>
+
+  <!-- tile -->
+  <rect width="512" height="512" rx="115" fill="url(#tile)"/>
+  <rect width="512" height="512" rx="115" fill="url(#sheen)"/>
+
+  <!-- the frame behind: the earlier photo, held back in the palette so the
+       stack reads as depth rather than as two equal rectangles -->
+  <rect x="205" y="118" width="186" height="158" rx="26"
+        fill="none" stroke="#ABD4D8" stroke-width="19" opacity="0.5"
+        mask="url(#behindFront)"/>
+
+  <!-- the frame in front -->
+  <rect x="122" y="200" width="250" height="212" rx="33"
+        fill="none" stroke="url(#glass)" stroke-width="25"/>
+
+  <g clip-path="url(#frontInner)">
+    <!-- horizon: two ridges, the nearer one solid, so the picture inside the
+         frame is legible at 32px where fine detail collapses -->
+    <path d="M135 399 L214 291 L272 356 L309 316 L359 384 L359 399 Z" fill="url(#glass)"/>
+    <path d="M135 399 L189 336 L246 399 Z" fill="#ABD4D8" opacity="0.55"/>
+    <circle cx="188" cy="262" r="25" fill="#2EE6C8"/>
+  </g>
+</svg>
