@@ -8,6 +8,7 @@ optional ``mcp`` package isn't installed.
 
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 from .config import Settings
@@ -16,38 +17,39 @@ from .models import JobInput
 from .routes import _classify
 from .storage import Store
 
+log = logging.getLogger("ptm")
+
+# Where the streamable-HTTP app answers *within* its own sub-app. It is mounted at /mcp by
+# main.py, so the route inside it is the root and the surface lands on /mcp/.
+STREAMABLE_HTTP_PATH = "/"
+
+# Reported to agents as serverInfo.version. Kept in step with the FastAPI app's version.
+SERVER_VERSION = "2.0.0"
+
 
 def _default_owner(settings: Settings) -> str:
     return "dev@local" if settings.auth_disabled else "agent@companion"
 
 
 def build_mcp(jobs: JobManager, store: Store, settings: Settings):
-    """Create the FastMCP app, or return None if the mcp package is unavailable."""
+    """Create the MCPServer, or return None if the mcp package is unavailable."""
     try:
-        from mcp.server.fastmcp import FastMCP
-        from mcp.server.transport_security import TransportSecuritySettings
+        from mcp.server.mcpserver import MCPServer
     except Exception as exc:  # noqa: BLE001
-        # Log it. This used to swallow the reason, and when `mcp` 2.0 renamed FastMCP to
-        # MCPServer the only trace of a completely absent MCP surface was a line claiming
-        # the package was "not installed" — while it was installed and importable.
-        import logging
-
-        logging.getLogger("ptm").warning("MCP surface unavailable: %s: %s", type(exc).__name__, exc)
+        # Log the reason, don't just swallow it. This handler turns a missing MCP surface
+        # into a warning rather than a crash, which is what let `mcp` 2.0's rename of
+        # FastMCP to MCPServer hide behind a line claiming the package was "not installed"
+        # while it was installed and importable. The symmetric trap is live now that the
+        # extra is floored at 2.x: an environment that resolves to 1.x has no
+        # `mcp.server.mcpserver`, and the message has to say so rather than guess.
+        log.warning("MCP surface unavailable: %s: %s", type(exc).__name__, exc)
         return None
 
-    # Hand FastMCP an explicit allowlist. Left to itself it derives a loopback-only one from
-    # its (unused) bind host, and behind a reverse proxy — which is every deployment — the
-    # inbound Host is the public name, so every agent request gets 421. See
-    # Settings.mcp_host_allowlist.
-    mcp = FastMCP(
-        "photo-time-machine",
-        streamable_http_path="/",
-        transport_security=TransportSecuritySettings(
-            enable_dns_rebinding_protection=True,
-            allowed_hosts=settings.mcp_host_allowlist,
-            allowed_origins=settings.mcp_origin_allowlist,
-        ),
-    )
+    # `version` is new in 2.x and worth setting: 1.x had no such argument and the lowlevel
+    # server filled serverInfo.version with the *mcp library's* version, so agents were told
+    # "1.30.0" for this server. 2.x drops that fallback and would report an empty string.
+    # Neither is useful — report the app's own version, matching /healthz and the OpenAPI doc.
+    mcp = MCPServer("photo-time-machine", version=SERVER_VERSION)
     owner = _default_owner(settings)
 
     @mcp.tool()
@@ -106,3 +108,31 @@ def build_mcp(jobs: JobManager, store: Store, settings: Settings):
         return {"asset_id": asset_id, "share_url": asset.share_url}
 
     return mcp
+
+
+def build_mcp_app(mcp, settings: Settings):
+    """Build the mounted streamable-HTTP ASGI app for `mcp`.
+
+    Separate from build_mcp() because `mcp` 2.x moved the transport options — the path and
+    the security settings alike — off the server constructor and onto the app factory. It
+    stays in this module rather than in main.py so that importing `mcp` remains confined to
+    the one module that is allowed to fail when the optional extra is absent.
+
+    As a side effect this is what creates the StreamableHTTPSessionManager: `session_manager`
+    raises RuntimeError until it has been called, so main.py must mount before its lifespan
+    tries to run the manager.
+    """
+    from mcp.server.transport_security import TransportSecuritySettings
+
+    # Hand the transport an explicit allowlist. Left to itself it derives a loopback-only
+    # one from the `host` argument, and behind a reverse proxy — which is every deployment —
+    # the inbound Host is the public name, so every agent request gets 421. See
+    # Settings.mcp_host_allowlist.
+    return mcp.streamable_http_app(
+        streamable_http_path=STREAMABLE_HTTP_PATH,
+        transport_security=TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=settings.mcp_host_allowlist,
+            allowed_origins=settings.mcp_origin_allowlist,
+        ),
+    )

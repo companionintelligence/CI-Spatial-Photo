@@ -47,7 +47,7 @@ portal", the `.ply` splat pipeline) and rebuilds around three principles:
 │                                │                                    │              │
 │  ┌────────────────┐   ┌────────┴─────────┐   ┌──────────────────────┴───────────┐  │
 │  │  MCP server    │   │  Memory client   │   │  Auth (Companion OIDC bearer)     │  │
-│  │  (FastMCP)     │   │  (MCP → CI mem)  │   │  JWKS verify + dev bypass         │  │
+│  │  (MCPServer)   │   │  (MCP → CI mem)  │   │  JWKS verify + dev bypass         │  │
 │  └───────┬────────┘   └────────┬─────────┘   └──────────────────────┬───────────┘  │
 │          │  shared core         │                                   │              │
 │  ┌───────┴──────────────────────┴───────────────────────────────────┴──────────┐  │
