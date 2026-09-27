@@ -2,5 +2,15 @@
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.22-rc.20250304",
     "lucide-react": "^0.562.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.142.0"
+  },
+  "private": true,
+  "scripts": {
+    "build": "cd web-server/client && REACT_APP_API_BASE= CI=false npm run build",
+    "deploy": "scripts/deploy-cloudflare.sh",
+    "deploy:staging": "scripts/deploy-cloudflare.sh --env staging",
+    "deploy:dry-run": "scripts/deploy-cloudflare.sh --dry-run"
   }
 }

@@ -1,0 +1,63 @@
+# Cloudflare Worker for photo.ci.computer — see docs/DEPLOY-CLOUDFLARE.md.
+#
+#   npm run deploy            # build the viewer, then deploy this Worker
+#   npx wrangler deploy --dry-run   # validate config + bundle without publishing
+#
+# The Worker serves the built viewer and reverse-proxies the API to the processing
+# server; worker/index.js explains why those two share an origin.
+
+# Named to match the other Workers in this account (ci-os-hub-production,
+# ci-cloud-app-staging, ...): the environment is in the name, explicitly.
+name = "ci-spatial-photo-production"
+main = "worker/index.js"
+compatibility_date = "2025-09-15"
+workers_dev = false
+
+[observability]
+enabled = true
+
+[assets]
+# Produced by `npm --prefix web-server/client run build` (CRA). Not in git.
+directory = "web-server/client/build"
+binding = "ASSETS"
+# Share links are client-side routes: /view/:assetId must return the app shell, not a 404.
+not_found_handling = "single-page-application"
+# Run worker/index.js ahead of the asset lookup for every request, so the API prefixes can
+# be proxied before Cloudflare tries to find a file for them. The Worker then falls through
+# to env.ASSETS.fetch() for everything else.
+run_worker_first = true
+
+[vars]
+# Base URL of the processing server (server/app/main.py), e.g. a Cloudflare Tunnel
+# hostname in front of the GPU box. Empty here on purpose: an unconfigured deployment
+# answers API calls with a 503 that says what to set, which is far easier to debug than a
+# hostname baked into git. Set the real value per environment below, with
+#   npx wrangler deploy --var ORIGIN_API_BASE:https://...
+# or in the dashboard (Settings -> Variables). It is not a secret — it is a public
+# hostname — so a plain var is right; the OIDC token the browser sends is the access
+# control.
+ORIGIN_API_BASE = ""
+
+[[routes]]
+pattern = "photo.ci.computer"
+custom_domain = true
+
+# ── Staging ───────────────────────────────────────────────────────────────────
+# `npx wrangler deploy --env staging` -> ci-spatial-photo-staging, on workers.dev, so a
+# viewer build can be exercised against a real origin without touching the product domain.
+[env.staging]
+name = "ci-spatial-photo-staging"
+workers_dev = true
+# Load-bearing empty list. A wrangler environment inherits the top-level `routes`, so
+# without this a staging deploy reassigns photo.ci.computer to the staging Worker — it takes
+# the product domain down, from a command that reads as if it could not.
+routes = []
+
+[env.staging.assets]
+directory = "web-server/client/build"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+[env.staging.vars]
+ORIGIN_API_BASE = ""

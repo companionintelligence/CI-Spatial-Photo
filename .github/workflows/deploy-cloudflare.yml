@@ -1,0 +1,94 @@
+name: Deploy (Cloudflare)
+
+# Manual only, deliberately. Two reasons, and the first is this repo's standing policy:
+# GitHub Actions triggers here are gated because hosted compute was costing the org
+# $563/month (docs/CI.md). The second is that this workflow publishes to the product domain,
+# photo.ci.computer, and a deploy on every push to main is not what anyone wants from a
+# repo whose checks run on local hardware.
+#
+#   gh workflow run deploy-cloudflare.yml --repo companionintelligence/CI-Spatial-Photo \
+#     --ref main -f environment=production
+#
+# The equivalent from a laptop, no Actions minutes involved: scripts/deploy-cloudflare.sh
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Which Worker to publish"
+        type: choice
+        options: [production, staging]
+        default: staging
+      origin_api_base:
+        description: >-
+          Processing-server base URL to set as ORIGIN_API_BASE (e.g.
+          https://ptm-origin.ci.computer). Leave blank to keep whatever the Worker
+          already has.
+        type: string
+        required: false
+
+concurrency:
+  # Never two deploys to the same Worker at once; queue rather than cancel, because
+  # cancelling mid-publish is how you get a half-uploaded asset manifest.
+  group: deploy-cloudflare-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build the viewer and deploy the Worker
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web-server/client/package-lock.json
+
+      - name: Install viewer dependencies
+        working-directory: web-server/client
+        run: npm ci --no-audit --no-fund
+
+      - name: Build the viewer
+        working-directory: web-server/client
+        run: npm run build
+        env:
+          # Empty, not unset: same-origin, so the bundle calls /api/v1/... and the Worker
+          # proxies it. See web-server/client/src/api.ts.
+          REACT_APP_API_BASE: ""
+          CI: "false" # CRA treats warnings as errors when CI=true; warnings are lint noise here
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # `--env ""` targets the top-level config (the one that owns photo.ci.computer).
+          command: >-
+            deploy
+            --env ${{ inputs.environment == 'production' && '""' || 'staging' }}
+            ${{ inputs.origin_api_base != '' && format('--var ORIGIN_API_BASE:{0}', inputs.origin_api_base) || '' }}
+
+      - name: Smoke test
+        if: inputs.environment == 'production'
+        run: |
+          set -euo pipefail
+          echo "Waiting for the new version to be live..."
+          sleep 10
+          # The viewer must be served, and the share-link route must resolve to the shell
+          # rather than a 404 — the two things the Worker exists to do.
+          for path in / /view/smoke-test; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "https://photo.ci.computer$path")
+            echo "GET $path -> $code"
+            [ "$code" = "200" ] || { echo "::error::photo.ci.computer$path returned $code"; exit 1; }
+          done
+          # The API is only reachable when an origin is configured; report, don't fail, so a
+          # viewer-only deploy is not a red run.
+          api=$(curl -sS -o /dev/null -w '%{http_code}' https://photo.ci.computer/healthz)
+          echo "GET /healthz -> $api"
+          if [ "$api" = "503" ]; then
+            echo "::warning::No processing server behind the edge yet — set ORIGIN_API_BASE."
+          elif [ "$api" != "200" ]; then
+            echo "::error::Origin proxy returned $api"; exit 1
+          fi

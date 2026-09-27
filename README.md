@@ -35,6 +35,7 @@ with its gallery and share link. See the full tour in [docs/UI-GUIDE.md](docs/UI
 | [**Depth Engines**](docs/DEPTH-ENGINES.md) | `depth-image` / `depth-video`: the model catalog, how to pick one, the licence gates, the back-projection maths, and the limitations. |
 | [**Architecture**](docs/ARCHITECTURE.md) | System design: MCP-first core, pluggable engines, Companion OIDC + memory integration. |
 | [**Research**](docs/RESEARCH.md) | The engine & viewer trade studies (with licenses) behind every technology choice. |
+| [**Deploy (Cloudflare)**](docs/DEPLOY-CLOUDFLARE.md) | How `photo.ci.computer` is put together: the Worker, the API proxy, DNS, the origin tunnel, and the three origin settings that are easy to miss. |
 | [**Changelog**](CHANGELOG.md) | Release notes; current release **2.0.0**. |
 
 ## Why this exists / what changed
@@ -98,6 +99,21 @@ Point your Companion agent at `http://<host>:8000/mcp`. Tools:
 `get_share_url`. Example intent: _"make a 3D model of the photo I just shared and send me the
 link"_ → `image_to_3d` → poll `get_job` → `get_share_url`.
 
+## Deployed
+
+The hosted instance is **[photo.ci.computer](https://photo.ci.computer)** — a Cloudflare
+Worker serving the viewer and reverse-proxying `/api/*` and `/mcp` to the processing server on
+our own GPU hardware, so the browser only ever talks to one origin. Agents point at
+`https://photo.ci.computer/mcp`.
+
+```bash
+npm run deploy             # build the viewer + publish the Worker
+npm run deploy:staging     # the same thing on workers.dev, domain untouched
+```
+
+Full walkthrough, including the origin tunnel and the settings the edge cannot set for you:
+[`docs/DEPLOY-CLOUDFLARE.md`](docs/DEPLOY-CLOUDFLARE.md).
+
 ## Repository layout
 
 ```
@@ -109,9 +125,11 @@ server/                 FastAPI 3D processing server + MCP + engines (the new co
 web-server/client/      React + Three.js + Spark web viewer (kept, evolved: /view/:id, meshes)
 src/sharp/              Apple SHARP engine (bundled; research‑licensed weights)
 docs/                   UI-GUIDE.md, API.md, ARCHITECTURE.md, RESEARCH.md + screenshots
+worker/ wrangler.toml   Cloudflare Worker behind photo.ci.computer (viewer + API proxy)
 companion-app.json      Companion Hub / Marketplace manifest
 docker-compose.yml      Viewer + server stack
-.github/workflows/      CI: server tests + client build
+.claude/                SessionStart hook for Claude Code on the web (see CLAUDE.md)
+.github/workflows/      CI: server tests + client build; gated Cloudflare deploy
 ```
 
 ## Configuration
@@ -128,6 +146,7 @@ docker-compose.yml      Viewer + server stack
 | `DEPTH_MODEL` / `DEPTH_VIDEO_MODEL` | Default checkpoint for the depth engines | `depth-anything-v2-small` |
 | `DEPTH_ALLOW_NONCOMMERCIAL` | Unlock the CC‑BY‑NC / Apple‑research depth weights | `0` |
 | `DEPTH_AUTO_ROUTE` | Let the depth engines join automatic routing | `0` |
+| `MCP_ALLOWED_HOSTS` | Hostnames `/mcp` may be reached by, behind a proxy | — (loopback only) |
 | `ASSET_DIR` | Where assets/jobs are persisted | `./data/assets` |
 
 The depth engines have several more tuning knobs (field of view, depth range, splat budget,
