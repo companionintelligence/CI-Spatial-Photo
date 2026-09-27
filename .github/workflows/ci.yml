@@ -27,8 +27,14 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: server/pyproject.toml
+      # [mcp] is not optional here, despite being an optional extra. Without it the tests
+      # that guard the agent surface do not fail — they `importorskip` away, and the run is
+      # green with test_mcp_mount.py and the memory client's two import tests never
+      # executed. Those are the tests written after /mcp shipped dead twice over, so a run
+      # that skips them says nothing about the one feature this server exists to provide.
+      # [depth] stays out: torch is multi-gigabyte and the depth tests skip cleanly.
       - name: Install
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[mcp,dev]"
       - name: Test
         run: pytest -q
 
