@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy, useSyncExternalStore } from 'react';
 import TopBar from './components/TopBar';
 import CreatePanel from './components/CreatePanel';
 import Gallery from './components/Gallery';
 import MemoryPicker from './components/MemoryPicker';
 import { useHeadTracking } from './hooks/useHeadTracking';
-import { Asset, api, fetchAssetAsFile, viewerSplatFormat, API_BASE } from './api';
+import { Asset, api, fetchAssetAsFile, viewerSplatFormat } from './api';
+import { ServerSetup } from './components/ServerPicker';
+import { getApiTarget, subscribeApiTarget } from './utils/apiTarget';
 
 /*
   The two viewers are code-split, and this is the single highest-leverage thing
@@ -46,6 +48,15 @@ function App() {
 
   const { headPosition, videoRef } = useHeadTracking(isXREnabled);
 
+  /*
+    Which server we are talking to, read from the module store rather than held in
+    state: `api.ts` reads the same value on every request, and a second copy here would
+    let the two disagree about where a request just went. `getApiTarget` is memoized
+    behind a cache, so it is a stable `getSnapshot`.
+  */
+  const serverTarget = useSyncExternalStore(subscribeApiTarget, getApiTarget, getApiTarget);
+  const configured = serverTarget !== null;
+
   const loadAsset = useCallback(async (assetId: string) => {
     setLoadError(null);
     setSplatFile(null);
@@ -62,11 +73,20 @@ function App() {
     }
   }, []);
 
-  // Deep-link: /view/:assetId opens straight into the shared asset.
+  /*
+    Deep-link: /view/:assetId opens straight into the shared asset.
+
+    Gated on `configured`, and re-run when it changes. A share link is the most likely
+    way someone arrives at this app for the first time, which is exactly the moment no
+    server is set — so this used to fire immediately and paint "Failed to load asset"
+    over the setup card. Now the link survives the detour: choose a server, and the
+    asset it names loads.
+  */
   useEffect(() => {
+    if (!configured) return;
     const id = parseViewId();
     if (id) loadAsset(id);
-  }, [loadAsset]);
+  }, [loadAsset, configured]);
 
   const handleCreated = (assetId: string) => {
     setRefreshKey((k) => k + 1);
@@ -194,7 +214,7 @@ function App() {
         <Suspense fallback={null}>
           {asset && asset.kind === 'mesh' ? (
             <MeshViewer
-              src={`${API_BASE}/api/v1/assets/${asset.asset_id}/file?format=glb`}
+              src={api.assetFileUrl(asset.asset_id, 'glb')}
               poster={api.thumbnailUrl(asset.asset_id)}
               className="w-full h-full"
             />
@@ -264,9 +284,18 @@ function App() {
           setShowControls={setShowControls}
           headPosition={headPosition}
           videoRef={videoRef}
+          serverTarget={serverTarget}
         />
 
-        {viewerUp ? (
+        {/*
+          No server, no app. Everything below this point issues requests, so rendering
+          it unconfigured would mean a screenful of controls that all fail — and the
+          gallery's own empty state ("nothing here yet") would be indistinguishable
+          from "you have not said where your photos live".
+        */}
+        {!configured ? (
+          <ServerSetup onConnected={() => setRefreshKey((k) => k + 1)} />
+        ) : viewerUp ? (
           /*
             HUD placement, unchanged. No `w-full`: `width: 100%` resolves
             against the flex container (the full viewport) and `m-4` then adds

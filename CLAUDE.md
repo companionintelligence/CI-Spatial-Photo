@@ -13,7 +13,7 @@ product picture and `docs/ARCHITECTURE.md` for the design.
 | `web-server/client/` | The viewer (CRA — `react-scripts`, not Vite) |
 | `src/sharp/` | Bundled Apple SHARP. Research-licensed weights; treat as vendored |
 | `web-server/backend/` | The original Flask prototype. Superseded by `server/`; don't build on it |
-| `worker/` + `wrangler.toml` | Cloudflare Worker serving photo.ci.computer |
+| `worker/` + `wrangler.toml` | Cloudflare Worker serving photo.ci.computer (static; proxying is opt-in) |
 
 ## Environment
 
@@ -48,9 +48,13 @@ workflow deliberately with `gh workflow run <file> --ref <branch>`.
 - The server runs GPU-free. Engine *inference* needs CUDA, but the API, MCP surface,
   router, auth and memory client must keep working without it — an unavailable engine
   reports `available: false` with a reason, it does not crash.
-- Every client API URL is built as `${API_BASE}/api/v1/...`. `API_BASE` is baked in at
-  build time from `REACT_APP_API_BASE`; an empty value means same-origin, which is how the
-  Cloudflare deployment works.
+- Which server the viewer talks to is a **runtime** choice, not a build-time one.
+  `utils/apiTarget.ts` owns it: every request goes through `apiUrl()` and `requestInit()`
+  in `api.ts`, so nothing may reintroduce a module-level `API_BASE` constant — captured at
+  load, it would keep sending requests to the previous server after the user switched.
+  `REACT_APP_API_BASE` survives only as a build-time default for local dev; the deployed
+  bundle is built with it *unset* so it asks. `docs/BRING-YOUR-OWN-SERVER.md` has the
+  browser rules, and they are not folklore — `apiTarget.test.ts` pins them.
 - Licensing is load-bearing. Non-commercial weights (SHARP, Depth Anything V2 B/L, Depth
   Pro, Video Depth Anything) stay behind an opt-in flag and must keep advertising their
   real licence. Don't route to them by default.

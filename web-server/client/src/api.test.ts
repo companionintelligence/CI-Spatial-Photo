@@ -1,5 +1,5 @@
 import {
-  API_BASE,
+  getApiBase,
   Asset,
   Job,
   api,
@@ -272,7 +272,7 @@ describe('format preference', () => {
     // wire, so the order is the assertion.
     const all = asset({ formats: { ply: 'a', splat: 'b', sog: 'c', spz: 'd' } });
     expect(bestFormat(all).format).toBe('spz');
-    expect(bestFormat(all).url).toBe(`${API_BASE}/api/v1/assets/a1/file?format=spz`);
+    expect(bestFormat(all).url).toBe(`${getApiBase()}/api/v1/assets/a1/file?format=spz`);
     expect(bestFormat(asset({ formats: { ply: 'a', splat: 'b' } })).format).toBe('ply');
   });
 
@@ -300,7 +300,7 @@ describe('fetchAssetAsFile', () => {
     const file = await fetchAssetAsFile(asset(), 'spz');
     expect(file.name).toBe('model.spz');
     expect(file.size).toBe(4);
-    expect(calls[0].url).toBe(`${API_BASE}/api/v1/assets/a1/file?format=spz`);
+    expect(calls[0].url).toBe(`${getApiBase()}/api/v1/assets/a1/file?format=spz`);
   });
 
   it('rejects with the server text rather than handing back an empty File', async () => {

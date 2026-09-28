@@ -1,26 +1,19 @@
 // API client for the CI Photo Time Machine processing server.
 
-/**
- * Where the processing server lives, baked in at build time.
- *
- * Three cases, and the difference between the last two matters:
- *   unset          -> `http://localhost:8000`, the dev default (`npm start`, and the
- *                     Docker viewer, whose Dockerfile passes the same value explicitly).
- *   set to a URL   -> that URL, e.g. a separately hosted API on another origin.
- *   set to empty   -> same-origin, so every request is a relative `/api/v1/...`.
- *
- * The empty case is the Cloudflare deployment (`wrangler.toml` + `worker/index.js`):
- * photo.ci.computer serves this bundle and proxies the API paths to the GPU origin, so
- * the browser only ever talks to one host — no CORS preflight on uploads, no mixed
- * content, and share links that keep working when the backend moves. Which is why this
- * cannot be a `||` fallback: an empty string is falsy but is a deliberate answer.
- */
-const configuredApiBase = process.env.REACT_APP_API_BASE as string | undefined;
+import { apiUrl, getApiBase, localFetchOptions } from "./utils/apiTarget";
 
-export const API_BASE =
-  configuredApiBase === undefined
-    ? "http://localhost:8000"
-    : configuredApiBase.replace(/\/+$/, "");
+/**
+ * Which server this browser talks to is a runtime choice, not a build-time one — the
+ * user names it, and `utils/apiTarget.ts` explains why and holds the rules. Everything
+ * here goes through `apiUrl()` and `requestInit()` so there is exactly one place that
+ * knows the target, and changing it takes effect on the next request rather than the
+ * next deploy.
+ *
+ * Re-exported for the handful of callers that need to display or compose a base
+ * directly. It is a function, deliberately: as a const it would be captured at module
+ * load and every request after the user changed servers would still go to the old one.
+ */
+export { getApiBase, apiUrl };
 
 export type AssetKind = "splat" | "mesh";
 export type Intent = "auto" | "object" | "scene";
@@ -196,8 +189,31 @@ export interface MemoryMedia {
 }
 
 function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem("ci_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  try {
+    const token = localStorage.getItem("ci_token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    // Blocked site data in a private window. Unauthenticated is the right fallback;
+    // throwing here would take down every request instead of just the signed-in ones.
+    return {};
+  }
+}
+
+/**
+ * Options every request needs: the bearer token, plus whatever the configured target
+ * requires of the browser.
+ *
+ * The second part is the easy one to forget. A server on localhost or a LAN address is
+ * reached from an HTTPS page only if the fetch is annotated `targetAddressSpace:
+ * "local"`, and an un-annotated request fails in a way that looks like the server is
+ * down. Funnelling every call through here is what stops one route being missed.
+ */
+function requestInit(extra: RequestInit = {}): RequestInit {
+  return {
+    ...localFetchOptions(),
+    ...extra,
+    headers: { ...authHeaders(), ...(extra.headers as Record<string, string> | undefined) },
+  };
 }
 
 async function j<T>(res: Response): Promise<T> {
@@ -207,7 +223,7 @@ async function j<T>(res: Response): Promise<T> {
 
 export const api = {
   listEngines: (): Promise<{ engines: EngineCapabilities[] }> =>
-    fetch(`${API_BASE}/api/v1/engines`, { headers: authHeaders() })
+    fetch(apiUrl("/api/v1/engines"), requestInit())
       .then((r) => j<unknown>(r))
       .then((raw) => ({ engines: normalizeEngines(raw) })),
 
@@ -233,33 +249,37 @@ export const api = {
     if (opts.engine) fd.append("engine", opts.engine);
     if (opts.intent) fd.append("intent", opts.intent);
     if (opts.model) fd.append("model", opts.model);
-    return fetch(`${API_BASE}/api/v1/jobs`, {
-      method: "POST",
-      headers: authHeaders(),
-      body: fd,
-    }).then((r) => j<Job>(r));
+    return fetch(apiUrl("/api/v1/jobs"), requestInit({ method: "POST", body: fd })).then(
+      (r) => j<Job>(r)
+    );
   },
 
   getJob: (id: string) =>
-    fetch(`${API_BASE}/api/v1/jobs/${id}`, { headers: authHeaders() }).then((r) => j<Job>(r)),
+    fetch(apiUrl(`/api/v1/jobs/${id}`), requestInit()).then((r) => j<Job>(r)),
 
   listAssets: () =>
-    fetch(`${API_BASE}/api/v1/assets`, { headers: authHeaders() }).then((r) =>
+    fetch(apiUrl("/api/v1/assets"), requestInit()).then((r) =>
       j<{ assets: Asset[] }>(r)
     ),
 
   getAsset: (id: string) =>
-    fetch(`${API_BASE}/api/v1/assets/${id}`, { headers: authHeaders() }).then((r) => j<Asset>(r)),
+    fetch(apiUrl(`/api/v1/assets/${id}`), requestInit()).then((r) => j<Asset>(r)),
 
   listMemoryMedia: (type: "image" | "video" = "image") =>
-    fetch(`${API_BASE}/api/v1/memory/media?type=${type}`, { headers: authHeaders() }).then((r) =>
+    fetch(apiUrl(`/api/v1/memory/media?type=${type}`), requestInit()).then((r) =>
       j<{ media: MemoryMedia[] }>(r)
     ),
 
   assetFileUrl: (id: string, format: string) =>
-    `${API_BASE}/api/v1/assets/${id}/file?format=${format}`,
+    apiUrl(`/api/v1/assets/${id}/file?format=${format}`),
 
-  thumbnailUrl: (id: string) => `${API_BASE}/api/v1/assets/${id}/thumbnail`,
+  /*
+    Consumed as an `<img src>` (Gallery), which is why a plain-HTTP server on a private
+    address shows splats but no thumbnails: an element load cannot carry the annotation
+    that exempts a local request from mixed-content blocking. `describeTarget` warns
+    about it rather than letting it be discovered.
+  */
+  thumbnailUrl: (id: string) => apiUrl(`/api/v1/assets/${id}/thumbnail`),
 };
 
 // Poll a job to completion.
@@ -295,7 +315,7 @@ export function viewerSplatFormat(asset: Asset): string {
 // Download an asset artifact as a named File (so the viewer's extension-based format
 // detection works regardless of the query-string download URL).
 export async function fetchAssetAsFile(asset: Asset, format: string): Promise<File> {
-  const res = await fetch(api.assetFileUrl(asset.asset_id, format), { headers: authHeaders() });
+  const res = await fetch(api.assetFileUrl(asset.asset_id, format), requestInit());
   if (!res.ok) throw new Error(await res.text());
   const blob = await res.blob();
   return new File([blob], `model.${format}`);

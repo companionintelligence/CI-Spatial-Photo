@@ -35,7 +35,8 @@ with its gallery and share link. See the full tour in [docs/UI-GUIDE.md](docs/UI
 | [**Depth Engines**](docs/DEPTH-ENGINES.md) | `depth-image` / `depth-video`: the model catalog, how to pick one, the licence gates, the back-projection maths, and the limitations. |
 | [**Architecture**](docs/ARCHITECTURE.md) | System design: MCP-first core, pluggable engines, Companion OIDC + memory integration. |
 | [**Research**](docs/RESEARCH.md) | The engine & viewer trade studies (with licenses) behind every technology choice. |
-| [**Deploy (Cloudflare)**](docs/DEPLOY-CLOUDFLARE.md) | How `photo.ci.computer` is put together: the Worker, the API proxy, DNS, the origin tunnel, and the three origin settings that are easy to miss. |
+| [**Bring your own server**](docs/BRING-YOUR-OWN-SERVER.md) | Running the processing server on your own machine and pointing the hosted viewer at it — tunnel, localhost, ci-hub, or fully local — and what each costs you in a browser. |
+| [**Deploy (Cloudflare)**](docs/DEPLOY-CLOUDFLARE.md) | How `photo.ci.computer` is put together: the static Worker, DNS, and the origin settings that are easy to miss. |
 | [**Changelog**](CHANGELOG.md) | Release notes; current release **2.0.0**. |
 
 ## Why this exists / what changed
@@ -101,18 +102,21 @@ link"_ → `image_to_3d` → poll `get_job` → `get_share_url`.
 
 ## Deployed
 
-The hosted instance is **[photo.ci.computer](https://photo.ci.computer)** — a Cloudflare
-Worker serving the viewer and reverse-proxying `/api/*` and `/mcp` to the processing server on
-our own GPU hardware, so the browser only ever talks to one origin. Agents point at
-`https://photo.ci.computer/mcp`.
+The hosted viewer is **[photo.ci.computer](https://photo.ci.computer)** — and it is *only*
+the viewer. A Cloudflare Worker serves the static bundle; it holds no data, proxies nothing,
+and never sees a photo. On first visit it asks which processing server to use, and that
+answer lives in your browser.
+
+So the server runs wherever you want it: on your own machine behind a tunnel, on ci-hub, or
+on localhost while you work. **[docs/BRING-YOUR-OWN-SERVER.md](docs/BRING-YOUR-OWN-SERVER.md)**
+covers the four ways to be reachable and the browser rules each one runs into.
 
 ```bash
 npm run deploy             # build the viewer + publish the Worker
 npm run deploy:staging     # the same thing on workers.dev, domain untouched
 ```
 
-Full walkthrough, including the origin tunnel and the settings the edge cannot set for you:
-[`docs/DEPLOY-CLOUDFLARE.md`](docs/DEPLOY-CLOUDFLARE.md).
+Deployment itself: [`docs/DEPLOY-CLOUDFLARE.md`](docs/DEPLOY-CLOUDFLARE.md).
 
 ## Repository layout
 
@@ -147,6 +151,7 @@ docker-compose.yml      Viewer + server stack
 | `DEPTH_ALLOW_NONCOMMERCIAL` | Unlock the CC‑BY‑NC / Apple‑research depth weights | `0` |
 | `DEPTH_AUTO_ROUTE` | Let the depth engines join automatic routing | `0` |
 | `MCP_ALLOWED_HOSTS` | Hostnames `/mcp` may be reached by, behind a proxy | — (loopback only) |
+| `REACT_APP_API_BASE` | *Viewer* build-time server address. Unset ships a bundle that asks | — (asks on first run) |
 | `ASSET_DIR` | Where assets/jobs are persisted | `./data/assets` |
 
 The depth engines have several more tuning knobs (field of view, depth range, splat budget,

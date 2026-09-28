@@ -8,7 +8,7 @@
   },
   "private": true,
   "scripts": {
-    "build": "cd web-server/client && REACT_APP_API_BASE= CI=false npm run build",
+    "build": "cd web-server/client && env -u REACT_APP_API_BASE CI=false npm run build",
     "deploy": "scripts/deploy-cloudflare.sh",
     "deploy:staging": "scripts/deploy-cloudflare.sh --env staging",
     "deploy:dry-run": "scripts/deploy-cloudflare.sh --dry-run"

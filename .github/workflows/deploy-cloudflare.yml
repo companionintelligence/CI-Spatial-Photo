@@ -20,9 +20,9 @@ on:
         default: staging
       origin_api_base:
         description: >-
-          Processing-server base URL to set as ORIGIN_API_BASE (e.g.
-          https://ptm-origin.ci.computer). Leave blank to keep whatever the Worker
-          already has.
+          Optional, and normally left blank. Only for running this deployment as a
+          single-origin proxy in front of one shared server (see wrangler.toml); the
+          default design is that each browser names its own server instead.
         type: string
         required: false
 
@@ -54,9 +54,9 @@ jobs:
         working-directory: web-server/client
         run: npm run build
         env:
-          # Empty, not unset: same-origin, so the bundle calls /api/v1/... and the Worker
-          # proxies it. See web-server/client/src/api.ts.
-          REACT_APP_API_BASE: ""
+          # Intentionally absent. Setting it — to anything, including empty — would bake a
+          # server address into a bundle that is meant to ship without one and ask. See
+          # web-server/client/src/utils/apiTarget.ts.
           CI: "false" # CRA treats warnings as errors when CI=true; warnings are lint noise here
 
       - name: Deploy
@@ -77,18 +77,10 @@ jobs:
           echo "Waiting for the new version to be live..."
           sleep 10
           # The viewer must be served, and the share-link route must resolve to the shell
-          # rather than a 404 — the two things the Worker exists to do.
+          # rather than a 404 — the two things the edge exists to do. There is nothing to
+          # check beyond that: the API lives on each user's own server, not here.
           for path in / /view/smoke-test; do
             code=$(curl -sS -o /dev/null -w '%{http_code}' "https://photo.ci.computer$path")
             echo "GET $path -> $code"
             [ "$code" = "200" ] || { echo "::error::photo.ci.computer$path returned $code"; exit 1; }
           done
-          # The API is only reachable when an origin is configured; report, don't fail, so a
-          # viewer-only deploy is not a red run.
-          api=$(curl -sS -o /dev/null -w '%{http_code}' https://photo.ci.computer/healthz)
-          echo "GET /healthz -> $api"
-          if [ "$api" = "503" ]; then
-            echo "::warning::No processing server behind the edge yet — set ORIGIN_API_BASE."
-          elif [ "$api" != "200" ]; then
-            echo "::error::Origin proxy returned $api"; exit 1
-          fi
