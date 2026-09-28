@@ -38,11 +38,15 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      # First, because everything below it takes two minutes and is wasted if the
-      # credentials are not here. The first real deploy attempt spent that time and then
-      # failed inside wrangler with "it's necessary to set a CLOUDFLARE_API_TOKEN
-      # environment variable" — true, but it does not say *why* the secret was empty,
-      # which is the only thing the operator needs to know.
+      - uses: actions/checkout@v4
+
+      # Before anything expensive. Checkout is seconds; what this saves is the two
+      # minutes of npm install and CRA build that the first real deploy attempt spent
+      # before failing inside wrangler with "it's necessary to set a
+      # CLOUDFLARE_API_TOKEN environment variable" — true, but it does not say *why* the
+      # secret was empty, which is the only thing the operator needs to know.
+      #
+      # After checkout, not before, because the diagnosis below is a file in the repo.
       #
       # Presence only. The values are never echoed, and `-n` on a masked secret does not
       # reveal it.
@@ -50,6 +54,9 @@ jobs:
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Consumed only by .github/scripts/diagnose-missing-secret.py, and only when
+          # something is missing. Keys only; values are never read.
+          VISIBLE_SECRETS: ${{ toJSON(secrets) }}
         run: |
           set -u
           missing=0
@@ -57,14 +64,17 @@ jobs:
           if [ -n "$CF_TOKEN" ]; then echo "CLOUDFLARE_API_TOKEN: present"; else echo "CLOUDFLARE_API_TOKEN: MISSING"; missing=1; fi
           if [ -n "$CF_ACCOUNT" ]; then echo "CLOUDFLARE_ACCOUNT_ID: present"; else echo "CLOUDFLARE_ACCOUNT_ID: MISSING"; missing=1; fi
           if [ "$missing" = "1" ]; then
-            echo "Repository secrets (Settings -> Secrets and variables -> Actions) are visible to every environment."
-            echo "Environment secrets are not: they only reach the environment they were added to, and this job declares '${{ inputs.environment }}'."
-            echo "Organization secrets additionally need this repository to be in their access policy."
-            echo "::error::A Cloudflare credential did not reach this job - see the three lines above for where it needs to live."
+            echo
+            python3 .github/scripts/diagnose-missing-secret.py || true
+            echo
+            echo "Where they must live: Settings -> Secrets and variables -> ACTIONS -> Secrets tab,"
+            echo "on THIS repository (companionintelligence/CI-Spatial-Photo, renamed from CI-Photo-Time-Machine)."
+            echo "  * The Dependabot and Codespaces tabs on that page are separate stores; Actions cannot read them."
+            echo "  * The Variables tab is also separate - those are vars.X, not secrets.X."
+            echo "  * Environment secrets only reach the environment the job declares, which here is '${{ inputs.environment }}'."
+            echo "::error::A Cloudflare credential did not reach this job - see the lines above."
             exit 1
           fi
-
-      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
