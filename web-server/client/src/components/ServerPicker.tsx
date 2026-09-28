@@ -216,10 +216,10 @@ export const ServerSetup: React.FC<{ onConnected: () => void }> = ({ onConnected
         autoFocus
         footer={
           <p className="border-t border-gray-800 pt-3 text-[11px] leading-snug text-gray-500">
-            No server yet? Run <code className="text-gray-400">docker compose up</code> in the
-            repo, or <code className="text-gray-400">uvicorn app.main:app --port 8000</code> in{' '}
-            <code className="text-gray-400">server/</code>, then choose “This machine”. To reach
-            it from a phone or a headset it needs an HTTPS address — a tunnel is the usual way.
+            No server yet? <code className="text-gray-400">docker compose up</code> in the repo is
+            the shortest path; see <code className="text-gray-400">docs/BRING-YOUR-OWN-SERVER.md</code>{' '}
+            to run it without Docker. Then choose “This machine”. To reach it from a phone or a
+            headset it needs an HTTPS address — a tunnel is the usual way.
           </p>
         }
       />

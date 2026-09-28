@@ -74,10 +74,15 @@ Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-net
 the path of least resistance — no inbound ports, no public IP:
 
 ```bash
+brew install cloudflared          # or your platform's package
+cloudflared tunnel login          # opens a browser; pick the ci.computer zone
 cloudflared tunnel create ptm-origin
 cloudflared tunnel route dns ptm-origin ptm-origin.ci.computer
 cloudflared tunnel run --url http://localhost:8000 ptm-origin
 ```
+
+`login` before `create`: the latter needs the origin certificate the former writes, and
+says so only obliquely.
 
 Three settings on **that** server matter (`.env`, read by `server/app/config.py`):
 
