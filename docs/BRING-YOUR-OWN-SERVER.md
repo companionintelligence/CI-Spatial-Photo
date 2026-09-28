@@ -37,10 +37,16 @@ The server stays entirely on your hardware; Cloudflare only fronts TLS. No mixed
 no CORS, no local-network permission, and it works on a phone and in a headset.
 
 ```bash
+brew install cloudflared          # or your platform's package
+cloudflared tunnel login          # opens a browser; pick the ci.computer zone
 cloudflared tunnel create photo-origin
 cloudflared tunnel route dns photo-origin photo-origin.ci.computer
 cloudflared tunnel run --url http://localhost:8000 photo-origin
 ```
+
+The first two lines are not optional and are the ones people skip: `create` needs the
+origin certificate that `login` writes to `~/.cloudflared/cert.pem`, and without it fails
+with a credentials error rather than anything that mentions logging in.
 
 Then enter `https://photo-origin.ci.computer` in the viewer.
 
@@ -51,7 +57,9 @@ are done. This is the right shape when more than one person uses the same instan
 
 ### `http://localhost:8000`
 
-Choose **This machine** in the setup card. Two things are true about it, and the viewer
+Start the server — `docker compose up` from the repo root, or the venv recipe under
+[Everything local](#everything-local) — then choose **This machine** in the setup card.
+Sitting at the machine running the server, this is the whole setup: no tunnel needed. Two things are true about it, and the viewer
 says both out loud rather than letting you find out:
 
 - **Chrome 142 and later will ask permission.** Reaching loopback or a LAN address from a
@@ -72,7 +80,15 @@ element loads, which cannot carry that annotation and stay blocked. Use HTTPS or
 ### Everything local
 
 ```bash
-cd server && uvicorn app.main:app --port 8000     # or: docker compose up
+# Server. A venv, not a bare `pip install`: macOS ships no `pip` on PATH, and its system
+# Python refuses to install into itself (PEP 668) with a message about being externally
+# managed. `docker compose up` from the repo root avoids Python entirely.
+cd server
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .
+uvicorn app.main:app --port 8000
+
+# Viewer, in another shell.
 cd web-server/client && npm start                 # http://localhost:3000
 ```
 
