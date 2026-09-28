@@ -38,6 +38,32 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
+      # First, because everything below it takes two minutes and is wasted if the
+      # credentials are not here. The first real deploy attempt spent that time and then
+      # failed inside wrangler with "it's necessary to set a CLOUDFLARE_API_TOKEN
+      # environment variable" — true, but it does not say *why* the secret was empty,
+      # which is the only thing the operator needs to know.
+      #
+      # Presence only. The values are never echoed, and `-n` on a masked secret does not
+      # reveal it.
+      - name: Check the deploy credentials reached this job
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -u
+          missing=0
+          # Presence only — the values are never echoed.
+          if [ -n "$CF_TOKEN" ]; then echo "CLOUDFLARE_API_TOKEN: present"; else echo "CLOUDFLARE_API_TOKEN: MISSING"; missing=1; fi
+          if [ -n "$CF_ACCOUNT" ]; then echo "CLOUDFLARE_ACCOUNT_ID: present"; else echo "CLOUDFLARE_ACCOUNT_ID: MISSING"; missing=1; fi
+          if [ "$missing" = "1" ]; then
+            echo "Repository secrets (Settings -> Secrets and variables -> Actions) are visible to every environment."
+            echo "Environment secrets are not: they only reach the environment they were added to, and this job declares '${{ inputs.environment }}'."
+            echo "Organization secrets additionally need this repository to be in their access policy."
+            echo "::error::A Cloudflare credential did not reach this job - see the three lines above for where it needs to live."
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
@@ -64,6 +90,15 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Keep in step with the devDependency in package.json, so a deploy from CI and
+          # one from a laptop are the same deploy.
+          #
+          # Not cosmetic: the action defaults to wrangler 3.90, which does not know
+          # `run_worker_first` and said so — "Unexpected fields found in assets field" —
+          # then carried on. A config field being silently dropped means the deployed
+          # Worker would not be the one this repo tested: the API prefixes would be
+          # answered from the asset store instead of by worker/index.js.
+          wranglerVersion: "4.142.0"
           # `--env ""` targets the top-level config (the one that owns photo.ci.computer).
           command: >-
             deploy
