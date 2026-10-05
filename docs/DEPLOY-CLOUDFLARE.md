@@ -114,6 +114,16 @@ Actions triggers in this repo are gated (`docs/CI.md`), so nothing deploys on pu
 workflow is `workflow_dispatch` only, and `scripts/deploy-cloudflare.sh` does the same job
 from a laptop with no Actions minutes at all.
 
+Before it publishes, a deploy checks two things about the page it is about to ship. The
+build's own checks (`scripts/check-build.mjs`) prove the Buy, Download, Docs and home links
+are present and that the Worker's `/docs` redirect and the viewer name the same Docs URL.
+`npm run check:links` (in `web-server/client`, and run by both deploy paths) then fetches
+those four destinations and fails on anything that does not answer 2xx, because agreeing
+with itself is all the first set can do — `docs.ci.computer/docs` agreed with every one of
+them and was a 404. After publishing, the workflow's smoke test replays its requests
+against the Worker's own tests (`worker/index.test.mjs`), so a path the Worker would not
+answer as the workflow expects fails before a deploy, not after one.
+
 Two things travel with every deploy so that "what is live?" has an answer:
 
 - the commit is passed to wrangler as the deployment's `--tag` and `--message`
@@ -128,6 +138,16 @@ Actions → **Variables**), or an exported shell variable for `npm run deploy`. 
 committed, and unset means no analytics tag at all. The tag is injected by
 `web-server/client/scripts/postbuild.mjs` (idempotent, so a rebuild never doubles it), and
 the page path it reports redacts the asset id of a share link to `/view/:id`.
+
+> **One setting lives in Google, not in this repo, and it matters for that promise.** The
+> redaction covers the page view sent when the page loads. The viewer also rewrites the
+> address bar to `/view/<assetId>` (a `history.replaceState`, no reload) when you create or
+> open a memory, and a GA4 web stream with **Enhanced measurement → Page changes based on
+> browser history events** switched on (it is on by default) may send a page view for that
+> change with the real URL. The asset link is a capability link, so turn that option **off**
+> for this property: Admin → Data streams → the web stream → Enhanced measurement → the gear
+> on *Page views* → untick it. The first page view is still counted. This could not be
+> checked from the repo, because the setting is delivered by the property, not the tag.
 
 ### Verify
 
