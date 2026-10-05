@@ -5,7 +5,9 @@
 // every unknown path answering 200 with the app, share links indexable, the docs paths
 // answering 503, and static assets revalidated on every visit.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, it, mock } from 'node:test';
+import { REQUIRED_LINKS } from '../web-server/client/scripts/check-build.mjs';
 import worker from './index.js';
 
 const SHELL = '<!doctype html><title>shell</title>';
@@ -101,8 +103,14 @@ describe('static deployment (no ORIGIN_API_BASE)', () => {
     for (const path of ['/docs', '/docs/', '/docs/anything']) {
       const res = await call(path);
       assert.equal(res.status, 302, path);
-      assert.equal(res.headers.get('location'), 'https://docs.ci.computer/docs', path);
+      assert.equal(res.headers.get('location'), REQUIRED_LINKS.docs, path);
     }
+  });
+
+  it('never redirects /docs to docs.ci.computer/docs, which is a 404 on the docs site', async () => {
+    const location = (await call('/docs')).headers.get('location');
+    assert.equal(new URL(location).origin, 'https://docs.ci.computer');
+    assert.notEqual(new URL(location).pathname.replace(/\/+$/, ''), '/docs');
   });
 
   it('answers /redoc and /openapi.json with 404, which a crawler will not retry', async () => {
@@ -208,5 +216,32 @@ describe('response headers', () => {
     const res = await call('/static/js/missing.js');
     assert.equal(res.status, 404);
     assert.notEqual(res.headers.get('cache-control'), 'public, max-age=31536000, immutable');
+  });
+});
+
+describe('the deploy workflow smoke test', () => {
+  // The first production deploy of the SPA-fallback removal would have published and then
+  // gone red: the workflow asked for /view/smoke-test, and a hyphen is outside the share-link
+  // alphabet, so the Worker answers it 404. Nothing ran the workflow's requests against the
+  // Worker, so nothing said so. This does: every `expect <path> <status>` line in the
+  // workflow is replayed here.
+  const workflow = readFileSync(new URL('../.github/workflows/deploy-cloudflare.yml', import.meta.url), 'utf8');
+  const expectations = [...workflow.matchAll(/^\s*expect (\/\S*) (\d{3})\s*$/gm)].map((m) => [m[1], Number(m[2])]);
+
+  it('has a smoke test to replay', () => {
+    assert.ok(expectations.length >= 5, `found ${expectations.length} expect lines`);
+    assert.ok(expectations.some(([p]) => p.startsWith('/view/')), 'no share-link request in the smoke test');
+  });
+
+  it('asks only for what this Worker answers with the status the workflow expects', async () => {
+    for (const [path, status] of expectations) {
+      const res = await call(path);
+      assert.equal(res.status, status, `deploy-cloudflare.yml expects ${path} -> ${status}, the Worker gives ${res.status}`);
+    }
+  });
+
+  it('and a hyphenated share id is a 404, which is why the smoke test must not use one', async () => {
+    assert.equal((await call('/view/smoke-test')).status, 404);
+    assert.equal((await call('/view/smoke_test')).status, 200);
   });
 });

@@ -44,11 +44,12 @@ const SHARE_LINK = /^\/view\/[A-Za-z0-9_]+\/?$/;
 /**
  * Where /docs goes on a deployment with no processing server behind it. A visitor or a
  * crawler that tries /docs is looking for documentation, and the FastAPI docs it would
- * have found do not exist here. Keep in step with DOCS_URL in
+ * have found do not exist here. The docs home, not docs.ci.computer/docs: that path is a
+ * 404 on the docs site, which has no index at /docs. Keep in step with DOCS_URL in
  * web-server/client/src/siteLinks.ts — when a dedicated page for this service is
- * published, both change together.
+ * published, both change together (`npm run check:build` fails if they disagree).
  */
-const DOCS_URL = 'https://docs.ci.computer/docs';
+const DOCS_URL = 'https://docs.ci.computer';
 
 /**
  * Content-Security-Policy, in two parts.
@@ -165,7 +166,7 @@ function cacheControlFor(pathname) {
  */
 function staticDeploymentAnswer(pathname) {
   if (pathname === '/docs' || pathname.startsWith('/docs/')) {
-    // 302, not 301: the target is an interim (the docs index) and a browser caches a 301
+    // 302, not 301: the target is an interim (the docs home) and a browser caches a 301
     // for good, which would pin visitors to it after the real page exists.
     return new Response(null, {
       status: 302,

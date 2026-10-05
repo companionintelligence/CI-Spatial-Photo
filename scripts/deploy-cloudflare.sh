@@ -76,6 +76,13 @@ echo "==> Building the viewer (ships unconfigured; each browser names its own se
   env -u REACT_APP_API_BASE CI=false npm run build
 )
 
+# ── 1b. Check the links the page sends people to ──────────────────────────────
+# The build proves the links are present and agree; only asking the destinations can say
+# one is dead (docs.ci.computer/docs was a 404 that every other check agreed with). Needs
+# the network, so it is here and not in `npm run build`.
+echo "==> Checking Buy / Download / Docs / home answer"
+(cd web-server/client && npm run --silent check:links)
+
 # ── 2. Deploy the Worker ──────────────────────────────────────────────────────
 # `--env ""` targets the top-level config explicitly. Without it wrangler warns that the
 # file defines environments and no target was named.
