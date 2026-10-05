@@ -457,7 +457,7 @@ const EngineDetail: React.FC<EngineDetailProps> = ({
         <p className="mt-1 text-gray-300">Auto still works — the server picks for itself.</p>
         <button
           onClick={onRetry}
-          className="mt-1 rounded bg-gray-700 px-2 py-0.5 text-gray-200 hover:bg-gray-600"
+          className="mt-1 min-h-[24px] rounded bg-gray-700 px-2 py-0.5 text-gray-200 hover:bg-gray-600"
         >
           Retry
         </button>

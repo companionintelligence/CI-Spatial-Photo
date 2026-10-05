@@ -26,7 +26,7 @@ wrong.
 
 | | Works from phone / headset | Browser caveats | Good for |
 | --- | --- | --- | --- |
-| **Tunnel** — `https://photo-origin.ci.computer` | Yes | None | The normal answer |
+| **Tunnel** — `https://my-server.example.com` | Yes | None | The normal answer |
 | **ci-hub or another HTTPS host** | Yes | None | An always-on shared instance |
 | **`http://localhost:8000`** | No | Chrome permission prompt; Safari refuses | Sitting at the machine |
 | **Everything local** — viewer *and* server on your machine | No | None | Development |
@@ -38,17 +38,19 @@ no CORS, no local-network permission, and it works on a phone and in a headset.
 
 ```bash
 brew install cloudflared          # or your platform's package
-cloudflared tunnel login          # opens a browser; pick the ci.computer zone
-cloudflared tunnel create photo-origin
-cloudflared tunnel route dns photo-origin photo-origin.ci.computer
-cloudflared tunnel run --url http://localhost:8000 photo-origin
+cloudflared tunnel login          # opens a browser; pick the zone your hostname lives in
+cloudflared tunnel create photo-server
+cloudflared tunnel route dns photo-server my-server.example.com
+cloudflared tunnel run --url http://localhost:8000 photo-server
 ```
 
 The first two lines are not optional and are the ones people skip: `create` needs the
 origin certificate that `login` writes to `~/.cloudflared/cert.pem`, and without it fails
 with a credentials error rather than anything that mentions logging in.
 
-Then enter `https://photo-origin.ci.computer` in the viewer.
+Then enter `https://my-server.example.com` in the viewer. `my-server.example.com` stands
+for a hostname on a domain you own — `example.com` is reserved and can never be anyone's
+server, so substitute your own.
 
 ### ci-hub or another always-on host
 
@@ -106,11 +108,24 @@ but itself (`.env`, read by `server/app/config.py`):
 | `PUBLIC_BASE_URL` | `https://photo.ci.computer` | Share links are built from this. Left at the default, every link the API hands out points at `localhost:3000` and is dead everywhere else. |
 | `MCP_ALLOWED_HOSTS` | the hostname the server is reached by | The MCP transport validates `Host` against a loopback-only allowlist. Behind a tunnel the inbound Host is the public name, so `/mcp` answers **421 Invalid Host header** to every agent while REST keeps working. |
 
-CORS needs nothing: the server already sends `Access-Control-Allow-Origin: *`
-(`server/app/main.py`), which is what makes a cross-origin viewer work at all. Auth is a
-bearer token in a header, not a cookie, so the wildcard is safe here — but if you put the
-server behind your own reverse proxy, that proxy has to preserve those headers, including
-on `OPTIONS` preflights.
+CORS is handled by the server (`Settings.cors_policy` in `server/app/config.py`), and what it
+allows depends on whether auth is on:
+
+- **`AUTH_DISABLED=0`** — any origin. Auth is a bearer token in a header, not a cookie, so
+  the wildcard is safe: an arbitrary page cannot do anything it could not do with the token.
+- **`AUTH_DISABLED=1`** (the default, for local use) — there is no token, so the origin is
+  the only gate, and a wildcard would let any web page you visit read everything on a server
+  listening on `localhost:8000`. The server therefore allows loopback origins, `https://photo.ci.computer`,
+  the origin of `PUBLIC_BASE_URL`, and whatever you list in `ALLOWED_ORIGINS`
+  (comma-separated). Viewing from `https://photo.ci.computer`, from `localhost`, or from
+  the viewer behind your own `PUBLIC_BASE_URL` needs nothing; a viewer served from some
+  other address — a LAN IP, say — needs that origin in `ALLOWED_ORIGINS`. This is a *read*
+  gate, not a write gate: the browser enforces CORS on the response, so another page's
+  simple cross-origin request (a multipart POST, say) is still sent and processed — that
+  page just cannot read the answer. If that matters, turn auth on.
+
+If you put the server behind your own reverse proxy, that proxy has to preserve these
+headers, including on `OPTIONS` preflights.
 
 ## Share links, when the server is personal
 
@@ -132,7 +147,7 @@ and the edge reverse-proxies `/api/*` and `/mcp` to one server, so every browser
 only to `photo.ci.computer`.
 
 ```bash
-npx wrangler deploy --env "" --var ORIGIN_API_BASE:https://photo-origin.ci.computer
+npx wrangler deploy --env "" --var ORIGIN_API_BASE:https://my-server.example.com
 ```
 
 Then choose **Same host as this page** in the viewer. No CORS, no local-network

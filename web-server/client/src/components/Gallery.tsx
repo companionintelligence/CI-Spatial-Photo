@@ -71,11 +71,11 @@ const Gallery: React.FC<GalleryProps> = ({ onSelect, refreshKey }) => {
             {a.thumbnail ? (
               <img
                 src={api.thumbnailUrl(a.asset_id)}
-                alt={a.engine}
+                alt={`Preview of ${assetTitle(a)}`}
                 className="w-full h-full object-cover group-hover:scale-105 transition"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">
+              <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
                 {a.kind}
               </div>
             )}

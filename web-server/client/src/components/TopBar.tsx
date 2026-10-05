@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Sun, Moon, Eye, EyeOff, Settings, X, Crosshair, Server } from 'lucide-react';
+import { Eye, EyeOff, Settings, X, Crosshair, Server } from 'lucide-react';
 import { ServerPanel } from './ServerPicker';
+import { BrandLink } from './SiteLinks';
 import {
   HeadTracking,
   HeadTrackingSnapshot,
@@ -30,8 +31,6 @@ import {
 interface TopBarProps {
   isXREnabled: boolean;
   setIsXREnabled: (enabled: boolean) => void;
-  isDarkMode: boolean;
-  setIsDarkMode: (enabled: boolean) => void;
   showControls: boolean;
   setShowControls: (show: boolean) => void;
   /**
@@ -82,8 +81,6 @@ const idleGetSnapshot = () => IDLE_SNAPSHOT;
 const TopBar: React.FC<TopBarProps> = ({
   isXREnabled,
   setIsXREnabled,
-  isDarkMode,
-  setIsDarkMode,
   showControls,
   setShowControls,
   headPosition,
@@ -241,7 +238,7 @@ const TopBar: React.FC<TopBarProps> = ({
   */
   const trueToLife = Math.abs(snapshot.sensitivity - 1) < 0.005;
   const calibrationBadge = !calibrated
-    ? { text: 'relative', tone: 'text-gray-500', title: 'Parallax is proportional, but not matched to a real display' }
+    ? { text: 'relative', tone: 'text-gray-400', title: 'Parallax is proportional, but not matched to a real display' }
     : trueToLife
       ? { text: 'calibrated 1:1', tone: 'text-emerald-300', title: 'Parallax matches real head movement one to one' }
       : {
@@ -270,7 +267,7 @@ const TopBar: React.FC<TopBarProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-between p-4 pointer-events-auto bg-gradient-to-b from-black/70 to-transparent">
+    <header className="flex items-center justify-between p-4 pointer-events-auto bg-gradient-to-b from-black/70 to-transparent">
       {/* Product name, not the repo name — this string is on camera in every
           product-video frame (video/storyboard.json, CI-Common video-kit
           MESSAGING.md "Naming").
@@ -291,9 +288,15 @@ const TopBar: React.FC<TopBarProps> = ({
           wrap to two lines (and set smaller) instead of losing its second half;
           from `sm` up it fits on one line and `truncate` stays as the guard
           against a future longer name. */}
-      <h1 className="min-w-0 whitespace-normal text-lg font-bold text-white drop-shadow-md sm:truncate sm:text-2xl">
-        Photo Time Machine
-      </h1>
+      <div className="flex min-w-0 flex-col gap-1">
+        {/* The way back to ci.computer. Above the product name rather than beside it: the
+            name keeps every pixel of the width it was already fighting for on a 360px
+            phone, and the logo — a fixed 24px box — costs one extra row, not a column. */}
+        <BrandLink />
+        <h1 className="min-w-0 whitespace-normal text-lg font-bold text-white drop-shadow-md sm:truncate sm:text-2xl">
+          Photo Time Machine
+        </h1>
+      </div>
 
       {/* `relative` anchors the XR panel below. It is only ever rendered while
           XR is on, so the product-video capture — headless Chromium with no
@@ -302,26 +305,30 @@ const TopBar: React.FC<TopBarProps> = ({
         <button
           onClick={() => setIsXREnabled(!isXREnabled)}
           aria-pressed={isXREnabled}
+          aria-label="XR head tracking"
           className={`p-2 rounded-full transition-colors ${
             isXREnabled ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-700 hover:bg-gray-600'
           } text-white`}
           title={isXREnabled ? 'Disable XR' : 'Enable XR'}
         >
-          {isXREnabled ? <Eye size={20} /> : <EyeOff size={20} />}
+          {isXREnabled ? <Eye size={20} aria-hidden="true" /> : <EyeOff size={20} aria-hidden="true" />}
         </button>
-        <button
-          onClick={() => setIsDarkMode(!isDarkMode)}
-          className="p-2 text-white transition-colors bg-gray-700 rounded-full hover:bg-gray-600"
-          title="Toggle Theme"
-        >
-          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-        </button>
+        {/*
+          There used to be a sun/moon "Toggle Theme" button here. There is no light theme:
+          every surface in the app is the canon dark ground, and the toggle only flipped the
+          root text colour to gray-900 — after one click the hero headline and the dropzone
+          label were 1.1:1 against #041620, effectively invisible. A control that can only
+          break the page is removed, not fixed up; a real light theme would need its own
+          ground, surface and text tokens and a contrast pass, which is a feature.
+        */}
         <button
           onClick={() => setShowControls(!showControls)}
+          aria-label="Controls"
+          aria-expanded={showControls}
           className="p-2 text-white transition-colors bg-primary-600 rounded-full hover:bg-primary-700"
           title="Toggle Controls"
         >
-          {showControls ? <X size={20} /> : <Settings size={20} />}
+          {showControls ? <X size={20} aria-hidden="true" /> : <Settings size={20} aria-hidden="true" />}
         </button>
 
         {/*
@@ -334,10 +341,11 @@ const TopBar: React.FC<TopBarProps> = ({
           <button
             onClick={() => setShowServer((v) => !v)}
             aria-pressed={showServer}
+            aria-label="Processing server"
             className="p-2 text-white transition-colors bg-gray-700 rounded-full hover:bg-gray-600"
             title={`Processing server: ${serverTarget === 'same-origin' ? 'this host' : serverTarget}`}
           >
-            <Server size={20} />
+            <Server size={20} aria-hidden="true" />
           </button>
         )}
 
@@ -454,7 +462,7 @@ const TopBar: React.FC<TopBarProps> = ({
                         draftInvalid ? 'border-red-500' : 'border-gray-700'
                       }`}
                     />
-                    <span className="text-gray-500">inch diagonal</span>
+                    <span className="text-gray-400">inch diagonal</span>
                   </span>
                 </label>
 
@@ -464,7 +472,7 @@ const TopBar: React.FC<TopBarProps> = ({
                     Until then the window uses relative parallax.
                   </p>
                 ) : (
-                  <p className="mt-1.5 text-[11px] leading-snug text-gray-500">
+                  <p className="mt-1.5 text-[11px] leading-snug text-gray-400">
                     {calibrated
                       ? 'The window now moves 1:1 with your head. Assumes this browser window is on the display you measured.'
                       : 'Optional. Without it the parallax is proportional rather than life-sized.'}
@@ -479,7 +487,7 @@ const TopBar: React.FC<TopBarProps> = ({
                 that is worth saying out loud on an appliance that may be
                 air-gapped. See docs/UI-GUIDE.md for the self-hosting recipe.
               */}
-              <p className="border-t border-gray-800 pt-2 text-[11px] leading-snug text-gray-500">
+              <p className="border-t border-gray-800 pt-2 text-[11px] leading-snug text-gray-400">
                 {snapshot.selfHosted
                   ? 'Tracking runs on this device. Model served from this host.'
                   : 'Tracking runs on this device; no video is uploaded. The model is fetched from a CDN on first use.'}
@@ -488,7 +496,7 @@ const TopBar: React.FC<TopBarProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </header>
   );
 };
 

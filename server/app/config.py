@@ -4,8 +4,17 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# The published viewer. A server reached from it by a tunnel or "This machine" always sees
+# this Origin, so it is allowed even when CORS is otherwise narrowed (see Settings.cors_policy).
+HOSTED_VIEWER_ORIGIN = "https://photo.ci.computer"
+
+# Any loopback origin, any port: a viewer run from `npm start`, docker compose, or a local
+# static server. Loopback cannot be reached by another machine, so allowing it costs nothing.
+LOOPBACK_ORIGIN_REGEX = r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$"
 
 
 class Settings(BaseSettings):
@@ -15,6 +24,11 @@ class Settings(BaseSettings):
 
     # Sharing / URLs
     public_base_url: str = "http://localhost:3000"
+
+    # Browser origins allowed to call the REST API when auth is OFF, comma-separated
+    # (`https://viewer.example.com`). Ignored when auth is on, where every origin is allowed
+    # because the bearer token, not the origin, is what gates a request. See cors_policy.
+    allowed_origins: str = ""
 
     # Auth (Companion OIDC)
     auth_disabled: bool = True
@@ -62,7 +76,7 @@ class Settings(BaseSettings):
     # "Invalid Host header" to every agent while REST carries on working. These two feed
     # TransportSecuritySettings; list the hostnames the server is reached by —
     # comma-separated, `host:*` to accept any port — e.g.
-    #   MCP_ALLOWED_HOSTS=photo.ci.computer,ptm-origin.ci.computer
+    #   MCP_ALLOWED_HOSTS=photo.ci.computer,my-server.example.com
     # The loopback patterns are always kept, so local development needs nothing set.
     mcp_allowed_hosts: str = ""
     # Origins allowed to speak MCP from a browser. Agents send no Origin header and are
@@ -83,6 +97,42 @@ class Settings(BaseSettings):
 
     def share_url(self, asset_id: str) -> str:
         return f"{self.public_base_url.rstrip('/')}/view/{asset_id}"
+
+    @property
+    def cors_policy(self) -> dict:
+        """Keyword arguments for Starlette's CORSMiddleware.
+
+        Auth ON: any origin. A request is gated by its bearer token in a header, not by a
+        cookie the browser attaches by itself, so a page on an arbitrary origin can do nothing
+        it could not already do with the token — and a wildcard is what lets a viewer served
+        from anywhere talk to a server behind a tunnel.
+
+        Auth OFF (the default, and what `.env.example` ships): there is no token, so the
+        origin is the only thing standing between the server and any web page the owner
+        happens to visit. With a wildcard, such a page could read every asset and job on a
+        server listening on http://localhost:8000, and send it requests that need a CORS
+        preflight (a JSON body, a custom header). So the wildcard narrows to the origins a
+        viewer legitimately comes from: loopback, the hosted viewer, PUBLIC_BASE_URL (where
+        share links point, so the viewer the operator runs), and anything listed in
+        ALLOWED_ORIGINS.
+
+        What this is NOT: a write gate. CORS is enforced by the browser on the response, and a
+        "simple" cross-origin request (a form-style or multipart POST with no custom header)
+        is sent and processed whatever the policy says — the calling page just cannot read
+        the answer. So this closes read access, and anything that must not be reachable by
+        another page's simple request needs auth on, not a narrower origin list.
+        """
+        if self.auth_enabled:
+            return {"allow_origins": ["*"]}
+        origins: list[str] = [HOSTED_VIEWER_ORIGIN]
+        base = urlsplit(self.public_base_url.strip())
+        if base.scheme in ("http", "https") and base.netloc:
+            origins.append(f"{base.scheme}://{base.netloc}")
+        origins.extend(o.strip().rstrip("/") for o in self.allowed_origins.split(",") if o.strip())
+        return {
+            "allow_origins": list(dict.fromkeys(origins)),
+            "allow_origin_regex": LOOPBACK_ORIGIN_REGEX,
+        }
 
     @property
     def mcp_host_allowlist(self) -> list[str]:

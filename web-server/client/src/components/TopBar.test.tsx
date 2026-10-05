@@ -83,8 +83,6 @@ const renderBar = (props: Partial<React.ComponentProps<typeof TopBar>> = {}) => 
     <TopBar
       isXREnabled={false}
       setIsXREnabled={jest.fn()}
-      isDarkMode
-      setIsDarkMode={jest.fn()}
       showControls
       setShowControls={jest.fn()}
       headPosition={null}
@@ -116,8 +114,6 @@ describe('TopBar', () => {
       <TopBar
         isXREnabled
         setIsXREnabled={jest.fn()}
-        isDarkMode
-        setIsDarkMode={jest.fn()}
         showControls
         setShowControls={jest.fn()}
         headPosition={noopTracker()}

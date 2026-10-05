@@ -62,8 +62,8 @@ describe('normalizeTarget', () => {
   it('keeps scheme, host and port and drops everything after them', () => {
     // A base carrying a path would build `https://h/some/path/api/v1/...`, and one
     // carrying a query would build `...?x=1/api/v1/...`. Neither is a real route.
-    expect(normalizeTarget('https://photo-origin.ci.computer/some/path?x=1#frag')).toBe(
-      'https://photo-origin.ci.computer',
+    expect(normalizeTarget('https://my-server.example.com/some/path?x=1#frag')).toBe(
+      'https://my-server.example.com',
     );
     expect(normalizeTarget('http://localhost:8000/')).toBe('http://localhost:8000');
     expect(normalizeTarget('  http://localhost:8000///  ')).toBe('http://localhost:8000');
@@ -121,7 +121,7 @@ describe('classifyHost', () => {
 describe('describeTarget warnings', () => {
   it('says nothing about an HTTPS public target — the case with no caveats', () => {
     setPageOrigin('https://photo.ci.computer/');
-    expect(describeTarget('https://photo-origin.ci.computer').warnings).toEqual([]);
+    expect(describeTarget('https://my-server.example.com').warnings).toEqual([]);
   });
 
   it('warns about the local-network permission when a public page reaches loopback', () => {
@@ -178,20 +178,20 @@ describe('the store', () => {
 
   it('round-trips a target through localStorage and notifies subscribers', () => {
     const seen: (string | null)[] = [];
-    setApiTarget('https://photo-origin.ci.computer');
+    setApiTarget('https://my-server.example.com');
     seen.push(getApiTarget());
 
-    expect(seen).toEqual(['https://photo-origin.ci.computer']);
-    expect(getApiBase()).toBe('https://photo-origin.ci.computer');
+    expect(seen).toEqual(['https://my-server.example.com']);
+    expect(getApiBase()).toBe('https://my-server.example.com');
     expect(isConfigured()).toBe(true);
 
     resetApiTargetCache();
-    expect(getApiTarget()).toBe('https://photo-origin.ci.computer');
+    expect(getApiTarget()).toBe('https://my-server.example.com');
   });
 
   it('normalizes on the way in', () => {
-    setApiTarget('photo-origin.ci.computer/ignored/path');
-    expect(getApiTarget()).toBe('https://photo-origin.ci.computer');
+    setApiTarget('my-server.example.com/ignored/path');
+    expect(getApiTarget()).toBe('https://my-server.example.com');
   });
 
   it('rejects an unusable value without disturbing the current one', () => {
@@ -272,12 +272,12 @@ describe('localFetchOptions', () => {
 
     // And a local page reaching out to a public server is moving the other way.
     setPageOrigin('http://localhost:3000/');
-    expect(localFetchOptions('https://photo-origin.ci.computer')).toEqual({});
+    expect(localFetchOptions('https://my-server.example.com')).toEqual({});
   });
 
   it('says nothing for a public target or no target', () => {
     setPageOrigin('https://photo.ci.computer/');
-    expect(localFetchOptions('https://photo-origin.ci.computer')).toEqual({});
+    expect(localFetchOptions('https://my-server.example.com')).toEqual({});
     expect(localFetchOptions(SAME_ORIGIN)).toEqual({});
     expect(localFetchOptions(null)).toEqual({});
   });

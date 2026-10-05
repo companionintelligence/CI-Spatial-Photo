@@ -25,7 +25,9 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "react-scripts build && node scripts/postbuild.mjs && node scripts/check-build.mjs",
+    "check:build": "node scripts/check-build.mjs",
+    "check:links": "node scripts/check-links.mjs",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

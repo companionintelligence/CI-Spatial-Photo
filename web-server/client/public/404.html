@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Served by the Worker for any path that is not a file and not a /view/:assetId share
+         link, with a real 404 status (wrangler.toml: not_found_handling = "404-page").
+         Static on purpose: no bundle, no JavaScript, so it still works when the app itself
+         is the thing that is broken. Same palette as the viewer (#041620 ground, phthalo
+         #0A6358 primary). -->
+    <title>Page not found — Photo Time Machine</title>
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#041620" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.5rem;
+        padding: 2rem 1rem;
+        background: #041620;
+        color: #fff;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        line-height: 1.5;
+        text-align: center;
+      }
+      main { max-width: 32rem; }
+      h1 { margin: 0 0 0.5rem; font-size: 1.75rem; line-height: 1.2; }
+      p { margin: 0 0 1rem; color: #d1d5db; }
+      a { color: #abd4d8; }
+      a:focus-visible { outline: 2px solid #14c7b1; outline-offset: 2px; border-radius: 4px; }
+      .logo img { display: block; height: 28px; width: auto; }
+      .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin-top: 1.25rem; }
+      .btn {
+        display: inline-block;
+        padding: 0.55rem 0.9rem;
+        border-radius: 0.375rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-decoration: none;
+        border: 1px solid #4b5563;
+        color: #f3f4f6;
+        background: #1f2937;
+      }
+      .btn.primary { background: #0a6358; border-color: #0a6358; color: #fff; }
+      .btn:hover { filter: brightness(1.15); }
+      nav ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem 1rem; margin: 0; padding: 0; list-style: none; font-size: 0.85rem; }
+    </style>
+  </head>
+  <body>
+    <a class="logo" href="https://ci.computer" aria-label="Companion Intelligence home">
+      <img src="/ci-lockup.svg" alt="" width="102" height="28" />
+    </a>
+    <main>
+      <h1>Page not found</h1>
+      <p>
+        There is nothing at this address on photo.ci.computer. Share links look like
+        <code>/view/&hellip;</code> and open in the viewer; everything else starts at the home page.
+      </p>
+      <div class="actions">
+        <a class="btn primary" href="/">Open Photo Time Machine</a>
+        <a class="btn" href="https://ci.computer/core">Buy Companion Core</a>
+        <a class="btn" href="https://ci.computer/download">Download Companion</a>
+      </div>
+    </main>
+    <nav aria-label="Companion Intelligence links">
+      <ul>
+        <li><a href="https://ci.computer">Companion Intelligence</a></li>
+        <li><a href="https://docs.ci.computer">Docs</a></li>
+        <li><a href="https://ci.computer/core">Buy Companion Core</a></li>
+        <li><a href="https://ci.computer/download">Download Companion</a></li>
+      </ul>
+    </nav>
+  </body>
+</html>

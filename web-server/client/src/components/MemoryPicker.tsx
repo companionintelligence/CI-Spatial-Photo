@@ -72,7 +72,7 @@ const MemoryPicker: React.FC<MemoryPickerProps> = ({ onCreated }) => {
               {m.thumbnail_url ? (
                 <img src={m.thumbnail_url} alt={m.title || ""} className="h-full w-full object-cover" />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-xs text-gray-500">
+                <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
                   {m.kind}
                 </div>
               )}

@@ -1,0 +1,5 @@
+{
+  "name": "ci-spatial-photo-worker",
+  "private": true,
+  "type": "module"
+}

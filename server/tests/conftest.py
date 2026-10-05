@@ -28,6 +28,8 @@ os.environ["ASSET_DIR"] = tempfile.mkdtemp(prefix="ptm-test-")
 # FastAPI dependency overrides, rather than by whatever the host happens to have.
 os.environ["AUTH_DISABLED"] = "1"
 os.environ["CI_MEMORY_MCP_URL"] = ""
+# CORS extras: test_cors.py asserts the exact origin list, so an exported value must not leak in.
+os.environ["ALLOWED_ORIGINS"] = ""
 
 # Engine gates at their shipped defaults; every routing assertion is written against these.
 os.environ["DEFAULT_ENGINE"] = "triposplat"

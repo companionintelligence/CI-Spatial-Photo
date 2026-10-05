@@ -1,12 +1,12 @@
 {
+  "id": "/",
   "name": "Photo Time Machine",
   "short_name": "Time Machine",
-  "description": "Turn any image or video into a shareable 3D memory.",
+  "description": "Turn any image or video into a 3D memory. Explore it in the browser, step into it in XR, and share it with a link to a server you run yourself.",
   "icons": [
-    { "src": "favicon.ico", "sizes": "16x16 24x24 32x32 64x64", "type": "image/x-icon" },
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "start_url": "/",
   "scope": "/",

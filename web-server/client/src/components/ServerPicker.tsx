@@ -9,6 +9,8 @@ import {
   probeServer,
   setApiTarget,
 } from '../utils/apiTarget';
+import { DOCS_URL, HOSTED_VIEWER_HOST } from '../siteLinks';
+import { CompanionCallouts } from './SiteLinks';
 
 /**
  * Where the user names their processing server.
@@ -25,9 +27,20 @@ import {
  * it.
  */
 
-const PLACEHOLDER = 'https://photo-origin.ci.computer';
+/*
+  A deliberately fictional host. This used to be https://photo-origin.ci.computer, which
+  looks like a real address and is not one — it does not resolve — so anyone who took the
+  hint at its word got a connection error from a placeholder. `.example.com` is reserved
+  by RFC 2606 and can never be someone's server.
+*/
+const PLACEHOLDER = 'https://my-server.example.com';
 
-/** The three answers that are worth one click each. */
+/** True on the published viewer, whose edge is a static page with no server behind it. */
+function isStaticHostedViewer(): boolean {
+  return typeof window !== 'undefined' && window.location.hostname === HOSTED_VIEWER_HOST;
+}
+
+/** The answers that are worth one click each. */
 const PRESETS: { label: string; value: string; hint: string }[] = [
   {
     label: 'This machine',
@@ -40,6 +53,14 @@ const PRESETS: { label: string; value: string; hint: string }[] = [
     hint: 'The whole stack behind one hostname — docker compose, or a reverse proxy',
   },
 ];
+
+/*
+  "Same host as this page" means the server answers on the hostname serving this page.
+  On photo.ci.computer nothing does — the Worker answers /healthz with 503
+  `origin_not_configured` by design — so offering the preset there is a button whose only
+  possible outcome is an error. It is hidden from the start on that host, and hidden after
+  the fact on any other host whose probe comes back with the same answer.
+*/
 
 interface ServerFormProps {
   /** Pre-fill, for the "change it later" case. */
@@ -67,6 +88,8 @@ const ServerForm: React.FC<ServerFormProps> = ({
     keystrokes, which is why it renders nothing rather than flickering.
   */
   const [info, setInfo] = useState<TargetInfo | null>(null);
+  const [sameHostUnavailable, setSameHostUnavailable] = useState(isStaticHostedViewer);
+  const presets = PRESETS.filter((p) => p.value !== SAME_ORIGIN || !sameHostUnavailable);
   useEffect(() => {
     const normalized = normalizeTarget(value);
     setInfo(normalized === null ? null : describeTarget(normalized));
@@ -85,6 +108,7 @@ const ServerForm: React.FC<ServerFormProps> = ({
     const probe = await probeServer(raw);
     setProbing(false);
     setResult(probe);
+    if (probe.code === 'origin_not_configured') setSameHostUnavailable(true);
     if (probe.ok && setApiTarget(raw)) onConnected();
   };
 
@@ -109,12 +133,12 @@ const ServerForm: React.FC<ServerFormProps> = ({
           onChange={(e) => setValue(e.target.value)}
           placeholder={PLACEHOLDER}
           aria-label="Processing server address"
-          className="mt-1 w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100 placeholder:text-gray-600 focus:border-primary-400 focus:outline-none"
+          className="mt-1 w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100 placeholder:text-gray-400 focus:border-primary-400 focus:outline-none"
         />
       </label>
 
       <div className="flex flex-wrap gap-2">
-        {PRESETS.map((preset) => (
+        {presets.map((preset) => (
           <button
             key={preset.value}
             type="button"
@@ -196,14 +220,44 @@ const ServerForm: React.FC<ServerFormProps> = ({
  * and being asked for a server address has every reason to wonder what they have landed
  * on, and "this page holds no data and cannot see yours" is both the answer and the
  * product's whole argument.
+ *
+ * `sharedLink` is for the visitor who did not come to set anything up: they were sent
+ * /view/:assetId, and that link only means something to a viewer pointed at the server
+ * that holds the asset. Without the sentence below they would be asked for an address
+ * they have never heard of, with nothing to say whose it is.
+ *
+ * It is also the first screen a stranger sees, so it carries the way on to the rest of
+ * Companion Intelligence — the Buy and Download callouts — inside the card, where a
+ * visitor with no server is already reading, rather than leaving them to the footer.
  */
-export const ServerSetup: React.FC<{ onConnected: () => void }> = ({ onConnected }) => (
-  <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-6 py-4">
-    <div className="pointer-events-auto w-full max-w-md rounded-xl border border-gray-700 bg-gray-900/90 p-5 shadow-2xl backdrop-blur">
+export const ServerSetup: React.FC<{ onConnected: () => void; sharedLink?: boolean }> = ({
+  onConnected,
+  sharedLink = false,
+}) => (
+  /*
+    `m-auto` on the card, not `items-center` on the row. Centring with align-items clips the
+    TOP of anything taller than its scroll container — the overflow goes above the scroll
+    origin, where no scrolling can reach it — and on a 360x640 phone this card, which now
+    carries the Buy and Download callouts, is taller than the space the header and footer
+    leave it: the heading was gone. Auto margins centre it when there is room and fall back
+    to the top edge when there is not, so the whole card is always reachable.
+  */
+  <div className="flex min-h-0 flex-1 overflow-y-auto px-6 py-4">
+    <div className="pointer-events-auto m-auto w-full max-w-md rounded-xl border border-gray-700 bg-gray-900/90 p-5 shadow-2xl backdrop-blur">
       <div className="mb-3 flex items-center gap-2">
         <HardDrive size={18} className="text-primary-400" aria-hidden="true" />
         <h2 className="text-base font-semibold text-white">Point this at your server</h2>
       </div>
+
+      {sharedLink && (
+        <p
+          role="note"
+          className="mb-3 rounded border border-primary-400/40 bg-primary-600/10 px-3 py-2 text-xs leading-relaxed text-gray-100"
+        >
+          This link opens a 3D memory held on someone&rsquo;s own server. Ask whoever sent it for
+          that server&rsquo;s address, enter it below, and the memory will load.
+        </p>
+      )}
 
       <p className="mb-4 text-xs leading-relaxed text-gray-400">
         Photos are turned into 3D on a machine you control — this page is static and never
@@ -215,12 +269,21 @@ export const ServerSetup: React.FC<{ onConnected: () => void }> = ({ onConnected
         onConnected={onConnected}
         autoFocus
         footer={
-          <p className="border-t border-gray-800 pt-3 text-[11px] leading-snug text-gray-500">
-            No server yet? <code className="text-gray-400">docker compose up</code> in the repo is
-            the shortest path; see <code className="text-gray-400">docs/BRING-YOUR-OWN-SERVER.md</code>{' '}
-            to run it without Docker. Then choose “This machine”. To reach it from a phone or a
-            headset it needs an HTTPS address — a tunnel is the usual way.
-          </p>
+          <div className="space-y-3 border-t border-gray-800 pt-3">
+            <p className="text-xs leading-snug text-gray-400">
+              No server yet? It runs on a computer you control: start it there, then choose
+              &ldquo;This machine&rdquo;. To reach it from a phone or a headset it needs an HTTPS
+              address, and a tunnel is the usual way. The{' '}
+              <a
+                href={DOCS_URL}
+                className="text-primary-200 underline underline-offset-2 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-400"
+              >
+                Companion Intelligence docs
+              </a>{' '}
+              are the place to start.
+            </p>
+            <CompanionCallouts />
+          </div>
         }
       />
     </div>

@@ -29,6 +29,24 @@ module.exports = {
   ],
   theme: {
     extend: {
+      // Manrope is the canonical CI sans (CI-Common tokens `--font-sans`), self-hosted by
+      // src/index.css. The system stack behind it is Tailwind's own default, so a visitor
+      // whose font has not loaded yet — or who blocks it — gets what this app used to
+      // render everywhere rather than a serif.
+      fontFamily: {
+        sans: [
+          "Manrope",
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          '"Segoe UI"',
+          "Roboto",
+          '"Helvetica Neue"',
+          "Arial",
+          "sans-serif",
+        ],
+      },
       colors: {
         primary: {
           200: "#ABD4D8", // teal-200 — text on a fill, disabled label (unchanged ramp)

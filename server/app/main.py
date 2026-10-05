@@ -53,11 +53,12 @@ def create_app() -> FastAPI:
         description="Turn any image, image set, or video into a shareable 3D asset.",
         lifespan=lifespan,
     )
+    # Wildcard only when requests are gated by a bearer token; see Settings.cors_policy.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
         allow_methods=["*"],
         allow_headers=["*"],
+        **settings.cors_policy,
     )
 
     # HEAD as well as GET. FastAPI's @app.get registers GET only — unlike

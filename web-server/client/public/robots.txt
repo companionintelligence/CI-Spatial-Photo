@@ -1,2 +1,4 @@
 User-agent: *
 Disallow:
+
+Sitemap: https://photo.ci.computer/sitemap.xml

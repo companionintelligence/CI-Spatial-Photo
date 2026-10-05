@@ -8,9 +8,16 @@ interface MeshViewerProps {
   src: string;
   className?: string;
   poster?: string;
+  /** What a screen reader says for the model. */
+  alt?: string;
 }
 
-const MeshViewer: React.FC<MeshViewerProps> = ({ src, className, poster }) => {
+const MeshViewer: React.FC<MeshViewerProps> = ({
+  src,
+  className,
+  poster,
+  alt = "Interactive 3D memory. Drag to rotate, scroll or pinch to zoom.",
+}) => {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -35,6 +42,7 @@ const MeshViewer: React.FC<MeshViewerProps> = ({ src, className, poster }) => {
   return React.createElement("model-viewer", {
     src,
     poster,
+    alt,
     "camera-controls": true,
     "auto-rotate": true,
     ar: true,

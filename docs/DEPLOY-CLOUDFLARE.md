@@ -14,8 +14,10 @@ the section at the end covers it.
   browser ──────────────► photo.ci.computer  (Cloudflare Worker)     │
                         │  /                 ─┐                      │
                         │  /view/:assetId     ├─► ASSETS binding     │
-                        │  /static/*         ─┘   (client build,     │
-                        │                          SPA fallback)     │
+                        │  /static/*         ─┘   (client build;     │
+                        │                          anything else     │
+                        │                          that is not a     │
+                        │                          file is a 404)    │
                         │                                            │
                         │  /api/*  /mcp*  ───► 503 unless            │
                         │                      ORIGIN_API_BASE is set│
@@ -75,10 +77,10 @@ the path of least resistance — no inbound ports, no public IP:
 
 ```bash
 brew install cloudflared          # or your platform's package
-cloudflared tunnel login          # opens a browser; pick the ci.computer zone
-cloudflared tunnel create ptm-origin
-cloudflared tunnel route dns ptm-origin ptm-origin.ci.computer
-cloudflared tunnel run --url http://localhost:8000 ptm-origin
+cloudflared tunnel login          # opens a browser; pick the zone your hostname lives in
+cloudflared tunnel create photo-server
+cloudflared tunnel route dns photo-server my-server.example.com
+cloudflared tunnel run --url http://localhost:8000 photo-server
 ```
 
 `login` before `create`: the latter needs the origin certificate the former writes, and
@@ -89,7 +91,7 @@ Three settings on **that** server matter (`.env`, read by `server/app/config.py`
 | Variable | Value | Why |
 | --- | --- | --- |
 | `PUBLIC_BASE_URL` | `https://photo.ci.computer` | Share links are built from this. Left at the default, the API hands out `http://localhost:3000/view/...` links — the API answers correctly and every link it returns is dead. |
-| `MCP_ALLOWED_HOSTS` | `ptm-origin.ci.computer` | The MCP transport validates the `Host` header against a loopback-only allowlist. Behind a proxy the inbound Host is the public name, so unset this and `/mcp` returns **421 Invalid Host header** to every agent while REST keeps working. |
+| `MCP_ALLOWED_HOSTS` | `my-server.example.com` | The MCP transport validates the `Host` header against a loopback-only allowlist. Behind a proxy the inbound Host is the public name, so unset this and `/mcp` returns **421 Invalid Host header** to every agent while REST keeps working. |
 | `AUTH_DISABLED` | `0` | Anything on a public domain wants Companion OIDC. Also set `COMPANION_OIDC_ISSUER` and `COMPANION_OIDC_AUDIENCE`. |
 
 ## Deploying
@@ -112,12 +114,55 @@ Actions triggers in this repo are gated (`docs/CI.md`), so nothing deploys on pu
 workflow is `workflow_dispatch` only, and `scripts/deploy-cloudflare.sh` does the same job
 from a laptop with no Actions minutes at all.
 
+Before it publishes, a deploy checks two things about the page it is about to ship. The
+build's own checks (`scripts/check-build.mjs`) prove the Buy, Download, Docs and home links
+are present and that the Worker's `/docs` redirect and the viewer name the same Docs URL.
+`npm run check:links` (in `web-server/client`, and run by both deploy paths) then fetches
+those four destinations and fails on anything that does not answer 2xx, because agreeing
+with itself is all the first set can do — `docs.ci.computer/docs` agreed with every one of
+them and was a 404. After publishing, the workflow's smoke test replays its requests
+against the Worker's own tests (`worker/index.test.mjs`), so a path the Worker would not
+answer as the workflow expects fails before a deploy, not after one.
+
+Two things travel with every deploy so that "what is live?" has an answer:
+
+- the commit is passed to wrangler as the deployment's `--tag` and `--message`
+  (`npx wrangler deployments list` shows it), and written to `/version.txt` in the bundle
+  (`<sha>`, or `<sha>-dirty` if it was built from a tree with local edits);
+- `npm run deploy` **refuses a production deploy from a dirty tree** — pass `--allow-dirty`
+  to override it knowingly. A dry run and a staging deploy are not blocked.
+
+**Google Analytics 4** is built in only when `GA_MEASUREMENT_ID` is set at build time: the
+repository variable of that name in the workflow (Settings → Secrets and variables →
+Actions → **Variables**), or an exported shell variable for `npm run deploy`. It is never
+committed, and unset means no analytics tag at all. The tag is injected by
+`web-server/client/scripts/postbuild.mjs` (idempotent, so a rebuild never doubles it), and
+the page path it reports redacts the asset id of a share link to `/view/:id`.
+
+> **One setting lives in Google, not in this repo, and it matters for that promise.** The
+> redaction covers the page view sent when the page loads. The viewer also rewrites the
+> address bar to `/view/<assetId>` (a `history.replaceState`, no reload) when you create or
+> open a memory, and a GA4 web stream with **Enhanced measurement → Page changes based on
+> browser history events** switched on (it is on by default) may send a page view for that
+> change with the real URL. The asset link is a capability link, so turn that option **off**
+> for this property: Admin → Data streams → the web stream → Enhanced measurement → the gear
+> on *Page views* → untick it. The first page view is still counted. This could not be
+> checked from the repo, because the setting is delivered by the property, not the tag.
+
 ### Verify
 
 ```bash
 curl -sI https://photo.ci.computer | head -1                                      # 200
 curl -so /dev/null -w '%{http_code}\n' https://photo.ci.computer/view/anything   # 200, the SPA shell
+curl -so /dev/null -w '%{http_code}\n' https://photo.ci.computer/definitely-missing  # 404, not the shell
+curl -s https://photo.ci.computer/version.txt                                     # the commit that is live
 ```
+
+The Worker answers every path that is not a file, and is not `/` or `/view/:assetId`, with a
+real 404 (`not_found_handling = "404-page"`). It used to answer them all 200 with the app,
+which made `/sitemap.xml` and `/llms.txt` and any typo a soft 404 that crawlers index.
+`/docs` redirects to the public docs, `/redoc` and `/openapi.json` are 404, and
+`/view/*` carries `X-Robots-Tag: noindex, nofollow` — a shared memory is private by design.
 
 A 503 `origin_not_configured` from `/healthz` or `/api/*` is **correct** for a static
 deployment: nothing is behind the edge, and the Worker says so in the body rather than
@@ -157,7 +202,7 @@ Set `ORIGIN_API_BASE` and the Worker reverse-proxies `/api/*`, `/mcp*`, `/health
 `/docs` to one server, so every browser talks only to `photo.ci.computer`:
 
 ```bash
-npx wrangler deploy --env "" --var ORIGIN_API_BASE:https://photo-origin.ci.computer
+npx wrangler deploy --env "" --var ORIGIN_API_BASE:https://my-server.example.com
 ```
 
 Users then choose **Same host as this page** in the viewer. This buys a single origin — no

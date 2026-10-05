@@ -1,3 +1,20 @@
+/*
+  Manrope, the canonical Companion Intelligence sans, self-hosted: the Latin subset as one
+  variable font (~24 KB, weights 200-800), vendored from @companionintelligence/fonts in
+  CI-Common (styles/fonts). Imported from src/ rather than served from public/ so webpack
+  fingerprints it — it lands in static/media with a content hash, which the Worker then
+  caches as immutable — and so there is no Google Fonts request: the CSP stays 'self'
+  and nothing about a visitor leaves for a font CDN. `swap` keeps text visible on the
+  system fallback while it loads. The OFL licence travels with it (fonts/LICENSE-Manrope.txt).
+*/
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("./fonts/manrope-latin-var.woff2") format("woff2");
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

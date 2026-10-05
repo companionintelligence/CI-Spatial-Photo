@@ -134,13 +134,13 @@ def test_a_proxied_host_is_rejected_until_it_is_allowed(monkeypatch):
 
 def test_the_allowlist_keeps_loopback_and_accepts_a_bare_hostname():
     """Unit-level: what Settings hands TransportSecuritySettings."""
-    settings = Settings(mcp_allowed_hosts="photo.ci.computer, ptm-origin.ci.computer:8443")
+    settings = Settings(mcp_allowed_hosts="photo.ci.computer, my-server.example.com:8443")
     hosts = settings.mcp_host_allowlist
     assert "127.0.0.1:*" in hosts and "localhost:*" in hosts
     # A bare name gets a port-wildcard twin; one written with a port is taken as given.
     assert "photo.ci.computer" in hosts and "photo.ci.computer:*" in hosts
-    assert "ptm-origin.ci.computer:8443" in hosts
-    assert "ptm-origin.ci.computer:8443:*" not in hosts
+    assert "my-server.example.com:8443" in hosts
+    assert "my-server.example.com:8443:*" not in hosts
     # Origins default to https:// of each configured host.
     origins = Settings(mcp_allowed_hosts="photo.ci.computer").mcp_origin_allowlist
     assert origins == ["https://photo.ci.computer"]

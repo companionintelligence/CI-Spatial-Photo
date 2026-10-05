@@ -28,8 +28,18 @@
 #                              add a halo to the first frame of the film as a
 #                              side effect of a recolour.
 #
-# Requires rsvg-convert (brew install librsvg) and ImageMagick (brew install
-# imagemagick).
+#   web-server/client/public/icon-maskable-512.png
+#                              512x512 RGB, full-bleed, for the web manifest's
+#                              `purpose: "maskable"` entry. A launcher crops a maskable
+#                              icon to its own shape (circle, squircle, teardrop) and only
+#                              promises the centre 80% survives, so this draws the same
+#                              tile with square corners and the artwork pulled in to 80% —
+#                              the frames sit inside the safe circle instead of having
+#                              their corners shaved off, which is what happened when the
+#                              manifest pointed `maskable` at the full-bleed icon-512.png.
+#
+# Requires rsvg-convert (brew install librsvg), ImageMagick (brew install
+# imagemagick) and perl (macOS ships it).
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -58,4 +68,21 @@ magick "$tmp.png" -background "#061A23" -alpha remove -alpha off -type TrueColor
   PNG24:video/assets/app-icon.png
 rm -f "$tmp.png"
 
-echo "wrote assets/icon.png (RGBA) and video/assets/app-icon.png (RGB)"
+# 3. Maskable web icon — square the tile, then shrink everything after it (the frames and
+#    the horizon) to 80% about the canvas centre. The artwork's own centre is not the
+#    canvas centre (it spans roughly x 112-391, y 108-424), so the translate re-centres it
+#    on the way.
+maskable="$(mktemp -t ptm-icon-maskable).svg"
+trap 'rm -f "$tmp" "$maskable" "$maskable.png"' EXIT
+perl -0pe '
+  s/rx="115"/rx="0"/g;
+  s/(  <!-- the frame behind)/  <g transform="translate(256 256) scale(0.8) translate(-251 -266)">\n$1/;
+  s#</svg>#  </g>\n</svg>#;
+' "$SRC" > "$maskable"
+grep -q 'scale(0.8)' "$maskable" || { echo "maskable transform did not apply" >&2; exit 1; }
+rsvg-convert -w 512 -h 512 -f png -o "$maskable.png" "$maskable"
+magick "$maskable.png" -background "#061A23" -alpha remove -alpha off -type TrueColor \
+  -strip -define png:exclude-chunks=date,time \
+  PNG24:web-server/client/public/icon-maskable-512.png
+
+echo "wrote assets/icon.png (RGBA), video/assets/app-icon.png (RGB) and web-server/client/public/icon-maskable-512.png (RGB)"
