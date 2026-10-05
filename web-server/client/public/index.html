@@ -8,13 +8,25 @@
          just chrome, it is the preview card in every message thread the app's output travels
          through. It previously shipped Apple's sample-app metadata — title "XR Time Machine
          Playground", description "Web GUI for ML Sharp", a favicon and an apple-touch-icon
-         that both 404'd because the files were never in public/. -->
-    <title>Photo Time Machine</title>
-    <meta name="description" content="Turn any image or video into a shareable 3D memory." />
+         that both 404'd because the files were never in public/.
+
+         Everything below is static template text, deliberately: CRA copies public/ verbatim,
+         so a rebuild can never duplicate a tag. The one thing injected at build time is the
+         optional GA4 tag, and scripts/postbuild.mjs strips its own previous output first. -->
+    <title>Photo Time Machine — turn a photo into a 3D memory | Companion Intelligence</title>
+    <meta
+      name="description"
+      content="Turn any image or video into a 3D memory. Explore it in the browser, step into it in XR, and share it with a link to a server you run yourself."
+    />
     <meta name="application-name" content="Photo Time Machine" />
     <!-- #041620: the canon CI ground. See web-server/client/tailwind.config.js on why this
          is never pure black. -->
     <meta name="theme-color" content="#041620" />
+
+    <!-- One canonical address, absolute. /view/:assetId serves this same shell, so every
+         share link canonicalises here, and the Worker also marks those noindex
+         (worker/index.js) — a shared memory is private by the product's own design. -->
+    <link rel="canonical" href="https://photo.ci.computer/" />
 
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" sizes="any" />
     <link rel="icon" href="%PUBLIC_URL%/icon.svg" type="image/svg+xml" />
@@ -24,32 +36,83 @@
     <!-- Open Graph / Twitter. og:image must be absolute — a relative one is skipped by most
          scrapers — so the product domain is written out here. A staging deploy therefore
          previews with the production card, which is the right trade for not having a
-         build-time template. -->
+         build-time template. twitter:* are spelled out rather than left to fall back to
+         og:*, because not every client does the fallback. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Companion Intelligence" />
+    <meta property="og:locale" content="en_US" />
     <meta property="og:title" content="Photo Time Machine" />
     <meta
       property="og:description"
-      content="Turn any image or video into a shareable 3D memory — explore it in the browser or step into it in XR."
+      content="Turn any image or video into a 3D memory. Explore it in the browser, step into it in XR, and share it with a link to a server you run yourself."
     />
     <meta property="og:url" content="https://photo.ci.computer/" />
     <meta property="og:image" content="https://photo.ci.computer/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta
       property="og:image:alt"
-      content="A photo reconstructed as a Gaussian splat in the Photo Time Machine viewer."
+      content="Photo Time Machine: a photo reconstructed as a 3D splat in the viewer, with the headline Turn a photo into a 3D memory."
     />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Photo Time Machine" />
+    <meta
+      name="twitter:description"
+      content="Turn any image or video into a 3D memory. Explore it in the browser, step into it in XR, and share it with a link to a server you run yourself."
+    />
+    <meta name="twitter:image" content="https://photo.ci.computer/og-image.png" />
+    <meta
+      name="twitter:image:alt"
+      content="Photo Time Machine: a photo reconstructed as a 3D splat in the viewer, with the headline Turn a photo into a 3D memory."
+    />
 
-    <!-- The head-tracked portal reads the camera and the XR viewer reads device pose; both
-         are same-origin-only by default, and the Worker sends a matching Permissions-Policy
-         header (worker/index.js). Stated here too so a plain static host behaves the same. -->
-    <meta http-equiv="Permissions-Policy" content="camera=(self), xr-spatial-tracking=(self)" />
+    <!-- Structured data. A data block, not a script that runs, so it needs no CSP allowance.
+         Only facts the page itself states: no price, no rating, no availability. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Photo Time Machine",
+        "url": "https://photo.ci.computer/",
+        "description": "Turn any image or video into a 3D memory. Explore it in the browser, step into it in XR, and share it with a link to a server you run yourself.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires JavaScript and WebGL",
+        "image": "https://photo.ci.computer/og-image.png",
+        "publisher": {
+          "@type": "Organization",
+          "name": "Companion Intelligence",
+          "url": "https://ci.computer"
+        }
+      }
+    </script>
+
+    <!-- The Permissions-Policy that matters (camera and XR, same-origin only) is the
+         response header the Worker sends (worker/index.js). A <meta http-equiv> for it was
+         here and did nothing — browsers ignore Permissions-Policy in a meta tag — so it is
+         gone rather than left to suggest a protection that does not exist. -->
   </head>
   <body>
+    <!-- The app is client-rendered, so without JavaScript this is all a visitor, or a
+         crawler that does not run scripts, ever sees. It has to be a page: what this is,
+         and the way on to the rest of Companion Intelligence. -->
     <noscript>
-      Photo Time Machine renders 3D in the browser and needs JavaScript enabled.
+      <main style="max-width: 40rem; margin: 2.5rem auto; padding: 0 1rem; font-family: system-ui, sans-serif; line-height: 1.55; color: #041620">
+        <h1>Photo Time Machine</h1>
+        <p>
+          Turn any image or video into a 3D memory. Explore it in the browser, step into it in
+          XR, and share it with a link to a server you run yourself. It renders 3D in the
+          browser, so it needs JavaScript enabled.
+        </p>
+        <p>UnCloud your life.</p>
+        <ul>
+          <li><a href="https://ci.computer">Companion Intelligence</a></li>
+          <li><a href="https://docs.ci.computer/docs">Docs</a></li>
+          <li><a href="https://ci.computer/download">Download Companion</a></li>
+          <li><a href="https://ci.computer/core">Buy Companion Core</a></li>
+        </ul>
+      </main>
     </noscript>
     <div id="root"></div>
   </body>

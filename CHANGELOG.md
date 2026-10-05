@@ -3,6 +3,45 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- **Links back to Companion Intelligence** on every screen of the hosted viewer: the logo in
+  the header, a footer, and "Buy Companion Core" / "Download Companion" callouts in the
+  first-run card and the empty-state hero, plus Docs. The same links are in the no-JavaScript
+  fallback, and `scripts/check-build.mjs` fails the build if any of them goes missing.
+- **SEO basics**: canonical, Open Graph and Twitter tags, JSON-LD, `sitemap.xml`, a
+  `robots.txt` Sitemap line, a real `404.html`, a maskable manifest icon and a new
+  1200x630 social card.
+- **Google Analytics 4, opt-in**: built in only when `GA_MEASUREMENT_ID` is set at build time
+  (the workflow reads the repository variable of that name). Never committed; idempotent;
+  share-link asset ids are redacted from the reported page path.
+- **Traceable deploys**: the commit is the deployment's tag and message and is served at
+  `/version.txt`; production deploys from a dirty tree are refused unless `--allow-dirty`.
+- Security headers from the Worker: an enforced `frame-ancestors 'none'` CSP, a report-only
+  full policy, and `Strict-Transport-Security`. Hashed bundles are cached for a year.
+- Manrope (self-hosted) as the viewer's sans.
+
+### Changed
+- **Unknown paths are real 404s** instead of the app shell with a 200; only `/` and
+  `/view/:assetId` serve the viewer. `/view/*` is `noindex`. `/docs` redirects to the public
+  docs; `/redoc` and `/openapi.json` are 404 on a deployment with no server behind it.
+- **CORS with auth off** (`AUTH_DISABLED=1`, the default) now allows loopback origins,
+  `https://photo.ci.computer`, the origin of `PUBLIC_BASE_URL` and `ALLOWED_ORIGINS`, instead of
+  every origin. With auth on it is unchanged (any origin; the bearer token is the gate).
+- The server-address placeholder and doc examples use `my-server.example.com`, a host that
+  cannot exist, instead of two invented `ci.computer` names that did not resolve.
+- The viewer's share-link copy now says the link points at your own server.
+
+### Fixed
+- The "Toggle Theme" button, which turned the headline and dropzone text to 1.1:1 contrast
+  on the dark ground. There is no light theme; the button is gone.
+- "Same host as this page" on photo.ci.computer, where it could only ever fail, now hides, and
+  a static deployment's 503 is explained instead of reported as "is that a server?".
+- The first-run card and empty-state hero lost their top edge on a short phone screen.
+- Copy link now says whether it copied; tabs are a real tablist with arrow-key movement; the
+  page has header, main, nav and footer landmarks; icon buttons have names.
+
 ## [2.0.0] — 2026-07-02
 
 Complete reimagining as a **Companion Intelligence suite service**: a containerized,

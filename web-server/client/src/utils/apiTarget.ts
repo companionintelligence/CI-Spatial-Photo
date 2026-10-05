@@ -10,7 +10,7 @@
  * Four shapes are supported, and they are not equally easy on a browser. Everything
  * awkward about them is encoded once, here, rather than discovered one bug at a time:
  *
- *   https://photo-origin.ci.computer   a tunnel to your machine. Works everywhere.
+ *   https://my-server.example.com      a tunnel to your machine. Works everywhere.
  *   http://localhost:8000              your machine, sitting at it. Needs a Chrome
  *                                      Local Network Access grant; Safari refuses.
  *   https://ci-hub.example             any always-on HTTPS host. Works everywhere.
@@ -365,6 +365,12 @@ export function apiUrl(path: string): string {
 
 export interface ProbeResult {
   ok: boolean;
+  /**
+   * Set when the failure has a cause the UI should act on rather than just print.
+   * `origin_not_configured` is the static edge's own answer to /healthz: the host is
+   * there, it is a viewer, and no server sits behind it.
+   */
+  code?: 'origin_not_configured';
   /** Server version from /healthz, when it answered. */
   version?: string;
   /** How many engines it advertises — the first genuinely useful signal. */
@@ -394,6 +400,23 @@ export async function probeServer(rawTarget: string): Promise<ProbeResult> {
   try {
     const health = await fetch(`${base}/healthz`, { ...options, method: 'GET' });
     if (!health.ok) {
+      // The published viewer's Worker answers /healthz with 503 and a JSON body naming
+      // the reason (worker/index.js). "Reached it, but /healthz answered 503" would bury
+      // that — the reply is accurate and the explanation is the useful half.
+      // Via a promise so a body that is not JSON (or a response with no json() at all)
+      // degrades to null instead of throwing out of the probe.
+      const body: unknown = await Promise.resolve()
+        .then(() => health.json())
+        .catch(() => null);
+      if (body && (body as { error?: unknown }).error === 'origin_not_configured') {
+        return {
+          ok: false,
+          code: 'origin_not_configured',
+          error:
+            'That address is a static page with no server behind it. Run your own server, ' +
+            'then choose “This machine” or enter its tunnel address.',
+        };
+      }
       return {
         ok: false,
         error: `Reached it, but /healthz answered ${health.status}. Is that a Photo Time Machine server?`,

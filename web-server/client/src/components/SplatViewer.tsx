@@ -445,6 +445,13 @@ const SplatViewer: React.FC<SplatViewerProps> = ({
     }
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.setPixelRatio(window.devicePixelRatio);
+    // A bare <canvas> is announced as nothing at all. It is the whole point of the page, so
+    // give it a name and tell a screen-reader user what is on it and how to drive it.
+    renderer.domElement.setAttribute('role', 'img');
+    renderer.domElement.setAttribute(
+      'aria-label',
+      'Interactive 3D memory. Drag to orbit, scroll or pinch to zoom.',
+    );
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 

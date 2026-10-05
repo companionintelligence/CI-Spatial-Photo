@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, Suspense, lazy, useSyncExternalStore } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense, lazy, useSyncExternalStore } from 'react';
 import TopBar from './components/TopBar';
 import CreatePanel from './components/CreatePanel';
 import Gallery from './components/Gallery';
@@ -6,6 +6,7 @@ import MemoryPicker from './components/MemoryPicker';
 import { useHeadTracking } from './hooks/useHeadTracking';
 import { Asset, api, fetchAssetAsFile, viewerSplatFormat } from './api';
 import { ServerSetup } from './components/ServerPicker';
+import { SiteFooter, CompanionCallouts } from './components/SiteLinks';
 import { getApiTarget, subscribeApiTarget } from './utils/apiTarget';
 
 /*
@@ -29,6 +30,11 @@ const MeshViewer = lazy(() => import('./components/MeshViewer'));
 
 type Tab = 'create' | 'explore' | 'memory';
 
+const TABS: Tab[] = ['create', 'explore', 'memory'];
+
+/** The title a /view/:assetId page carries — the shell's own title describes the product. */
+const VIEW_TITLE = 'A 3D memory — Photo Time Machine';
+
 function parseViewId(): string | null {
   const m = window.location.pathname.match(/^\/view\/([A-Za-z0-9_]+)/);
   return m ? m[1] : null;
@@ -41,8 +47,7 @@ function App() {
   const [tab, setTab] = useState<Tab>('create');
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // UI / XR state
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  // UI / XR state. There is no theme state: the app is dark-only (see TopBar).
   const [isXREnabled, setIsXREnabled] = useState(false);
   const [showControls, setShowControls] = useState(true);
 
@@ -94,10 +99,69 @@ function App() {
     loadAsset(assetId);
   };
 
-  const share = () => {
-    if (asset?.share_url) {
-      navigator.clipboard?.writeText(asset.share_url).catch(() => {});
+  /*
+    Copy the share link, and SAY what happened. This used to be
+    `clipboard?.writeText(...).catch(() => {})`: a click that did something, or did
+    nothing, with no way for anyone — sighted or not — to tell which. The Clipboard API is
+    absent on plain-HTTP origins (the whole local setup) and rejects without a user
+    gesture or permission, so "nothing happened" was a real outcome, not an edge case.
+
+    Success says so, in a live region a screen reader announces. Failure falls back to
+    the oldest trick there is: select the URL text, so Ctrl/Cmd+C finishes the job, and
+    say that is what to do. The span is `select-all` as well, so one click selects it.
+  */
+  const [copyNote, setCopyNote] = useState<string>('');
+  const shareUrlRef = useRef<HTMLSpanElement>(null);
+  const copyTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(copyTimer.current), []);
+
+  const share = async () => {
+    if (!asset?.share_url) return;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable');
+      await navigator.clipboard.writeText(asset.share_url);
+      setCopyNote('Link copied');
+    } catch {
+      const el = shareUrlRef.current;
+      const selection = window.getSelection();
+      if (el && selection) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+      setCopyNote('Press Ctrl+C or ⌘C to copy');
     }
+    window.clearTimeout(copyTimer.current);
+    copyTimer.current = window.setTimeout(() => setCopyNote(''), 4000);
+  };
+
+  /*
+    The document title follows what is on screen. The shell's static title sells the
+    product, which is right for the home page and wrong for a tab holding someone's shared
+    memory — and a share link is the most common way this app is ever opened.
+  */
+  const baseTitle = useRef<string>(typeof document !== 'undefined' ? document.title : '');
+  useEffect(() => {
+    document.title = asset || parseViewId() ? VIEW_TITLE : baseTitle.current;
+  }, [asset]);
+
+  /*
+    Roving arrow-key movement for the tab strip. `role="tab"` makes a promise to assistive
+    tech — one Tab stop for the whole strip, arrows to move within it — and the buttons
+    used to make that promise without keeping it.
+  */
+  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
+  const onTabKeyDown = (e: React.KeyboardEvent, index: number) => {
+    let next = -1;
+    if (e.key === 'ArrowRight') next = (index + 1) % TABS.length;
+    else if (e.key === 'ArrowLeft') next = (index - 1 + TABS.length) % TABS.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = TABS.length - 1;
+    if (next < 0) return;
+    e.preventDefault();
+    setTab(TABS[next]);
+    tabRefs.current[TABS[next]]?.focus();
   };
 
   /*
@@ -134,8 +198,12 @@ function App() {
     <div
       className={`pointer-events-auto rounded-xl bg-gray-900/90 backdrop-blur border border-gray-700 shadow-2xl overflow-hidden ${placement}`}
     >
-      <div className="flex border-b border-gray-700 text-sm">
-        {(['create', 'explore', 'memory'] as Tab[]).map((t) => (
+      <div
+        role="tablist"
+        aria-label="Photo Time Machine sections"
+        className="flex border-b border-gray-700 text-sm"
+      >
+        {TABS.map((t, i) => (
           /*
             The selected tab used to be signalled by `bg-gray-800` alone:
             #1f2937 against the #0f1623 panel is 1.23:1, far under the
@@ -148,9 +216,16 @@ function App() {
           */
           <button
             key={t}
+            ref={(el) => {
+              tabRefs.current[t] = el;
+            }}
+            id={`tab-${t}`}
             onClick={() => setTab(t)}
+            onKeyDown={(e) => onTabKeyDown(e, i)}
             role="tab"
             aria-selected={tab === t}
+            aria-controls="tabpanel-main"
+            tabIndex={tab === t ? 0 : -1}
             className={`flex-1 py-2 capitalize border-b-2 ${
               tab === t
                 ? 'bg-gray-800 font-medium text-white border-primary-400'
@@ -172,7 +247,12 @@ function App() {
         </p>
       )}
 
-      <div className="max-h-[60vh] overflow-y-auto">
+      <div
+        role="tabpanel"
+        id="tabpanel-main"
+        aria-labelledby={`tab-${tab}`}
+        className="max-h-[60vh] overflow-y-auto"
+      >
         {tab === 'create' && <CreatePanel onCreated={handleCreated} />}
         {tab === 'explore' && <Gallery onSelect={(a) => loadAsset(a.asset_id)} refreshKey={refreshKey} />}
         {tab === 'memory' && <MemoryPicker onCreated={handleCreated} />}
@@ -180,23 +260,31 @@ function App() {
 
       {/*
         Side by side, the share URL had ~200px on a 360px phone and
-        truncated to "https://photo-time-machine.local/vie…" — the one
+        truncated to a share URL's first few segments — the one
         string on the screen a viewer might want to read. Stacking it
         above the button below `sm` gives it the full panel width.
       */}
       {asset && (
         <div className="flex flex-col items-stretch gap-2 p-3 border-t border-gray-700 text-xs sm:flex-row sm:items-center sm:justify-between">
-          <span className="min-w-0 truncate text-gray-400">{asset.share_url}</span>
-          <button onClick={share} className="px-3 py-1 rounded bg-primary-600 hover:bg-primary-500 shrink-0">
-            Copy link
-          </button>
+          <span ref={shareUrlRef} className="min-w-0 select-all truncate text-gray-400">
+            {asset.share_url}
+          </span>
+          <div className="flex shrink-0 items-center justify-end gap-2">
+            {/* Always mounted, so the live region exists before its text changes. */}
+            <span role="status" aria-live="polite" className="text-emerald-300">
+              {copyNote}
+            </span>
+            <button onClick={share} className="px-3 py-1 rounded bg-primary-600 hover:bg-primary-500">
+              Copy link
+            </button>
+          </div>
         </div>
       )}
     </div>
   );
 
   return (
-    <div className={isDarkMode ? 'text-white' : 'text-gray-900'}>
+    <div className="text-white">
       {/*
         Background layer: the viewer, or the flat black it paints anyway. The
         hero used to live down here too, which is why it could never compose
@@ -273,13 +361,19 @@ function App() {
         </Suspense>
       </div>
 
-      {/* Overlay UI */}
-      <div className="relative z-10 flex flex-col h-screen pointer-events-none">
+      {/*
+        Overlay UI. `100dvh` as well as `h-screen`: on a phone `100vh` is the viewport with
+        the browser toolbar retracted, so a footer pinned to the bottom of it sits under the
+        toolbar until the page is scrolled — and this page does not scroll. The inline style
+        wins where `dvh` is supported and is dropped where it is not, leaving `h-screen`.
+      */}
+      <div
+        className="relative z-10 flex flex-col h-screen pointer-events-none"
+        style={{ height: '100dvh' }}
+      >
         <TopBar
           isXREnabled={isXREnabled}
           setIsXREnabled={setIsXREnabled}
-          isDarkMode={isDarkMode}
-          setIsDarkMode={setIsDarkMode}
           showControls={showControls}
           setShowControls={setShowControls}
           headPosition={headPosition}
@@ -293,8 +387,12 @@ function App() {
           gallery's own empty state ("nothing here yet") would be indistinguishable
           from "you have not said where your photos live".
         */}
+        <main className="flex min-h-0 flex-1 flex-col">
         {!configured ? (
-          <ServerSetup onConnected={() => setRefreshKey((k) => k + 1)} />
+          <ServerSetup
+            onConnected={() => setRefreshKey((k) => k + 1)}
+            sharedLink={parseViewId() !== null}
+          />
         ) : viewerUp ? (
           /*
             HUD placement, unchanged. No `w-full`: `width: 100%` resolves
@@ -323,9 +421,18 @@ function App() {
             `min-h-0` + `overflow-y-auto` because the panel's own scroll area
             is `max-h-[60vh]`: on a 360x640 phone the From Memory grid plus the
             hero can exceed the viewport, and this is the valve.
+
+            The group centres itself with `m-auto`, not `items-center` +
+            `justify-center` on this row. Centring by alignment clips the TOP of
+            anything taller than the scroll container — the overflow lands above
+            the scroll origin, out of reach — which made the valve one-way: on a
+            360x640 phone, with the header's logo row and the footer taking their
+            share, the first line of the headline was gone and could not be
+            scrolled to. Auto margins centre when there is room and sit at the
+            top edge when there is not.
           */
-          <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-6 py-4">
-            <div className="flex w-full max-w-5xl flex-col items-center gap-8 md:flex-row md:justify-center md:gap-12">
+          <div className="flex min-h-0 flex-1 overflow-y-auto px-6 py-4">
+            <div className="m-auto flex w-full max-w-5xl flex-col items-center gap-8 md:flex-row md:justify-center md:gap-12">
               {/*
                 The hero no longer repeats the product name. TopBar already
                 prints "Photo Time Machine" in the corner of every frame, so
@@ -366,7 +473,7 @@ function App() {
                   {[
                     'Drop a photo, a burst, or a video.',
                     'An engine reconstructs it on your hardware.',
-                    'Orbit the result, or share it with a link.',
+                    'Orbit the result, or share a link to it from your own server.',
                   ].map((step, i) => (
                     <li key={step} className="flex items-start gap-3">
                       {/*
@@ -387,12 +494,22 @@ function App() {
                     </li>
                   ))}
                 </ol>
+
+                {/*
+                  Buy / Download, under the steps: the hero is what a visitor reads, and
+                  most visitors have no server of their own yet. Hidden below `sm` with
+                  the steps — the footer carries both links on every screen.
+                */}
+                <CompanionCallouts variant="hero" />
               </div>
 
               {showControls && renderPanel('w-full max-w-md shrink-0')}
             </div>
           </div>
         )}
+        </main>
+
+        <SiteFooter />
       </div>
     </div>
   );

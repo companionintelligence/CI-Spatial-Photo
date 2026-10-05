@@ -45,12 +45,12 @@ describe('ServerSetup', () => {
     const onConnected = jest.fn();
     render(<ServerSetup onConnected={onConnected} />);
 
-    type('photo-origin.ci.computer');
+    type('my-server.example.com');
     fireEvent.click(screen.getByRole('button', { name: /^connect$/i }));
 
     await waitFor(() => expect(onConnected).toHaveBeenCalled());
     // Normalized on the way in: a bare host becomes https, not http.
-    expect(getApiTarget()).toBe('https://photo-origin.ci.computer');
+    expect(getApiTarget()).toBe('https://my-server.example.com');
     expect(screen.getByRole('status')).toHaveTextContent(/version 2\.0\.0/i);
     expect(screen.getByRole('status')).toHaveTextContent(/3 engines/i);
   });
@@ -115,8 +115,8 @@ describe('ServerSetup', () => {
 
 describe('ServerPanel', () => {
   it('shows which server is in use', () => {
-    render(<ServerPanel target="https://photo-origin.ci.computer" onClose={jest.fn()} />);
-    expect(screen.getByText('https://photo-origin.ci.computer')).toBeInTheDocument();
+    render(<ServerPanel target="https://my-server.example.com" onClose={jest.fn()} />);
+    expect(screen.getByText('https://my-server.example.com')).toBeInTheDocument();
   });
 
   it('names same-origin in words rather than showing the sentinel', () => {
@@ -126,10 +126,10 @@ describe('ServerPanel', () => {
   });
 
   it('forgetting clears the target so the setup card comes back', async () => {
-    window.localStorage.setItem('ci_api_base', 'https://photo-origin.ci.computer');
+    window.localStorage.setItem('ci_api_base', 'https://my-server.example.com');
     resetApiTargetCache();
     const onClose = jest.fn();
-    render(<ServerPanel target="https://photo-origin.ci.computer" onClose={onClose} />);
+    render(<ServerPanel target="https://my-server.example.com" onClose={onClose} />);
 
     fireEvent.click(screen.getByRole('button', { name: /forget/i }));
 

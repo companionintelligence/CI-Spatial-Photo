@@ -157,11 +157,15 @@ describe('Gallery cards', () => {
     // The image comes from the API endpoint, not from the value of the
     // `thumbnail` field — that field is a server-side path, and using it as a
     // src is a broken image on every card.
-    expect(screen.getByAltText('sharp')).toHaveAttribute(
+    //
+    // The alt text says what the memory is of ("Preview of porch-1998"), not which
+    // reconstruction engine made it: "sharp" read aloud is a model name, not a picture.
+    expect(screen.getByAltText('Preview of porch-1998')).toHaveAttribute(
       'src',
       `${getApiBase()}/api/v1/assets/withthumb/thumbnail`,
     );
-    expect(screen.queryByAltText('preview')).not.toBeInTheDocument();
+    // The card without a thumbnail renders no <img> at all, so nothing is announced twice.
+    expect(screen.getAllByRole('img')).toHaveLength(1);
     expect(screen.getByText('mesh')).toBeInTheDocument();
   });
 
