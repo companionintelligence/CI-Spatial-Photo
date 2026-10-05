@@ -31,6 +31,17 @@ import {
 const FOCUS =
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-400';
 
+/**
+ * `pointer-events` is INHERITED, and the overlay these links live in (App.tsx) is
+ * `pointer-events-none` so the empty space still orbits the model behind it. Anything in
+ * that overlay that has to be clicked re-enables pointer events itself; the callouts
+ * forgot to, in the empty-state hero, and rendered as buttons that took focus and a Tab
+ * ring but swallowed every mouse click (the pointer fell through to the 3D scene). The
+ * callouts therefore claim their own events wherever they are placed, rather than relying
+ * on whichever ancestor they happen to sit under — `SiteLinks.test.tsx` pins it.
+ */
+const INTERACTIVE = 'pointer-events-auto';
+
 /** Filled phthalo: white on #0A6358 is 7.1:1, and 4.6:1 on the hover fill. */
 const PRIMARY_LINK = `inline-flex items-center justify-center rounded bg-primary-600 px-3 py-2 text-center text-sm font-medium leading-tight text-white transition-colors hover:bg-primary-500 ${FOCUS}`;
 
@@ -53,7 +64,7 @@ export const BrandLink: React.FC = () => (
     href={SITE_URL}
     aria-label={`${BRAND_NAME} home`}
     title={`${BRAND_NAME} — ci.computer`}
-    className={`inline-flex w-fit rounded ${FOCUS}`}
+    className={`${INTERACTIVE} inline-flex w-fit rounded ${FOCUS}`}
   >
     <img
       src={`${process.env.PUBLIC_URL}/ci-lockup.svg`}
@@ -87,7 +98,9 @@ export const CompanionCallouts: React.FC<CalloutsProps> = ({ variant = 'card' })
   <section
     aria-label={BRAND_NAME}
     className={
-      variant === 'hero' ? 'mt-8 hidden max-w-md border-t border-gray-800 pt-5 text-left sm:block' : undefined
+      variant === 'hero'
+        ? `${INTERACTIVE} mt-8 hidden max-w-md border-t border-gray-800 pt-5 text-left sm:block`
+        : INTERACTIVE
     }
   >
     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary-200">{TAGLINE}</p>
@@ -144,17 +157,18 @@ export const SiteFooter: React.FC = () => (
       <a href={DOCS_URL} className={FOOTER_LINK}>
         Docs
       </a>
-      <a
-        href={DOWNLOAD_URL}
-        className={`rounded border border-gray-600 px-2.5 py-1 font-medium text-gray-100 transition-colors hover:border-gray-500 hover:bg-gray-800 ${FOCUS}`}
-      >
-        {DOWNLOAD_LABEL}
-      </a>
+      {/* Buy, then Download: the same order as the callouts, so the pair never swaps. */}
       <a
         href={BUY_URL}
         className={`rounded bg-primary-600 px-2.5 py-1 font-medium text-white transition-colors hover:bg-primary-500 ${FOCUS}`}
       >
         {BUY_LABEL}
+      </a>
+      <a
+        href={DOWNLOAD_URL}
+        className={`rounded border border-gray-600 px-2.5 py-1 font-medium text-gray-100 transition-colors hover:border-gray-500 hover:bg-gray-800 ${FOCUS}`}
+      >
+        {DOWNLOAD_LABEL}
       </a>
     </nav>
     {analyticsOn() && (
