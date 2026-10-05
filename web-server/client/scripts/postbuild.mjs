@@ -19,9 +19,14 @@
  *   - It is idempotent. The block is fenced by markers and removed before it is written
  *     again, so running this twice — or on a build that already has the tag — leaves one
  *     tag, not two.
- *   - It never sends the asset id. A share link is /view/:assetId, and the page's own
- *     promise is that nothing about your memories leaves for a third party; the init
- *     reports the path as /view/:id.
+ *   - The page view it sends never carries the asset id. A share link is /view/:assetId,
+ *     and the page's own promise is that nothing about your memories leaves for a third
+ *     party; the init reports the path as /view/:id. That covers the load-time page view
+ *     only. The app later rewrites the address bar to /view/<assetId> with replaceState
+ *     (App.tsx loadAsset), and a GA4 property with Enhanced measurement's "Page changes
+ *     based on browser history events" on may report that change with the real URL — a
+ *     property setting, not something the tag can switch off. docs/DEPLOY-CLOUDFLARE.md
+ *     says to turn it off; it is the one part of this promise that lives outside the repo.
  *   - The tag is `async` and the init only pushes onto window.dataLayer, so a blocked or
  *     unreachable googletagmanager.com costs the page nothing.
  */

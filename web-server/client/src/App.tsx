@@ -72,6 +72,9 @@ function App() {
         const fmt = viewerSplatFormat(a);
         setSplatFile(await fetchAssetAsFile(a, fmt));
       }
+      // Puts the share link in the address bar without a reload. If Google Analytics is on
+      // and the GA4 property reports history changes, that is a URL carrying this id: see
+      // the GA4 note in docs/DEPLOY-CLOUDFLARE.md (the property's setting must be off).
       window.history.replaceState({}, '', `/view/${assetId}`);
     } catch (e: any) {
       setLoadError(e.message || 'Failed to load asset');

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://docs.ci.computer/schemas/app.v1.json",
   "id": "ci-photo-time-machine",
   "name": "Photo Time Machine",
   "tagline": "Turn any image or video into a shareable 3D memory.",

@@ -10,6 +10,10 @@ All notable changes to this project are documented here. The format follows
   the header, a footer, and "Buy Companion Core" / "Download Companion" callouts in the
   first-run card and the empty-state hero, plus Docs. The same links are in the no-JavaScript
   fallback, and `scripts/check-build.mjs` fails the build if any of them goes missing.
+  The Docs link goes to the docs home: docs.ci.computer has no page at `/docs` (a 404),
+  so `check-build` also fails if the viewer's and the Worker's Docs URLs disagree, and
+  `npm run check:links` fetches Buy, Download, Docs and home before a deploy publishes.
+  Buy comes before Download everywhere, the callouts and the footer included.
 - **SEO basics**: canonical, Open Graph and Twitter tags, JSON-LD, `sitemap.xml`, a
   `robots.txt` Sitemap line, a real `404.html`, a maskable manifest icon and a new
   1200x630 social card.
@@ -34,6 +38,19 @@ All notable changes to this project are documented here. The format follows
 - The viewer's share-link copy now says the link points at your own server.
 
 ### Fixed
+- The empty-state hero's "Buy Companion Core" and "Download Companion" buttons took focus
+  and showed a Tab ring but ignored mouse clicks: the HUD overlay is `pointer-events-none`
+  and the hero never re-enabled them, so the click fell through to the 3D scene. The
+  callouts now claim their own pointer events wherever they are placed.
+- The deploy workflow's smoke test asked for `/view/smoke-test`; the hyphen is outside the
+  share-link alphabet, so the Worker (correctly) answered 404 and a good deploy went red.
+  It is `/view/smoke_test` now, and the Worker's tests replay every request the smoke test
+  makes.
+- `companion-app.json` no longer carries a `$schema` pointing at docs.ci.computer/schemas/app.v1.json,
+  which answers 404 (nothing reads the key).
+- The page title is 50 characters, not 75, so a results page no longer cuts it off, and
+  `check-build` enforces a 60-character limit. A stray internal note about the page's
+  background colour no longer ships in the production HTML.
 - The "Toggle Theme" button, which turned the headline and dropzone text to 1.1:1 contrast
   on the dark ground. There is no light theme; the button is gone.
 - "Same host as this page" on photo.ci.computer, where it could only ever fail, now hides, and

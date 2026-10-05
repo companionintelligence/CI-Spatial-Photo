@@ -100,6 +100,14 @@ jobs:
           # web-server/client/scripts/postbuild.mjs does the injecting, idempotently.
           GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
 
+      # Before publishing, so a dead link blocks the deploy instead of shipping. The build's
+      # own checks prove the links are present and agree with each other; only asking the
+      # destinations can say one is a 404 (docs.ci.computer/docs was, and every other gate
+      # agreed with it). Network only, three tries each, so one dropped packet is not a failure.
+      - name: Check the pages this page links to are up
+        working-directory: web-server/client
+        run: npm run check:links
+
       - name: Deploy
         uses: cloudflare/wrangler-action@v4
         with:
@@ -140,9 +148,13 @@ jobs:
           }
           # The viewer must be served, and the share-link route must resolve to the shell
           # rather than a 404 — the two things the edge exists to do. The API lives on each
-          # user's own server, not here.
+          # user's own server, not here. The id uses the share-link alphabet (letters,
+          # digits, underscore — SHARE_LINK in worker/index.js): a hyphen is outside it and
+          # is a real 404, which turned a good deploy red. worker/index.test.mjs runs every
+          # `expect` line in this file against the Worker, so a path the Worker would
+          # answer differently fails there, before a deploy, not here, after one.
           expect / 200
-          expect /view/smoke-test 200
+          expect /view/smoke_test 200
           # A path that is not a file is a real 404, not the app shell with a 200: a soft
           # 404 is how crawlers come to index /anything-at-all as a duplicate of the home
           # page. These three are the ones that regressed before.

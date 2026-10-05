@@ -114,12 +114,15 @@ allows depends on whether auth is on:
 - **`AUTH_DISABLED=0`** — any origin. Auth is a bearer token in a header, not a cookie, so
   the wildcard is safe: an arbitrary page cannot do anything it could not do with the token.
 - **`AUTH_DISABLED=1`** (the default, for local use) — there is no token, so the origin is
-  the only gate, and a wildcard would let any web page you visit drive a server listening on
-  `localhost:8000`. The server therefore allows loopback origins, `https://photo.ci.computer`,
+  the only gate, and a wildcard would let any web page you visit read everything on a server
+  listening on `localhost:8000`. The server therefore allows loopback origins, `https://photo.ci.computer`,
   the origin of `PUBLIC_BASE_URL`, and whatever you list in `ALLOWED_ORIGINS`
   (comma-separated). Viewing from `https://photo.ci.computer`, from `localhost`, or from
   the viewer behind your own `PUBLIC_BASE_URL` needs nothing; a viewer served from some
-  other address — a LAN IP, say — needs that origin in `ALLOWED_ORIGINS`.
+  other address — a LAN IP, say — needs that origin in `ALLOWED_ORIGINS`. This is a *read*
+  gate, not a write gate: the browser enforces CORS on the response, so another page's
+  simple cross-origin request (a multipart POST, say) is still sent and processed — that
+  page just cannot read the answer. If that matters, turn auth on.
 
 If you put the server behind your own reverse proxy, that proxy has to preserve these
 headers, including on `OPTIONS` preflights.

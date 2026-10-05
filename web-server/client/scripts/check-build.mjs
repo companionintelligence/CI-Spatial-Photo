@@ -7,7 +7,9 @@
  * What is checked is what has actually gone missing before, or is cheap to lose:
  *   - the four ways back to the Companion Intelligence site (home, docs, Download, Buy)
  *     exist in the no-JavaScript fallback AND in the bundle the app renders them from,
- *     with the exact destinations;
+ *     with the exact destinations — and the Worker's /docs redirect and the viewer's
+ *     DOCS_URL name the same one, because a docs link that is right in five places and
+ *     stale in the sixth is how a Docs link ends up 404ing everywhere at once;
  *   - one canonical, parseable JSON-LD, absolute social URLs, a title and description;
  *   - sitemap.xml, robots.txt (with its Sitemap line), a real 404.html, the manifest's
  *     icons, and a 1200x630 social card all ship;
@@ -27,10 +29,20 @@ export const REQUIRED_LINKS = {
   home: 'https://ci.computer',
   buy: 'https://ci.computer/core',
   download: 'https://ci.computer/download',
-  docs: 'https://docs.ci.computer/docs',
+  docs: 'https://docs.ci.computer',
 };
 
+/**
+ * Destinations that look right and are not. docs.ci.computer has no index at /docs (the
+ * pages live below it, /docs/introduction and so on), so every link to the bare path was a
+ * 404 — and every gate here happily agreed with it, because they all checked the links
+ * against the same wrong constant. This list is what that agreement cannot catch;
+ * `npm run check:links` is the one that actually fetches.
+ */
+export const KNOWN_DEAD_LINKS = ['https://docs.ci.computer/docs', 'https://docs.ci.computer/docs/'];
+
 const SITE = 'https://photo.ci.computer';
+const TITLE_MAX = 60;
 
 const count = (haystack, needle) => haystack.split(needle).length - 1;
 
@@ -51,6 +63,37 @@ export function pngSize(buffer) {
   return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
 }
 
+/** The string a `const NAME = '...'` / `export const NAME = '...'` declaration assigns, or null. */
+export function constantValue(source, name) {
+  const m = source.match(new RegExp(`\\bconst ${name}\\s*=\\s*'([^']*)'`));
+  return m ? m[1] : null;
+}
+
+/**
+ * Everything that names the docs destination, against the one in REQUIRED_LINKS: the
+ * viewer's DOCS_URL, and the Worker's, which is the target of the /docs redirect and lives
+ * outside this package (so it is skipped, not failed, when this package is built alone —
+ * the Docker image's context is only web-server/client).
+ */
+export function docsUrlFailures(pkgRoot = root, expected = REQUIRED_LINKS.docs) {
+  const failures = [];
+  if (KNOWN_DEAD_LINKS.includes(expected)) failures.push(`${expected} is a known-dead docs destination (404)`);
+  const sources = [
+    ['src/siteLinks.ts', join(pkgRoot, 'src', 'siteLinks.ts'), true],
+    ['worker/index.js', join(pkgRoot, '..', '..', 'worker', 'index.js'), false],
+  ];
+  for (const [label, file, required] of sources) {
+    if (!existsSync(file)) {
+      if (required) failures.push(`${label} is missing, so DOCS_URL cannot be checked`);
+      continue;
+    }
+    const value = constantValue(readFileSync(file, 'utf8'), 'DOCS_URL');
+    if (value === null) failures.push(`${label} has no DOCS_URL constant`);
+    else if (value !== expected) failures.push(`DOCS_URL in ${label} is ${value}, but the build expects ${expected}`);
+  }
+  return failures;
+}
+
 /** Run every check against a build directory; returns a list of failure messages. */
 export function checkBuild(dir) {
   const failures = [];
@@ -62,6 +105,7 @@ export function checkBuild(dir) {
   const html = read('index.html');
 
   // ── Cross-links ────────────────────────────────────────────────────────────
+  failures.push(...docsUrlFailures());
   const fallbackLinks = hrefs(noscriptBlock(html));
   for (const [name, url] of Object.entries(REQUIRED_LINKS)) {
     if (!fallbackLinks.includes(url)) fail(`<noscript> fallback has no link to ${url} (${name})`);
@@ -95,7 +139,10 @@ export function checkBuild(dir) {
     fail(`index.html must have exactly one <link rel="canonical" href="${SITE}/"> (found ${canonicals.length})`);
   }
   const title = (html.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
-  if (title.length < 30 || title.length > 80) fail(`<title> is ${title.length} characters (want 30-80): "${title}"`);
+  // 60 is where a results page starts cutting a title off; the brand is in og:site_name.
+  if (title.length < 30 || title.length > TITLE_MAX) {
+    fail(`<title> is ${title.length} characters (want 30-${TITLE_MAX}): "${title}"`);
+  }
   const description = (html.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '';
   if (description.length < 110 || description.length > 170) {
     fail(`meta description is ${description.length} characters (want 110-170)`);

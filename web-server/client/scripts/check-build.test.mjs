@@ -4,7 +4,16 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { REQUIRED_LINKS, checkBuild, hrefs, noscriptBlock, pngSize } from './check-build.mjs';
+import {
+  KNOWN_DEAD_LINKS,
+  REQUIRED_LINKS,
+  checkBuild,
+  constantValue,
+  docsUrlFailures,
+  hrefs,
+  noscriptBlock,
+  pngSize,
+} from './check-build.mjs';
 import { injectGa } from './postbuild.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -35,7 +44,7 @@ function goodBuild(dir) {
   writeFileSync(
     join(dir, 'index.html'),
     '<!doctype html><html><head>' +
-      '<title>Photo Time Machine — turn a photo into a 3D memory | Companion Intelligence</title>' +
+      '<title>Photo Time Machine — turn a photo into a 3D memory</title>' +
       `<meta name="description" content="${DESCRIPTION}">` +
       '<link rel="canonical" href="https://photo.ci.computer/">' +
       ['og:title', 'og:description', 'og:url']
@@ -136,8 +145,78 @@ describe('checkBuild', () => {
     assert.ok(failures.some((f) => f.includes('icon-maskable-512.png is missing')));
   });
 
+  it('fails on a title a results page would cut off', () => {
+    const html = readFileSync(join(dir, 'index.html'), 'utf8');
+    writeFileSync(
+      join(dir, 'index.html'),
+      html.replace('3D memory</title>', '3D memory | Companion Intelligence, the whole company</title>'),
+    );
+    assert.ok(checkBuild(dir).some((f) => f.includes('<title>')));
+  });
+
   it('reads the real template, which must not carry a literal measurement ID', () => {
     const template = readFileSync(join(root, 'public', 'index.html'), 'utf8');
     assert.doesNotMatch(template, /G-[A-Z0-9]{6,}/);
+  });
+});
+
+describe('docs destination', () => {
+  /** A package root laid out as in the repo: <tmp>/web-server/client and <tmp>/worker. */
+  function fakeRepo({ viewer, worker }) {
+    const top = mkdtempSync(join(tmpdir(), 'ptm-docs-'));
+    const pkg = join(top, 'web-server', 'client');
+    mkdirSync(join(pkg, 'src'), { recursive: true });
+    if (viewer !== undefined) writeFileSync(join(pkg, 'src', 'siteLinks.ts'), viewer);
+    if (worker !== undefined) {
+      mkdirSync(join(top, 'worker'), { recursive: true });
+      writeFileSync(join(top, 'worker', 'index.js'), worker);
+    }
+    return { top, pkg };
+  }
+  const decl = (url, exported = false) => `${exported ? 'export ' : ''}const DOCS_URL = '${url}';\n`;
+
+  it('reads a constant, exported or not', () => {
+    assert.equal(constantValue(decl('https://a.test', true), 'DOCS_URL'), 'https://a.test');
+    assert.equal(constantValue(decl('https://b.test'), 'DOCS_URL'), 'https://b.test');
+    assert.equal(constantValue('const OTHER = 1;', 'DOCS_URL'), null);
+  });
+
+  it('agrees on the real tree: viewer, Worker and REQUIRED_LINKS name one URL', () => {
+    assert.deepEqual(docsUrlFailures(), []);
+    assert.deepEqual(docsUrlFailures(root), []);
+  });
+
+  it('is not the docs path that 404s, and the guard knows it', () => {
+    assert.ok(!KNOWN_DEAD_LINKS.includes(REQUIRED_LINKS.docs));
+    assert.ok(docsUrlFailures(root, 'https://docs.ci.computer/docs').some((f) => f.includes('known-dead')));
+  });
+
+  it('fails when the Worker redirects somewhere other than the viewer links to', () => {
+    const { top, pkg } = fakeRepo({
+      viewer: decl(REQUIRED_LINKS.docs, true),
+      worker: decl('https://docs.ci.computer/docs'),
+    });
+    try {
+      const failures = docsUrlFailures(pkg);
+      assert.equal(failures.length, 1);
+      assert.match(failures[0], /worker\/index\.js/);
+      assert.match(failures[0], /docs\.ci\.computer\/docs/);
+    } finally {
+      rmSync(top, { recursive: true, force: true });
+    }
+  });
+
+  it('fails when the viewer constant is missing or different, but skips an absent Worker', () => {
+    const missing = fakeRepo({ viewer: 'export const SOMETHING = 1;' });
+    const different = fakeRepo({ viewer: decl('https://docs.example.test', true) });
+    const agreeing = fakeRepo({ viewer: decl(REQUIRED_LINKS.docs, true) });
+    try {
+      assert.ok(docsUrlFailures(missing.pkg).some((f) => f.includes('no DOCS_URL')));
+      assert.ok(docsUrlFailures(different.pkg).some((f) => f.includes('docs.example.test')));
+      // The Docker build has only web-server/client; there is no worker/ to compare to.
+      assert.deepEqual(docsUrlFailures(agreeing.pkg), []);
+    } finally {
+      for (const r of [missing, different, agreeing]) rmSync(r.top, { recursive: true, force: true });
+    }
   });
 });

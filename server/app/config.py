@@ -109,10 +109,18 @@ class Settings(BaseSettings):
 
         Auth OFF (the default, and what `.env.example` ships): there is no token, so the
         origin is the only thing standing between the server and any web page the owner
-        happens to visit — which could create jobs and read assets on a server listening on
-        http://localhost:8000. So the wildcard narrows to the origins a viewer legitimately
-        comes from: loopback, the hosted viewer, PUBLIC_BASE_URL (where share links point, so
-        the viewer the operator runs), and anything listed in ALLOWED_ORIGINS.
+        happens to visit. With a wildcard, such a page could read every asset and job on a
+        server listening on http://localhost:8000, and send it requests that need a CORS
+        preflight (a JSON body, a custom header). So the wildcard narrows to the origins a
+        viewer legitimately comes from: loopback, the hosted viewer, PUBLIC_BASE_URL (where
+        share links point, so the viewer the operator runs), and anything listed in
+        ALLOWED_ORIGINS.
+
+        What this is NOT: a write gate. CORS is enforced by the browser on the response, and a
+        "simple" cross-origin request (a form-style or multipart POST with no custom header)
+        is sent and processed whatever the policy says — the calling page just cannot read
+        the answer. So this closes read access, and anything that must not be reachable by
+        another page's simple request needs auth on, not a narrower origin list.
         """
         if self.auth_enabled:
             return {"allow_origins": ["*"]}

@@ -23,14 +23,21 @@ export const BUY_URL = 'https://ci.computer/core';
 export const DOWNLOAD_URL = 'https://ci.computer/download';
 
 /**
- * The public docs. There is no page for this service yet — `first-party-apps/photogram`
- * documents the Hub globe demo of the same name and says so ("don't confuse it with the
- * separate Photo Time Machine service at photo.ci.computer"), so linking it from here
- * would send a visitor to a page that disowns them. The docs index is the honest target
- * until a dedicated page exists; when it does, this is the one line to change. The
- * Worker's /docs redirect (worker/index.js) carries the same URL and must change with it.
+ * The public docs, at their home page. There is no page for this service yet —
+ * `first-party-apps/photogram` documents the Hub globe demo of the same name and says so
+ * ("don't confuse it with the separate Photo Time Machine service at photo.ci.computer"),
+ * so linking it from here would send a visitor to a page that disowns them. The docs home
+ * is the honest target until a dedicated page exists; when it does, this is the one line
+ * to change. The Worker's /docs redirect (worker/index.js) and the two static pages
+ * (public/index.html's <noscript>, public/404.html) carry the same URL and must change
+ * with it — `npm run check:build` fails if any of them disagree.
+ *
+ * It is the docs ROOT, not `/docs`: docs.ci.computer has no index page at /docs (that path
+ * is the site's own 404; the pages live below it, e.g. /docs/introduction), and an earlier
+ * revision of this file linked there. `npm run check:links` fetches every destination in
+ * this file so a dead one fails before a deploy rather than after a visitor finds it.
  */
-export const DOCS_URL = 'https://docs.ci.computer/docs';
+export const DOCS_URL = 'https://docs.ci.computer';
 
 export const BRAND_NAME = 'Companion Intelligence';
 export const TAGLINE = 'UnCloud your life.';
