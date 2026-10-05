@@ -20,8 +20,12 @@ enabled = true
 # Produced by `npm --prefix web-server/client run build` (CRA). Not in git.
 directory = "web-server/client/build"
 binding = "ASSETS"
-# Share links are client-side routes: /view/:assetId must return the app shell, not a 404.
-not_found_handling = "single-page-application"
+# A path that is not a file is a real 404 (served from 404.html), not the app shell.
+# "single-page-application" turned EVERY unknown path into a 200 with the app — /sitemap.xml,
+# /llms.txt, /anything — which crawlers index as duplicate pages and monitors cannot tell
+# from a working one. The one client-side route that is a page, /view/:assetId, is answered
+# with the shell by name in worker/index.js instead.
+not_found_handling = "404-page"
 # Run worker/index.js ahead of the asset lookup for every request, so the API prefixes can
 # be proxied before Cloudflare tries to find a file for them. The Worker then falls through
 # to env.ASSETS.fetch() for everything else.
@@ -33,7 +37,8 @@ run_worker_first = true
 # This deployment is a STATIC viewer: each browser names its own processing server on
 # first visit and remembers it locally (web-server/client/src/utils/apiTarget.ts), so the
 # edge never proxies, never sees a photo, and does not need to know where any server is.
-# Unset, the Worker answers the API paths with a 503 explaining exactly that.
+# Unset, the Worker answers /api, /mcp and /healthz with a 503 explaining exactly that, sends
+# /docs to the public docs, and answers /redoc and /openapi.json with a 404.
 #
 # Setting it turns the Worker into a reverse proxy in front of ONE shared server, which
 # is a different product: single-origin, so no CORS and no local-network permissions, at
@@ -62,7 +67,7 @@ routes = []
 [env.staging.assets]
 directory = "web-server/client/build"
 binding = "ASSETS"
-not_found_handling = "single-page-application"
+not_found_handling = "404-page"
 run_worker_first = true
 
 [env.staging.vars]

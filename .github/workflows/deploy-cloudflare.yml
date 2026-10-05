@@ -94,6 +94,11 @@ jobs:
           # server address into a bundle that is meant to ship without one and ask. See
           # web-server/client/src/utils/apiTarget.ts.
           CI: "false" # CRA treats warnings as errors when CI=true; warnings are lint noise here
+          # Google Analytics 4. The ID lives in the repository variable of the same name
+          # (Settings -> Secrets and variables -> Actions -> Variables) and is never
+          # committed. Unset or empty, the build ships with no analytics tag at all.
+          # web-server/client/scripts/postbuild.mjs does the injecting, idempotently.
+          GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
 
       - name: Deploy
         uses: cloudflare/wrangler-action@v4
@@ -110,9 +115,16 @@ jobs:
           # answered from the asset store instead of by worker/index.js.
           wranglerVersion: "4.142.0"
           # `--env ""` targets the top-level config (the one that owns photo.ci.computer).
+          #
+          # `--tag` and `--message` put the commit on the deployment itself, so "which
+          # commit is live?" is answered by `wrangler deployments list` as well as by
+          # /version.txt in the bundle. The live bundle once differed from a clean build of
+          # main by a few bytes and nothing said which tree it came from.
           command: >-
             deploy
             --env ${{ inputs.environment == 'production' && '""' || 'staging' }}
+            --tag ${{ github.sha }}
+            --message ${{ github.sha }}
             ${{ inputs.origin_api_base != '' && format('--var ORIGIN_API_BASE:{0}', inputs.origin_api_base) || '' }}
 
       - name: Smoke test
@@ -121,11 +133,23 @@ jobs:
           set -euo pipefail
           echo "Waiting for the new version to be live..."
           sleep 10
+          expect() { # path, status
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "https://photo.ci.computer$1")
+            echo "GET $1 -> $code (want $2)"
+            [ "$code" = "$2" ] || { echo "::error::photo.ci.computer$1 returned $code, wanted $2"; exit 1; }
+          }
           # The viewer must be served, and the share-link route must resolve to the shell
-          # rather than a 404 — the two things the edge exists to do. There is nothing to
-          # check beyond that: the API lives on each user's own server, not here.
-          for path in / /view/smoke-test; do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' "https://photo.ci.computer$path")
-            echo "GET $path -> $code"
-            [ "$code" = "200" ] || { echo "::error::photo.ci.computer$path returned $code"; exit 1; }
-          done
+          # rather than a 404 — the two things the edge exists to do. The API lives on each
+          # user's own server, not here.
+          expect / 200
+          expect /view/smoke-test 200
+          # A path that is not a file is a real 404, not the app shell with a 200: a soft
+          # 404 is how crawlers come to index /anything-at-all as a duplicate of the home
+          # page. These three are the ones that regressed before.
+          expect /definitely-missing 404
+          expect /sitemap.xml 200
+          expect /robots.txt 200
+          # What is live must be what was just built.
+          live=$(curl -sS "https://photo.ci.computer/version.txt" | tr -d '[:space:]')
+          echo "version.txt -> $live (want ${GITHUB_SHA})"
+          [ "$live" = "${GITHUB_SHA}" ] || { echo "::error::version.txt is $live, not ${GITHUB_SHA}"; exit 1; }

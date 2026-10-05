@@ -4,9 +4,12 @@
  * It does two jobs, and the reason it is one Worker rather than a static site plus a
  * separately published API is that the two must share an origin:
  *
- *   1. Serves the built viewer (`web-server/client/build`) from the `ASSETS` binding,
- *      with SPA not-found handling so a share link like `/view/:assetId` returns the
- *      app shell instead of a 404.
+ *   1. Serves the built viewer (`web-server/client/build`) from the `ASSETS` binding.
+ *      A share link like `/view/:assetId` is answered with the app shell here, by name;
+ *      every other path that is not a file is a real 404, served from the static
+ *      `404.html`. (The binding used to do SPA fallback for everything, which made
+ *      /sitemap.xml, /llms.txt and /anything-at-all answer 200 with the app — soft
+ *      404s that crawlers index and monitors cannot see through.)
  *   2. Reverse-proxies the API surface (`/api/*`, `/mcp*`, `/healthz`, `/docs`,
  *      `/openapi.json`) to the processing server at `ORIGIN_API_BASE`.
  *
@@ -31,8 +34,66 @@
  */
 const ORIGIN_PATHS = ['/api', '/mcp', '/healthz', '/docs', '/redoc', '/openapi.json'];
 
+/**
+ * The client-side route that is a page rather than a file: `/view/:assetId`, optionally
+ * with a trailing slash. Mirrors `parseViewId()` in web-server/client/src/App.tsx (same
+ * id alphabet), and is the ONLY path other than `/` that is answered with the app shell.
+ */
+const SHARE_LINK = /^\/view\/[A-Za-z0-9_]+\/?$/;
+
+/**
+ * Where /docs goes on a deployment with no processing server behind it. A visitor or a
+ * crawler that tries /docs is looking for documentation, and the FastAPI docs it would
+ * have found do not exist here. Keep in step with DOCS_URL in
+ * web-server/client/src/siteLinks.ts — when a dedicated page for this service is
+ * published, both change together.
+ */
+const DOCS_URL = 'https://docs.ci.computer/docs';
+
+/**
+ * Content-Security-Policy, in two parts.
+ *
+ * ENFORCED: only the directives that cannot break the app. `frame-ancestors 'none'` is
+ * the one that matters — this page holds the camera and WebXR enable buttons, and a page
+ * that can be framed by anyone is a clickjacking surface for them. The others are free:
+ * the viewer has no <base>, no <object>, and submits no form.
+ *
+ * REPORT-ONLY: the full policy, so a browser's console says what it would block without
+ * blocking it. It is not enforced yet because three things have to be measured against a
+ * real browser first, and getting any of them wrong breaks the product, not a banner:
+ *   - Cloudflare injects an inline JS-detections script into every HTML response, which
+ *     `script-src 'self'` would block (it needs a nonce or a hash, or the feature off).
+ *   - model-viewer, Spark and the MediaPipe runtime spawn blob: workers and compile WASM,
+ *     hence `blob:` and `'wasm-unsafe-eval'`.
+ *   - `connect-src` has to stay open to any https: and http: host. The visitor types
+ *     their own server's address, and we cannot know it — so unlike a normal app this CSP
+ *     does not limit where data can be sent, and says so rather than pretending to.
+ * The third-party origins are exactly the ones the viewer already calls: jsDelivr
+ * (MediaPipe WASM), storage.googleapis.com (face model), gstatic (Draco/Basis decoders),
+ * and Google's tag host when GA4 is on (scripts/postbuild.mjs).
+ */
+const CSP_ENFORCED = "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'";
+
+const CSP_REPORT_ONLY = [
+  "default-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://www.googletagmanager.com https://static.cloudflareinsights.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https: http:",
+  "media-src 'self' data: blob: https: http:",
+  "font-src 'self' data:",
+  "connect-src 'self' https: http: blob: data:",
+  "worker-src 'self' blob:",
+  "frame-src 'none'",
+  CSP_ENFORCED,
+].join('; ');
+
 /** Response headers to add to everything we serve from the assets bundle. */
 const ASSET_HEADERS = {
+  'Content-Security-Policy': CSP_ENFORCED,
+  'Content-Security-Policy-Report-Only': CSP_REPORT_ONLY,
+  // Same max-age the main site sends (ci.computer: 15552000, 180 days). No includeSubDomains
+  // and no preload: this host should not be able to commit its siblings to anything.
+  'Strict-Transport-Security': 'max-age=15552000',
   // The head-tracked "magic portal" needs the camera, and the XR viewer needs pose data.
   // Both are same-origin-only by default under Permissions-Policy; say so explicitly so
   // the grant does not depend on a browser's default.
@@ -67,8 +128,59 @@ const problem = (status, title, detail) =>
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'no-store',
+      // Machine answers, not pages. Never worth indexing.
+      'x-robots-tag': 'noindex',
     },
   });
+
+/**
+ * Cache policy for what the assets binding serves.
+ *
+ * Workers static assets answer every file `max-age=0, must-revalidate`, content-hashed
+ * bundles included, so every return visit paid a round trip per file — about ten of them,
+ * the lazy viewer chunks at 460-625 KB raw among them — before it could use any. The
+ * files under /static/ are named by content hash (CRA), so a given URL never changes and
+ * can be cached for a year; icons and the social card are not hashed, so they get a day.
+ * HTML (the shell, 404.html) and everything else keep the binding's revalidate default,
+ * which is what lets a deploy take effect immediately.
+ */
+function cacheControlFor(pathname) {
+  if (pathname.startsWith('/static/')) return 'public, max-age=31536000, immutable';
+  if (/^\/(?:favicon\.ico|icon[^/]*\.(?:png|svg)|apple-touch-icon\.png|og-image\.png|ci-lockup\.svg)$/.test(pathname)) {
+    return 'public, max-age=86400';
+  }
+  return null;
+}
+
+/**
+ * What a deployment with no processing server says to a path that belongs to one.
+ *
+ * Returns null for the paths that keep their 503 (`/api`, `/mcp`, `/healthz`): those are
+ * the ones the viewer and agents genuinely probe, and the 503 body is how the viewer
+ * learns this is a static page (`origin_not_configured`; see probeServer in apiTarget.ts).
+ * The two doc paths are different. /docs is where anyone would look for documentation,
+ * so it goes there rather than to an error page; /redoc and /openapi.json describe an
+ * API that is not here, so they are a plain 404 — a 503 would tell a crawler "come back
+ * later", which is a promise this deployment will never keep.
+ */
+function staticDeploymentAnswer(pathname) {
+  if (pathname === '/docs' || pathname.startsWith('/docs/')) {
+    // 302, not 301: the target is an interim (the docs index) and a browser caches a 301
+    // for good, which would pin visitors to it after the real page exists.
+    return new Response(null, {
+      status: 302,
+      headers: { location: DOCS_URL, 'cache-control': 'no-store', 'x-robots-tag': 'noindex' },
+    });
+  }
+  if (pathname === '/redoc' || pathname.startsWith('/redoc/') || pathname === '/openapi.json') {
+    return problem(
+      404,
+      'not_found',
+      'This deployment serves the viewer only; there is no API documentation here.',
+    );
+  }
+  return null;
+}
 
 /**
  * Forward a request to the processing server, streaming both ways.
@@ -139,16 +251,44 @@ export default {
     const url = new URL(request.url);
 
     if (isOriginPath(url.pathname)) {
+      if (!(env.ORIGIN_API_BASE || '').trim()) {
+        const answer = staticDeploymentAnswer(url.pathname);
+        if (answer) return answer;
+      }
       return forwardToOrigin(request, url, env);
     }
 
-    // Everything else is the viewer. `not_found_handling = "single-page-application"`
-    // on the binding turns an unmatched path into index.html with a 200, which is what
-    // /view/:assetId needs.
-    const asset = await env.ASSETS.fetch(request);
-    const response = new Response(asset.body, asset);
+    // Everything else is the viewer. The one route that is a page and not a file is a
+    // share link, and it is named here: the shell is fetched from `/`, so the app boots on
+    // whatever /view/:assetId the address bar holds. Any other path the binding cannot find
+    // comes back as its own 404.html with a 404 status (`not_found_handling = "404-page"`).
+    const shareLink = SHARE_LINK.test(url.pathname);
+    // The 404 page is itself a file, so asking for it by name would be answered 200 (and
+    // `/404.html` with a redirect to `/404`) — a soft 404 for exactly the path that says
+    // "not found". Asking for it by either name serves it, with the status it describes.
+    const errorPage = url.pathname === '/404' || url.pathname === '/404.html';
+    const assetRequest = shareLink
+      ? new Request(new URL('/', url), request)
+      : errorPage
+        ? new Request(new URL('/404', url), request)
+        : request;
+    const asset = await env.ASSETS.fetch(assetRequest);
+    const response = new Response(asset.body, {
+      status: errorPage && asset.ok ? 404 : asset.status,
+      statusText: errorPage && asset.ok ? 'Not Found' : asset.statusText,
+      headers: asset.headers,
+    });
     for (const [name, value] of Object.entries(ASSET_HEADERS)) {
       response.headers.set(name, value);
+    }
+    if (shareLink) {
+      // A shared memory is private by the product's own design. A header rather than a
+      // robots.txt Disallow, because a crawler that is told not to fetch the page never
+      // sees a noindex on it — and can still list the bare URL.
+      response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    } else if (asset.status === 200) {
+      const cacheControl = cacheControlFor(url.pathname);
+      if (cacheControl) response.headers.set('Cache-Control', cacheControl);
     }
     return response;
   },

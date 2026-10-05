@@ -4,6 +4,7 @@
 #   scripts/deploy-cloudflare.sh                      # -> photo.ci.computer
 #   scripts/deploy-cloudflare.sh --env staging        # -> the workers.dev staging Worker
 #   scripts/deploy-cloudflare.sh --dry-run            # build + validate, publish nothing
+#   scripts/deploy-cloudflare.sh --allow-dirty        # production from a tree with local edits
 #
 # Needs a Cloudflare API token with Workers Scripts:Edit (plus Workers Routes:Edit the first
 # time, to attach the custom domain). Either log in with `npx wrangler login`, or export
@@ -12,6 +13,15 @@
 # ORIGIN_API_BASE — the processing server the Worker proxies to — is a Worker variable, not
 # a build input. Pass it here to set it on this deploy, or leave it and manage it in the
 # dashboard. Full walkthrough: docs/DEPLOY-CLOUDFLARE.md.
+#
+# GA_MEASUREMENT_ID — export it to build Google Analytics 4 into this deploy (the GitHub
+# workflow reads the repository variable of the same name). Unset, the build ships with no
+# analytics tag. It is never committed anywhere.
+#
+# Production is traceable: the commit is passed to wrangler as the deployment's tag and
+# message and written to /version.txt in the bundle, and a production deploy refuses a tree
+# with uncommitted changes — a laptop deploy from a dirty tree is how the live bundle once
+# came to differ from a clean build of main with nothing to say why.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,6 +29,7 @@ cd "$ROOT"
 
 WRANGLER_ENV=""
 DRY_RUN=0
+ALLOW_DIRTY=0
 EXTRA=()
 
 while [ $# -gt 0 ]; do
@@ -26,9 +37,26 @@ while [ $# -gt 0 ]; do
     --env) WRANGLER_ENV="$2"; shift 2 ;;
     --env=*) WRANGLER_ENV="${1#*=}"; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
+    --allow-dirty) ALLOW_DIRTY=1; shift ;;
     *) EXTRA+=("$1"); shift ;;
   esac
 done
+
+# ── 0. Know what is being deployed ────────────────────────────────────────────
+# The commit goes on the deployment (below) and into the bundle (/version.txt, written by
+# web-server/client/scripts/postbuild.mjs). A production deploy from a dirty tree would put
+# something on photo.ci.computer that no commit describes, so it needs saying out loud.
+SHA="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+DIRTY=0
+if [ "$SHA" != "unknown" ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; then DIRTY=1; fi
+if [ "$DIRTY" -eq 1 ] && [ "$DRY_RUN" -eq 0 ] && [ -z "$WRANGLER_ENV" ] && [ "$ALLOW_DIRTY" -eq 0 ]; then
+  echo "Refusing to deploy production from a tree with uncommitted changes:" >&2
+  git status --short >&2
+  echo >&2
+  echo "Commit or stash them, deploy from a clean checkout of main, or pass --allow-dirty" >&2
+  echo "(the bundle's /version.txt will then read <sha>-dirty)." >&2
+  exit 1
+fi
 
 # ── 1. Build the viewer ───────────────────────────────────────────────────────
 # REACT_APP_API_BASE is deliberately NOT set — not empty, unset. Empty would mean
@@ -52,6 +80,12 @@ echo "==> Building the viewer (ships unconfigured; each browser names its own se
 # `--env ""` targets the top-level config explicitly. Without it wrangler warns that the
 # file defines environments and no target was named.
 ARGS=(deploy --env "$WRANGLER_ENV")
+# What is live, on the deployment itself: `wrangler deployments list` shows it.
+if [ "$SHA" != "unknown" ]; then
+  LABEL="$SHA"
+  if [ "$DIRTY" -eq 1 ]; then LABEL="$SHA-dirty"; fi
+  ARGS+=(--tag "$SHA" --message "$LABEL")
+fi
 [ "$DRY_RUN" -eq 1 ] && ARGS+=(--dry-run)
 [ ${#EXTRA[@]} -gt 0 ] && ARGS+=("${EXTRA[@]}")
 

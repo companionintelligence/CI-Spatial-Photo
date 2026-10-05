@@ -53,7 +53,18 @@ jobs:
           cache-dependency-path: web-server/client/package-lock.json
       - name: Install
         run: npm ci --no-audit --no-fund
+      - name: Test
+        run: npm test -- --watchAll=false
+        env:
+          CI: "true"
+      # The build's last step is scripts/check-build.mjs: it fails the build if the output has
+      # lost its links back to ci.computer (home, docs, Download, Buy), its canonical / JSON-LD /
+      # sitemap / robots / 404 page, or its GA4 state is inconsistent.
       - name: Build
         run: npm run build
         env:
           CI: "false" # CRA treats warnings as errors when CI=true; warnings are lint noise here
+      # The Worker and the build scripts use node's own test runner, from the repo root.
+      - name: Test the Worker and the build scripts
+        working-directory: .
+        run: npm test
