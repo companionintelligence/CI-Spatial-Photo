@@ -243,7 +243,7 @@ export const ServerSetup: React.FC<{ onConnected: () => void; sharedLink?: boole
     to the top edge when there is not, so the whole card is always reachable.
   */
   <div className="flex min-h-0 flex-1 overflow-y-auto px-6 py-4">
-    <div className="pointer-events-auto m-auto w-full max-w-md rounded-xl border border-gray-700 bg-gray-900/90 p-5 shadow-2xl backdrop-blur">
+    <div className="pointer-events-auto m-auto w-full max-w-md rounded-lg border border-gray-700 bg-gray-900 p-5">
       <div className="mb-3 flex items-center gap-2">
         <HardDrive size={18} className="text-primary-400" aria-hidden="true" />
         <h2 className="text-base font-semibold text-white">Point this at your server</h2>
@@ -308,7 +308,7 @@ export const ServerPanel: React.FC<{ target: string; onClose: () => void }> = ({
     /* z-30, above the XR panel (z-20): both popovers anchor to the same container edge,
        and if XR is on while this is open the one the user just asked for should be the
        one they can read. Opaque enough that the overlap reads as a stack, not a bleed. */
-    <div className="absolute right-0 top-full z-30 mt-2 w-80 overflow-hidden rounded-xl border border-gray-700 bg-gray-900/95 p-3 text-xs shadow-2xl backdrop-blur">
+    <div className="absolute right-0 top-full z-30 mt-2 w-80 overflow-hidden rounded-lg border border-gray-700 bg-gray-900 p-3 text-xs">
       <div className="mb-2 flex items-center gap-2 text-gray-200">
         <Server size={14} className="shrink-0 text-primary-400" aria-hidden="true" />
         <span className="min-w-0 break-all font-medium">{label}</span>

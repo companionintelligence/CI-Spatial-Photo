@@ -42,8 +42,8 @@ const FOCUS =
  */
 const INTERACTIVE = 'pointer-events-auto';
 
-/** Filled phthalo: white on #0A6358 is 7.1:1, and 4.6:1 on the hover fill. */
-const PRIMARY_LINK = `inline-flex items-center justify-center rounded bg-primary-600 px-3 py-2 text-center text-sm font-medium leading-tight text-white transition-colors hover:bg-primary-500 ${FOCUS}`;
+/** The one highlighted call to action: accent green #069B5B, white at weight 600. */
+const PRIMARY_LINK = `inline-flex items-center justify-center rounded bg-cta px-3 py-2 text-center text-sm font-semibold leading-tight text-white transition-colors hover:bg-cta-hover ${FOCUS}`;
 
 /** The quieter sibling: same size so the pair reads as a pair, no fill. */
 const SECONDARY_LINK = `inline-flex items-center justify-center rounded border border-gray-600 bg-gray-800 px-3 py-2 text-center text-sm font-medium leading-tight text-gray-100 transition-colors hover:border-gray-500 hover:bg-gray-700 ${FOCUS}`;
@@ -149,7 +149,7 @@ export const SiteFooter: React.FC = () => (
   <footer className="pointer-events-none px-3 pb-3 pt-1 sm:px-4">
     <nav
       aria-label={`${BRAND_NAME} links`}
-      className="pointer-events-auto mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-x-1 gap-y-1 rounded-xl border border-gray-800 bg-ground/85 px-2 py-1.5 text-xs backdrop-blur"
+      className="pointer-events-auto mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-x-1 gap-y-1 rounded-lg border border-gray-700 bg-ground px-2 py-1.5 text-xs"
     >
       <a href={SITE_URL} className={FOOTER_LINK}>
         {BRAND_NAME}

@@ -199,7 +199,7 @@ function App() {
   */
   const renderPanel = (placement: string) => (
     <div
-      className={`pointer-events-auto rounded-xl bg-gray-900/90 backdrop-blur border border-gray-700 shadow-2xl overflow-hidden ${placement}`}
+      className={`pointer-events-auto rounded-lg bg-gray-900 border border-gray-700 overflow-hidden ${placement}`}
     >
       <div
         role="tablist"
@@ -316,50 +316,9 @@ function App() {
               headPosition={isXREnabled ? headPosition : null}
             />
           ) : (
-          /*
-            Backdrop for the empty state, and ONLY the empty state — a splat or
-            mesh still renders against true #000, which is what those viewers
-            are colour-matched to.
-
-            Recomposing the hero and panel fixed where things sit, but the frame
-            was still ~84% pure black afterwards, because a centred layout on a
-            void still reads as a void. #000 across two-thirds of a window is
-            not a neutral background, it is an absence. This is the difference
-            between "the app is composed on a dark surface" and "the app failed
-            to fill its window".
-
-            Two accents from the app's own palette (primary-600 #0A6358 and
-            cyan-700 — the Create button and the tab underline live in that
-            family) over a very dark teal-black.
-
-            Every stop is deliberately above luma 8/255, the threshold the
-            near-black audit uses. That is not gaming the metric — it is the
-            point of the change. #04060a and #05070c both measure 5.9 and 6.9,
-            so a gradient bottoming out there would still have audited as a void
-            while looking like a surface, and the next person to measure it
-            would have drawn the wrong conclusion. The darkest stop here,
-            #070a11, measures 9.9.
-
-            Inline style rather than a Tailwind arbitrary value: the value
-            contains commas and percentages, and `bg-[radial-gradient(...)]`
-            needs every space underscore-escaped, which turns an already dense
-            declaration into something nobody will edit correctly later.
-          */
-            <div
-              className="h-full w-full"
-              style={{
-                background: [
-                  'radial-gradient(1100px 680px at 24% 34%, rgba(15, 113, 122, 0.12), transparent 68%)',
-                  'radial-gradient(900px 620px at 80% 74%, rgba(14, 116, 144, 0.10), transparent 70%)',
-                  // Re-tuned off the canon ground #041620 rather than the old
-                  // blue-black. Every stop clears the luma-8/255 floor the
-                  // comment above is about, with far more room than the old
-                  // stops had — measured 27.7, 22.4, 19.8 against the previous
-                  // 9.9 at the darkest point.
-                  'linear-gradient(158deg, #08202b 0%, #061a23 55%, #05171f 100%)',
-                ].join(', '),
-              }}
-            />
+          /* Backdrop for the empty state only: the flat canon ground. A splat or mesh still renders against true #000, which
+             those viewers are colour-matched to. */
+            <div className="h-full w-full bg-ground" />
           )}
         </Suspense>
       </div>

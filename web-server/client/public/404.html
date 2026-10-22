@@ -14,6 +14,8 @@
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <style>
+      /* Companion site system (October 2026): dark ground, Manrope, flat 3px buttons, hairlines. */
+      @font-face { font-family: "Manrope"; font-weight: 200 800; font-display: swap; src: url("/fonts/manrope-latin-var.woff2") format("woff2"); }
       :root { color-scheme: dark; }
       * { box-sizing: border-box; }
       body {
@@ -24,34 +26,39 @@
         align-items: center;
         justify-content: center;
         gap: 1.5rem;
-        padding: 2rem 1rem;
+        padding: 2rem 16px;
         background: #041620;
-        color: #fff;
-        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-        line-height: 1.5;
+        color: #e8f2f4;
+        font-family: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-size: 17px;
+        line-height: 1.6;
         text-align: center;
       }
       main { max-width: 32rem; }
-      h1 { margin: 0 0 0.5rem; font-size: 1.75rem; line-height: 1.2; }
-      p { margin: 0 0 1rem; color: #d1d5db; }
-      a { color: #abd4d8; }
-      a:focus-visible { outline: 2px solid #14c7b1; outline-offset: 2px; border-radius: 4px; }
-      .logo img { display: block; height: 28px; width: auto; }
+      h1 { margin: 0 0 0.75rem; font-size: clamp(2rem, 3.5vw + 0.6rem, 3.75rem); font-weight: 500; line-height: 1.04; letter-spacing: -0.025em; }
+      p { margin: 0 0 1rem; color: #a3babf; font-size: 1.1176rem; line-height: 1.5; }
+      a { color: #3ae7ba; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
+      a:hover { color: #fff; }
+      a:focus-visible { outline: 2px solid #3ae7ba; outline-offset: 2px; border-radius: 3px; }
+      .logo img { display: block; height: 32px; width: auto; }
       .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin-top: 1.25rem; }
       .btn {
         display: inline-block;
-        padding: 0.55rem 0.9rem;
-        border-radius: 0.375rem;
-        font-weight: 600;
-        font-size: 0.9rem;
+        padding: 0.6rem 1.1rem;
+        border-radius: 3px;
+        font-weight: 500;
+        font-size: 0.95rem;
         text-decoration: none;
-        border: 1px solid #4b5563;
-        color: #f3f4f6;
-        background: #1f2937;
+        border: 1px solid #e8f2f4;
+        color: #e8f2f4;
+        background: transparent;
       }
-      .btn.primary { background: #0a6358; border-color: #0a6358; color: #fff; }
-      .btn:hover { filter: brightness(1.15); }
-      nav ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem 1rem; margin: 0; padding: 0; list-style: none; font-size: 0.85rem; }
+      .btn:hover { background: #0b2531; color: #e8f2f4; }
+      .btn.primary { background: #066c80; border-color: #066c80; color: #fff; }
+      .btn.primary:hover { background: #2e8494; border-color: #2e8494; color: #fff; }
+      nav ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem 1rem; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+      nav a { color: #a3babf; text-decoration: none; }
+      nav a:hover { color: #e8f2f4; text-decoration: underline; }
     </style>
   </head>
   <body>
