@@ -51,7 +51,7 @@ const SECONDARY_LINK = `inline-flex items-center justify-center rounded border b
 /**
  * The Companion Intelligence logo, linking to the main site.
  *
- * The CI-Common lockup (mark + wordmark, light-on-dark), which is the brand's own file
+ * The CI-Common white lockup (mark + wordmark, white on the dark ground), which is the brand's own file
  * rather than a re-typeset name. The image carries no `alt` of its own: the link's
  * accessible name is the aria-label, so a screen reader hears "Companion Intelligence
  * home, link" once instead of the name twice.
@@ -67,12 +67,12 @@ export const BrandLink: React.FC = () => (
     className={`${INTERACTIVE} inline-flex w-fit rounded ${FOCUS}`}
   >
     <img
-      src={`${process.env.PUBLIC_URL}/ci-lockup.svg`}
+      src={`${process.env.PUBLIC_URL}/ci-logo-white-banner.svg`}
       alt=""
-      width={88}
-      height={24}
+      width={113}
+      height={36}
       draggable={false}
-      className="h-6 w-auto sm:h-7"
+      className="h-9 w-auto"
     />
   </a>
 );
