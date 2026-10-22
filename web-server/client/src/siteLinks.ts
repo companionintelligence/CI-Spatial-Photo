@@ -21,6 +21,9 @@
 export const SITE_URL = 'https://ci.computer';
 export const BUY_URL = 'https://ci.computer/core';
 export const DOWNLOAD_URL = 'https://ci.computer/download';
+export const SUPPORT_URL = 'https://ci.computer/support';
+export const PRIVACY_URL = 'https://ci.computer/privacy-policy';
+export const TERMS_URL = 'https://ci.computer/terms-of-service';
 
 /**
  * The public docs, at their home page. There is no page for this service yet —
@@ -44,6 +47,12 @@ export const TAGLINE = 'UnCloud your life.';
 
 export const BUY_LABEL = 'Buy Companion Core';
 export const BUY_BLURB = 'A private, cloud-free AI lab for individuals, learners, and creators.';
+
+/**
+ * The footer's wording for the Core link ("Shop Core Computers"), the same destination as
+ * BUY_URL. The first-run card and the hero keep "Buy Companion Core".
+ */
+export const SHOP_LABEL = 'Shop Core Computers';
 
 export const DOWNLOAD_LABEL = 'Download Companion';
 export const DOWNLOAD_BLURB = 'Companion Hub runs on your hardware.';
