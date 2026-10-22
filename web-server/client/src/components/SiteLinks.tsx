@@ -8,8 +8,12 @@ import {
   DOWNLOAD_BLURB,
   DOWNLOAD_LABEL,
   DOWNLOAD_URL,
+  PRIVACY_URL,
+  SHOP_LABEL,
   SITE_URL,
+  SUPPORT_URL,
   TAGLINE,
+  TERMS_URL,
 } from '../siteLinks';
 
 /*
@@ -42,8 +46,8 @@ const FOCUS =
  */
 const INTERACTIVE = 'pointer-events-auto';
 
-/** Filled phthalo: white on #0A6358 is 7.1:1, and 4.6:1 on the hover fill. */
-const PRIMARY_LINK = `inline-flex items-center justify-center rounded bg-primary-600 px-3 py-2 text-center text-sm font-medium leading-tight text-white transition-colors hover:bg-primary-500 ${FOCUS}`;
+/** The one highlighted call to action: accent green #069B5B, white at weight 600. */
+const PRIMARY_LINK = `inline-flex items-center justify-center rounded bg-cta px-3 py-2 text-center text-sm font-semibold leading-tight text-white transition-colors hover:bg-cta-hover ${FOCUS}`;
 
 /** The quieter sibling: same size so the pair reads as a pair, no fill. */
 const SECONDARY_LINK = `inline-flex items-center justify-center rounded border border-gray-600 bg-gray-800 px-3 py-2 text-center text-sm font-medium leading-tight text-gray-100 transition-colors hover:border-gray-500 hover:bg-gray-700 ${FOCUS}`;
@@ -51,7 +55,7 @@ const SECONDARY_LINK = `inline-flex items-center justify-center rounded border b
 /**
  * The Companion Intelligence logo, linking to the main site.
  *
- * The CI-Common lockup (mark + wordmark, light-on-dark), which is the brand's own file
+ * The CI-Common white lockup (mark + wordmark, white on the dark ground), which is the brand's own file
  * rather than a re-typeset name. The image carries no `alt` of its own: the link's
  * accessible name is the aria-label, so a screen reader hears "Companion Intelligence
  * home, link" once instead of the name twice.
@@ -67,12 +71,12 @@ export const BrandLink: React.FC = () => (
     className={`${INTERACTIVE} inline-flex w-fit rounded ${FOCUS}`}
   >
     <img
-      src={`${process.env.PUBLIC_URL}/ci-lockup.svg`}
+      src={`${process.env.PUBLIC_URL}/ci-logo-white-banner.svg`}
       alt=""
-      width={88}
-      height={24}
+      width={113}
+      height={36}
       draggable={false}
-      className="h-6 w-auto sm:h-7"
+      className="h-9 w-auto"
     />
   </a>
 );
@@ -117,7 +121,7 @@ export const CompanionCallouts: React.FC<CalloutsProps> = ({ variant = 'card' })
   </section>
 );
 
-const FOOTER_LINK = `rounded px-2 py-1 text-gray-300 underline-offset-2 transition-colors hover:text-white hover:underline ${FOCUS}`;
+const FOOTER_LINK = `inline-flex min-h-[32px] items-center rounded px-2 text-[13px] text-gray-400 no-underline transition-colors hover:text-gray-100 hover:underline hover:decoration-1 hover:underline-offset-4 ${FOCUS}`;
 
 /**
  * Whether Google Analytics is on this build. The tag is injected at build time only when
@@ -143,36 +147,41 @@ function analyticsOn(): boolean {
  * them, so the empty space beside the bar still orbits the model.
  *
  * Present in every state (first run, empty, viewing a memory): it is the one place the
- * way back to ci.computer, the docs and the Buy and Download links are always on screen.
+ * way back to ci.computer, the docs and the Core and Download links are always on screen.
+ * One centred row, 13px, muted links that go to the ink on hover, a hairline on top: the
+ * same footer as er.ci.computer.
  */
 export const SiteFooter: React.FC = () => (
-  <footer className="pointer-events-none px-3 pb-3 pt-1 sm:px-4">
+  <footer className="pointer-events-none border-t border-gray-700 bg-ground px-3 pb-2 pt-1 sm:px-4">
     <nav
       aria-label={`${BRAND_NAME} links`}
-      className="pointer-events-auto mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-x-1 gap-y-1 rounded-xl border border-gray-800 bg-ground/85 px-2 py-1.5 text-xs backdrop-blur"
+      className="pointer-events-auto mx-auto flex max-w-full flex-wrap items-center justify-center gap-x-0.5"
     >
       <a href={SITE_URL} className={FOOTER_LINK}>
         {BRAND_NAME}
       </a>
+      {/* Core, then Download: the same order as the callouts, so the pair never swaps. */}
+      <a href={BUY_URL} className={FOOTER_LINK}>
+        {SHOP_LABEL}
+      </a>
+      <a href={DOWNLOAD_URL} className={FOOTER_LINK}>
+        {DOWNLOAD_LABEL}
+      </a>
       <a href={DOCS_URL} className={FOOTER_LINK}>
         Docs
       </a>
-      {/* Buy, then Download: the same order as the callouts, so the pair never swaps. */}
-      <a
-        href={BUY_URL}
-        className={`rounded bg-primary-600 px-2.5 py-1 font-medium text-white transition-colors hover:bg-primary-500 ${FOCUS}`}
-      >
-        {BUY_LABEL}
+      <a href={SUPPORT_URL} className={FOOTER_LINK}>
+        Support
       </a>
-      <a
-        href={DOWNLOAD_URL}
-        className={`rounded border border-gray-600 px-2.5 py-1 font-medium text-gray-100 transition-colors hover:border-gray-500 hover:bg-gray-800 ${FOCUS}`}
-      >
-        {DOWNLOAD_LABEL}
+      <a href={PRIVACY_URL} className={FOOTER_LINK}>
+        Privacy
+      </a>
+      <a href={TERMS_URL} className={FOOTER_LINK}>
+        Terms
       </a>
     </nav>
     {analyticsOn() && (
-      <p className="mx-auto mt-1 max-w-md text-center text-[11px] leading-snug text-gray-400">
+      <p className="mx-auto mt-0.5 max-w-md text-center text-[11px] leading-snug text-gray-400">
         Page views are counted with Google Analytics. Your photos and server address are never
         sent.
       </p>

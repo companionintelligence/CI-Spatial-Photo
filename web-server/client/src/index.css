@@ -18,3 +18,28 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+  Companion site system (October 2026). Dark only: color-scheme dark on the root, the tokens' dark
+  ground on the body, Manrope for every role at 17px / 1.6, flat 3px controls, links in the light
+  ring colour (white on hover) with a 1px underline.
+*/
+@layer base {
+  :root { color-scheme: dark; }
+  html { font-size: 17px; }
+  body {
+    background-color: #041620;
+    color: #e8f2f4;
+    font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+    line-height: 1.6;
+  }
+  h1, h2, h3 { font-weight: 500; letter-spacing: -0.02em; }
+  button, input, select, textarea { font-family: inherit; }
+  p a, li a, .link-text {
+    color: #3ae7ba;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+  }
+  p a:hover, li a:hover, .link-text:hover { color: #ffffff; }
+}

@@ -68,7 +68,7 @@ describe('pointer events under the HUD overlay', () => {
       </InOverlay>,
     );
     const links = screen.getAllByRole('link');
-    expect(links.length).toBeGreaterThanOrEqual(4);
+    expect(links).toHaveLength(7);
     for (const link of links) expect(effectivePointerEvents(link)).toBe('auto');
   });
 
@@ -100,10 +100,15 @@ describe('destinations', () => {
     expect(order(footer)).toEqual([BUY_URL, DOWNLOAD_URL]);
   });
 
-  it('the footer links home and to the docs', () => {
+  it('the footer links home, to Core and Download, the docs, support, privacy and terms', () => {
     render(<SiteFooter />);
     expect(screen.getByRole('link', { name: 'Companion Intelligence' })).toHaveAttribute('href', SITE_URL);
+    expect(screen.getByRole('link', { name: 'Shop Core Computers' })).toHaveAttribute('href', BUY_URL);
+    expect(screen.getByRole('link', { name: 'Download Companion' })).toHaveAttribute('href', DOWNLOAD_URL);
     expect(screen.getByRole('link', { name: 'Docs' })).toHaveAttribute('href', DOCS_URL);
+    expect(screen.getByRole('link', { name: 'Support' })).toHaveAttribute('href', 'https://ci.computer/support');
+    expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', 'https://ci.computer/privacy-policy');
+    expect(screen.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', 'https://ci.computer/terms-of-service');
   });
 
   it('does not point the docs at docs.ci.computer/docs, which is a 404', () => {

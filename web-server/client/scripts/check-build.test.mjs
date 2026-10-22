@@ -59,7 +59,7 @@ function goodBuild(dir) {
       `</head><body><noscript><ul>${fallbackLinks}</ul></noscript><div id="root"></div></body></html>`,
   );
   writeFileSync(join(dir, '404.html'), `<nav><ul>${fallbackLinks}</ul></nav>`);
-  writeFileSync(join(dir, 'ci-lockup.svg'), '<svg/>');
+  writeFileSync(join(dir, 'ci-logo-white-banner.svg'), '<svg/>');
   writeFileSync(join(dir, 'sitemap.xml'), '<urlset><url><loc>https://photo.ci.computer/</loc></url></urlset>');
   writeFileSync(join(dir, 'robots.txt'), 'User-agent: *\nDisallow:\n\nSitemap: https://photo.ci.computer/sitemap.xml\n');
   writeFileSync(join(dir, 'og-image.png'), png(1200, 630));

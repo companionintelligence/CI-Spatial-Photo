@@ -130,7 +130,7 @@ export function checkBuild(dir) {
       }
     }
   }
-  if (!has('ci-lockup.svg')) fail('ci-lockup.svg (the header logo) is missing');
+  if (!has('ci-logo-white-banner.svg')) fail('ci-logo-white-banner.svg (the header logo) is missing');
 
   // ── SEO and metadata ───────────────────────────────────────────────────────
   // The HTML minifier writes `<link ... />`, the template `<link ... >`; accept both.

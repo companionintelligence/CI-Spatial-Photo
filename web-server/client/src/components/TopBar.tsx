@@ -267,7 +267,7 @@ const TopBar: React.FC<TopBarProps> = ({
   };
 
   return (
-    <header className="flex items-center justify-between p-4 pointer-events-auto bg-gradient-to-b from-black/70 to-transparent">
+    <header className="flex items-center justify-between p-4 pointer-events-auto bg-ground border-b border-gray-700 min-[1000px]:grid min-[1000px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
       {/* Product name, not the repo name — this string is on camera in every
           product-video frame (video/storyboard.json, CI-Common video-kit
           MESSAGING.md "Naming").
@@ -288,12 +288,12 @@ const TopBar: React.FC<TopBarProps> = ({
           wrap to two lines (and set smaller) instead of losing its second half;
           from `sm` up it fits on one line and `truncate` stays as the guard
           against a future longer name. */}
-      <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex min-w-0 flex-col gap-1 min-[1000px]:contents">
         {/* The way back to ci.computer. Above the product name rather than beside it: the
             name keeps every pixel of the width it was already fighting for on a 360px
             phone, and the logo — a fixed 24px box — costs one extra row, not a column. */}
         <BrandLink />
-        <h1 className="min-w-0 whitespace-normal text-lg font-bold text-white drop-shadow-md sm:truncate sm:text-2xl">
+        <h1 className="min-w-0 whitespace-normal text-[13px] font-semibold uppercase tracking-[0.12em] text-white min-[1000px]:text-center sm:truncate">
           Photo Time Machine
         </h1>
       </div>
@@ -301,13 +301,13 @@ const TopBar: React.FC<TopBarProps> = ({
       {/* `relative` anchors the XR panel below. It is only ever rendered while
           XR is on, so the product-video capture — headless Chromium with no
           webcam, XR off — never sees it and never touches getUserMedia. */}
-      <div className="relative flex shrink-0 gap-3 pl-3">
+      <div className="relative flex shrink-0 gap-3 pl-3 min-[1000px]:justify-self-end">
         <button
           onClick={() => setIsXREnabled(!isXREnabled)}
           aria-pressed={isXREnabled}
           aria-label="XR head tracking"
-          className={`p-2 rounded-full transition-colors ${
-            isXREnabled ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-700 hover:bg-gray-600'
+          className={`p-2 rounded transition-colors ${
+            isXREnabled ? 'bg-primary-600 hover:bg-primary-500' : 'bg-gray-700 hover:bg-gray-600'
           } text-white`}
           title={isXREnabled ? 'Disable XR' : 'Enable XR'}
         >
@@ -325,7 +325,7 @@ const TopBar: React.FC<TopBarProps> = ({
           onClick={() => setShowControls(!showControls)}
           aria-label="Controls"
           aria-expanded={showControls}
-          className="p-2 text-white transition-colors bg-primary-600 rounded-full hover:bg-primary-700"
+          className="p-2 text-white transition-colors bg-primary-600 rounded hover:bg-primary-500"
           title="Toggle Controls"
         >
           {showControls ? <X size={20} aria-hidden="true" /> : <Settings size={20} aria-hidden="true" />}
@@ -342,7 +342,7 @@ const TopBar: React.FC<TopBarProps> = ({
             onClick={() => setShowServer((v) => !v)}
             aria-pressed={showServer}
             aria-label="Processing server"
-            className="p-2 text-white transition-colors bg-gray-700 rounded-full hover:bg-gray-600"
+            className="p-2 text-white transition-colors bg-gray-700 rounded hover:bg-gray-600"
             title={`Processing server: ${serverTarget === 'same-origin' ? 'this host' : serverTarget}`}
           >
             <Server size={20} aria-hidden="true" />
@@ -354,7 +354,7 @@ const TopBar: React.FC<TopBarProps> = ({
         )}
 
         {isXREnabled && (
-          <div className="absolute right-0 top-full z-20 mt-2 w-64 overflow-hidden rounded-xl border border-gray-700 bg-gray-900/95 text-xs shadow-2xl backdrop-blur">
+          <div className="absolute right-0 top-full z-20 mt-2 w-64 overflow-hidden rounded-lg border border-gray-700 bg-gray-900 text-xs">
             <div className={`flex justify-center border-b-2 ${statusUi.frame} bg-ground`}>
               {/*
                 Deliberately given no CSS size, so it renders at its intrinsic
