@@ -1,7 +1,19 @@
-# CI Photo Time Machine
+<h1 align="center">CI Photo Time Machine</h1>
 
-**Turn any image, image set, or video into a shareable 3D memory** — a Gaussian splat or
-mesh you can explore in the browser and in XR. Part of the [Companion
+<p align="center"><strong>Turn any photo, photo set, or video into a shareable 3D memory: a Gaussian splat or mesh you can explore in a browser or XR.</strong></p>
+
+[![version](https://img.shields.io/badge/version-2.0.0-0a6358?style=flat-square)](CHANGELOG.md)
+[![platform](https://img.shields.io/badge/platform-Docker%20%C2%B7%20Web%20viewer%20%C2%B7%20XR-0a6358?style=flat-square)](https://github.com/companionintelligence/CI-Spatial-Photo)
+[![License](https://img.shields.io/badge/license-Commercial%20Standard-8a5a00?style=flat-square)](LICENSE)
+[![Discord](https://img.shields.io/badge/chat-Discord-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.com/invite/yQp9hwpzAa)
+
+<p align="center"><a href="https://photo.ci.computer">Website</a> · <a href="#documentation">Documentation</a> · <a href="#quick-start-docker">Get started</a> · <a href="https://docs.ci.computer/docs/reference/open-source-systems">Systems map</a></p>
+
+<p align="center">
+  <a href="https://photo.ci.computer"><img src="https://img.shields.io/badge/Open%20the%20viewer-Open%20the%20viewer-0a6358?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Open the viewer" height="30"></a>
+</p>
+
+Part of the [Companion
 Intelligence](https://ci.computer) suite: containerized, **MCP‑native**, and wired into
 Companion memory and Companion OIDC.
 
@@ -25,6 +37,41 @@ with its gallery and share link. See the full tour in [docs/UI-GUIDE.md](docs/UI
 - 🕶️ **Web + XR viewer** — [Spark](https://github.com/sparkjsdev/spark)‑powered splat viewer
   with a MediaPipe head‑tracked "magic portal," plus `<model-viewer>` for meshes with native
   mobile AR.
+
+
+## Features
+
+| Feature | What it provides |
+|---|---|
+| **Reconstruction jobs** | Route image/video jobs through a registry of pluggable engines. |
+| **Agent control** | Expose the same capabilities through REST and MCP. |
+| **Asset lifecycle** | Persist job metadata and generated assets for polling and download. |
+| **Review** | Render outputs in the browser viewer and optionally connect Memory. |
+
+## Screenshots
+
+<table>
+  <tr>
+    <td valign="top"><img src="docs/images/01-create-empty.png" alt="Create a new reconstruction job" width="420"><p align="center">Create a new reconstruction job</p></td>
+    <td valign="top"><img src="docs/images/03-create-processing.png" alt="Reconstruction job in progress" width="420"><p align="center">Reconstruction job in progress</p></td>
+    <td valign="top"><img src="docs/images/07-xr-enabled.png" alt="Open the generated scene in XR" width="420"><p align="center">Open the generated scene in XR</p></td>
+  </tr>
+</table>
+
+
+## How it fits together
+
+The web client or an agent creates a job through REST/MCP; the job manager routes it to a registered engine, stores the output and exposes it to the viewer for review.
+
+```mermaid
+flowchart LR
+  Client[Web client or agent] --> API[REST and MCP API]
+  API --> Jobs[Job manager]
+  Jobs --> Registry[Engine registry]
+  Registry --> Worker[Reconstruction engine]
+  Worker --> Assets[(Generated assets and metadata)]
+  Assets --> Viewer[Browser viewer]
+```
 
 ## Documentation
 
@@ -167,6 +214,26 @@ cd web-server/client && npm run build
 Both run in CI on every push/PR (`.github/workflows/ci.yml`). The `.spz` pipeline is
 additionally validated end-to-end in a real browser: the screenshots in the UI guide come from
 a live session where the viewer fetched and rendered the server's spz output.
+
+<!-- companion-hub-readme-deep-review -->
+
+## Service endpoints
+
+| Surface | Default local address | Purpose |
+|---|---|---|
+| Viewer | `http://localhost:3000` | Browse the photo/spatial collection |
+| REST API | `http://localhost:8000/api/v1` | Programmatic access; interactive docs at `/docs` |
+| MCP | `http://localhost:8000/mcp` | Agent-facing tool interface |
+
+```mermaid
+flowchart LR
+  Photos[Photo and spatial inputs] --> Service[API and processing service]
+  Service --> Viewer[Web viewer]
+  Agent[Local agent] --> MCP[MCP endpoint]
+  MCP --> Service
+```
+
+Bind or publish these endpoints only on a network you trust. The Docker quick start and direct development-server instructions above describe the supported local workflows.
 
 ## Credits & licensing
 
