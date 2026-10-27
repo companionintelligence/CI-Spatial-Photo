@@ -2,7 +2,7 @@
 
 <p align="center"><strong>Turn any image, image set, or video into a shareable 3D memory — a Gaussian splat or</strong></p>
 
-<p align="center"><a href="https://photo.ci.computer">Website</a> · <a href="#documentation">Documentation</a> · <a href="#quick-start-docker">Get started</a></p>
+<p align="center"><a href="https://photo.ci.computer">Website</a> · <a href="#documentation">Documentation</a> · <a href="#quick-start-docker">Get started</a> · <a href="https://docs.ci.computer/docs/reference/open-source-systems">Systems map</a></p>
 
 mesh you can explore in the browser and in XR. Part of the [Companion
 Intelligence](https://ci.computer) suite: containerized, **MCP‑native**, and wired into
