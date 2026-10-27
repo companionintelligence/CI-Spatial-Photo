@@ -171,6 +171,26 @@ Both run in CI on every push/PR (`.github/workflows/ci.yml`). The `.spz` pipelin
 additionally validated end-to-end in a real browser: the screenshots in the UI guide come from
 a live session where the viewer fetched and rendered the server's spz output.
 
+<!-- companion-hub-readme-deep-review -->
+
+## Service endpoints
+
+| Surface | Default local address | Purpose |
+|---|---|---|
+| Viewer | `http://localhost:3000` | Browse the photo/spatial collection |
+| REST API | `http://localhost:8000/api/v1` | Programmatic access; interactive docs at `/docs` |
+| MCP | `http://localhost:8000/mcp` | Agent-facing tool interface |
+
+```mermaid
+flowchart LR
+  Photos[Photo and spatial inputs] --> Service[API and processing service]
+  Service --> Viewer[Web viewer]
+  Agent[Local agent] --> MCP[MCP endpoint]
+  MCP --> Service
+```
+
+Bind or publish these endpoints only on a network you trust. The Docker quick start and direct development-server instructions above describe the supported local workflows.
+
 ## Credits & licensing
 
 Built on the shoulders of open 3D reconstruction work — see [`docs/RESEARCH.md`](docs/RESEARCH.md)
