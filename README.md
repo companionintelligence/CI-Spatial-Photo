@@ -4,7 +4,7 @@
 
 [![version](https://img.shields.io/badge/version-2.0.0-0a6358?style=flat-square)](CHANGELOG.md)
 [![platform](https://img.shields.io/badge/platform-Docker%20%C2%B7%20Web%20viewer%20%C2%B7%20XR-0a6358?style=flat-square)](https://github.com/companionintelligence/CI-Spatial-Photo)
-[![License](https://img.shields.io/badge/license-Commercial%20Standard-8a5a00?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue?style=flat-square)](LICENSE)
 [![Discord](https://img.shields.io/badge/chat-Discord-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.com/invite/yQp9hwpzAa)
 
 <p align="center"><a href="https://photo.ci.computer">Website</a> · <a href="#documentation">Documentation</a> · <a href="#quick-start-docker">Get started</a> · <a href="https://docs.ci.computer/docs/reference/open-source-systems">Systems map</a></p>
@@ -234,6 +234,10 @@ flowchart LR
 ```
 
 Bind or publish these endpoints only on a network you trust. The Docker quick start and direct development-server instructions above describe the supported local workflows.
+
+## License
+
+Free for noncommercial use under the [PolyForm Noncommercial License 1.0.0](LICENSE). See the [License FAQ](docs/License-FAQ.md) or email support@companionintelligence.com.
 
 ## Credits & licensing
 

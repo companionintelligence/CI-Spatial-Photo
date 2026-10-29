@@ -1,6 +1,6 @@
 # Photo Time Machine — product video
 
-> **Private & Confidential — Property of Lifescope Inc. Do not distribute.**
+> Licensed under the [PolyForm Noncommercial License 1.0.0](../LICENSE).
 
 Generates a **16:9 desktop cut** and a **9:16 mobile cut** of Photo Time Machine's FTUE and major
 screens, from this repo's own UI. Both are produced from [`storyboard.json`](storyboard.json).

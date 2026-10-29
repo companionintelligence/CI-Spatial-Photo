@@ -3,6 +3,7 @@
     "wrangler": "^4.142.0"
   },
   "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
     "build": "cd web-server/client && env -u REACT_APP_API_BASE CI=false npm run build",
     "test": "node --test \"worker/*.test.mjs\" \"web-server/client/scripts/*.test.mjs\"",
