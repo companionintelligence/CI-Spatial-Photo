@@ -3,7 +3,7 @@
 # image is built from exactly the dependency tree the lockfile names.
 FROM node:22-slim AS build
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 RUN npm ci --no-audit --no-fund
 COPY . .
 # API base is baked in at build time (CRA). Override with --build-arg REACT_APP_API_BASE=...
