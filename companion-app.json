@@ -8,7 +8,8 @@
   "keywords": ["3d", "gaussian-splatting", "photogrammetry", "webxr", "spatial", "time-machine"],
   "icon": "assets/icon.png",
   "publisher": "Companion Intelligence",
-  "license": "See LICENSE / LICENSE_MODEL; bundled engines have separate licenses (see docs/RESEARCH.md).",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "licenseNotes": "Bundled engines have separate licenses (see LICENSE_MODEL and docs/RESEARCH.md).",
   "runtime": {
     "type": "docker-compose",
     "compose": "docker-compose.yml",

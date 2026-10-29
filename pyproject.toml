@@ -3,6 +3,7 @@ name = "sharp"
 version = "0.1"
 description = "Inference/Network/Model code for SHARP view synthesis model."
 readme = "README.md"
+license = { text = "PolyForm-Noncommercial-1.0.0" }
 dependencies = [
   "click",
   "gsplat",

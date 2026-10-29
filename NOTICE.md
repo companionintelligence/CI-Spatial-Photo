@@ -25,7 +25,7 @@ existed. That content is authoritative and is kept as-is:
 
 Except as noted above, the contents of this repository are
 Copyright © LifeScope INC, DBA Companion Intelligence (<https://ci.computer>),
-licensed under the terms in [LICENSE](LICENSE) / [LICENSE.md](LICENSE.md).
+licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE) (see [License FAQ](docs/License-FAQ.md)).
 
 ---
 
