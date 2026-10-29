@@ -8,7 +8,7 @@ services:
   server:
     build:
       context: ./server
-    image: ci-photo-time-machine-server
+    image: ghcr.io/companionintelligence/ci-spatial-photo-server:latest
     ports:
       - "8000:8000"
     environment:
@@ -39,7 +39,7 @@ services:
       context: ./web-server/client
       args:
         REACT_APP_API_BASE: ${PUBLIC_API_BASE:-http://localhost:8000}
-    image: ci-photo-time-machine-viewer
+    image: ghcr.io/companionintelligence/ci-spatial-photo-viewer:latest
     ports:
       - "3000:3000"
     depends_on:
