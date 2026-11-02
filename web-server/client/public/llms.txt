@@ -1,0 +1,15 @@
+# Photo Time Machine
+
+> Photo Time Machine turns any photo, photo set or video into a shareable 3D memory: a Gaussian splat or mesh you can explore in a browser or in XR. It is part of the Companion Intelligence platform (https://ci.computer/).
+
+This site serves the web viewer. Each browser names the processing server it uses on first visit, and that server runs the 3D reconstruction. Share links (/view/ID) are private and marked noindex. Support: support@ci.computer
+
+## Pages
+
+- [Home](https://photo.ci.computer/): the viewer, and what Photo Time Machine does
+- [Docs](https://docs.ci.computer): documentation for Companion Intelligence products
+
+## Optional
+
+- [Source code](https://github.com/companionintelligence/CI-Spatial-Photo): README, architecture and deployment notes
+- [Companion Intelligence](https://ci.computer/): the platform this app belongs to
