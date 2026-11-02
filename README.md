@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/companionintelligence/.github/main/profile/assets/icons/photo-time-machine.png" width="96" height="96" alt="Photo Time Machine icon">
+</p>
+
 <h1 align="center">CI Photo Time Machine</h1>
 
 <p align="center"><strong>Turn any photo, photo set, or video into a shareable 3D memory: a Gaussian splat or mesh you can explore in a browser or XR.</strong></p>
