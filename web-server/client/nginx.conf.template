@@ -1,0 +1,45 @@
+# Rendered at container start by the nginx image's entrypoint (envsubst over
+# /etc/nginx/templates/*.template). Only ${API_UPSTREAM} and ${API_RESOLVER} are
+# substituted; nginx's own $variables are left alone.
+server {
+    listen 3000;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # The image's bundle is built same-origin: it asks this host for /api/v1/... and
+    # /healthz, and these locations hand them to the processing server. The upstream is
+    # resolved per request through Docker's DNS, so the viewer still starts while the
+    # server is down or restarting, and follows the server if its address changes.
+    resolver ${API_RESOLVER} valid=10s ipv6=off;
+    set $api_upstream ${API_UPSTREAM};
+
+    # ^~ so a path ending in .png or .glb under /api/ is never served from disk by the
+    # static-asset rule below.
+    location ^~ /api/ {
+        proxy_pass $api_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Uploads go to the server unbuffered and unlimited, the same as calling the
+        # server's port directly; the server decides what it accepts.
+        client_max_body_size 0;
+        proxy_request_buffering off;
+        proxy_read_timeout 300s;
+    }
+
+    location = /healthz {
+        proxy_pass $api_upstream;
+    }
+
+    # SPA routing: /view/:assetId and every other path serve the app shell.
+    location / {
+        try_files $uri /index.html;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|webp|svg|wasm|ply|glb)$ {
+        expires 7d;
+        access_log off;
+        try_files $uri =404;
+    }
+}
