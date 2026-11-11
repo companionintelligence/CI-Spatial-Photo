@@ -106,7 +106,7 @@ with SHARP kept as an optional, clearly labeled research/scene engine. Full trad
 ```bash
 cp .env.example .env      # set PUBLIC_BASE_URL, Companion OIDC + memory (optional)
 docker compose up --build
-# Viewer:  http://localhost:3000
+# Viewer:  http://localhost:3000        (its nginx passes /api to the server)
 # API:     http://localhost:8000/api/v1   (docs at /docs)
 # MCP:     http://localhost:8000/mcp
 ```
@@ -202,7 +202,8 @@ docker-compose.yml      Viewer + server stack
 | `DEPTH_ALLOW_NONCOMMERCIAL` | Unlock the CC‑BY‑NC / Apple‑research depth weights | `0` |
 | `DEPTH_AUTO_ROUTE` | Let the depth engines join automatic routing | `0` |
 | `MCP_ALLOWED_HOSTS` | Hostnames `/mcp` may be reached by, behind a proxy | — (loopback only) |
-| `REACT_APP_API_BASE` | *Viewer* build-time server address. Unset ships a bundle that asks | — (asks on first run) |
+| `REACT_APP_API_BASE` | *Viewer* build-time server address. Unset ships a bundle that asks; empty means same origin | — (asks on first run); empty in the Docker image |
+| `API_UPSTREAM` | *Viewer image* runtime: where its nginx sends `/api/` and `/healthz` (`scheme://host:port`, no path) | `http://server:8000` |
 | `ASSET_DIR` | Where assets/jobs are persisted | `./data/assets` |
 
 The depth engines have several more tuning knobs (field of view, depth range, splat budget,

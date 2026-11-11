@@ -34,12 +34,17 @@ services:
     #           count: all
     #           capabilities: [gpu]
 
+  # The viewer asks its own origin for /api and /healthz, and its nginx passes them to the
+  # server, so it works from any device that can open :3000. PUBLIC_API_BASE bakes in a
+  # different server address instead; leave it empty unless you know you need one.
   viewer:
     build:
       context: ./web-server/client
       args:
-        REACT_APP_API_BASE: ${PUBLIC_API_BASE:-http://localhost:8000}
+        REACT_APP_API_BASE: ${PUBLIC_API_BASE:-}
     image: ghcr.io/companionintelligence/ci-spatial-photo-viewer:latest
+    environment:
+      API_UPSTREAM: http://server:8000
     ports:
       - "3000:3000"
     depends_on:

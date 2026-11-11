@@ -38,6 +38,12 @@ All notable changes to this project are documented here. The format follows
 - The viewer's share-link copy now says the link points at your own server.
 
 ### Fixed
+- **The Docker viewer works from any device.** The image was built pointing at
+  `http://localhost:8000`, so a browser anywhere but the server machine showed "Could not load
+  the engine list" and could not create anything. The image's bundle is now same-origin and its
+  nginx passes `/api/` and `/healthz` to the processing server at `API_UPSTREAM` (default
+  `http://server:8000`, the compose service). Uploads through the proxy are unbuffered and
+  unlimited, as they are on the server's own port.
 - The empty-state hero's "Buy Companion Core" and "Download Companion" buttons took focus
   and showed a Tab ring but ignored mouse clicks: the HUD overlay is `pointer-events-none`
   and the hero never re-enabled them, so the click fell through to the 3D scene. The
