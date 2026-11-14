@@ -1,0 +1,21 @@
+{
+  "name": "photo-time-machine-desktop",
+  "private": true,
+  "version": "2.1.0",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "description": "Photo Time Machine desktop app (Tauri 2). A standalone npm project, not a workspace: it bundles the viewer build in web-server/client/build and never imports the viewer's code.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "tauri": "tauri",
+    "build:web": "cd .. && npm run build && node scripts/check-app-viewer.mjs",
+    "icons": "tauri icon ../assets/icon.svg --output src-tauri/icons",
+    "dev": "tauri dev",
+    "build": "npm run build:web && npm run icons && tauri build",
+    "test:native": "node --test \"tests/*.test.mjs\""
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.4"
+  }
+}

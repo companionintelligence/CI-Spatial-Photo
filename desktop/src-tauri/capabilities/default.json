@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The main window gets Tauri's core defaults and nothing else. The viewer never calls a Tauri API: links leave for the system browser from Rust (src/main.rs), not from JavaScript.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

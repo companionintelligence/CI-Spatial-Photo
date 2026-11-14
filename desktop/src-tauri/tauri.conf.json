@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Photo Time Machine",
+  "version": "2.1.0",
+  "identifier": "computer.ci.photo",
+  "build": {
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../../web-server/client/build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "title": "Photo Time Machine",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 480,
+        "minHeight": 560,
+        "resizable": true,
+        "center": true,
+        "dragDropEnabled": false,
+        "zoomHotkeysEnabled": true
+      }
+    ],
+    "security": {
+      "csp": null,
+      "capabilities": ["default"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi", "app", "dmg", "deb", "rpm"],
+    "publisher": "Companion Intelligence",
+    "homepage": "https://photo.ci.computer",
+    "copyright": "Copyright LifeScope INC, DBA Companion Intelligence (https://ci.computer)",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "category": "Photography",
+    "shortDescription": "Turn a photo or a video into a 3D memory",
+    "longDescription": "Photo Time Machine turns a photo, a photo set or a video into a 3D Gaussian splat or mesh that you can orbit, view with webcam head tracking and share. The processing runs on a Photo Time Machine server you run yourself; this app asks for its address on first start.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "12.0",
+      "signingIdentity": "-",
+      "entitlements": "Entitlements.plist"
+    }
+  }
+}
