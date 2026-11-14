@@ -4,7 +4,7 @@ import React from 'react';
 // environment.
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { ServerPanel, ServerSetup } from './ServerPicker';
+import { ServerPanel, ServerSetup, presetsFor } from './ServerPicker';
 import { getApiTarget, resetApiTargetCache } from '../utils/apiTarget';
 
 /*
@@ -150,5 +150,104 @@ describe('ServerPanel', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
     // A failed switch leaves the working server in place.
     expect(getApiTarget()).toBe('https://old.example');
+  });
+});
+
+/*
+  Inside the apps. What each runtime leaves on `window` (utils/nativeShell.ts): Tauri's
+  internals in the desktop app, Capacitor's native bridge in the Android app.
+*/
+const shellGlobals = window as unknown as { __TAURI_INTERNALS__?: unknown; Capacitor?: unknown };
+const inDesktopApp = () => {
+  shellGlobals.__TAURI_INTERNALS__ = {};
+};
+const inAndroidApp = () => {
+  shellGlobals.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'android' };
+};
+
+describe('ServerSetup inside the desktop and Android apps', () => {
+  afterEach(() => {
+    delete shellGlobals.__TAURI_INTERNALS__;
+    delete shellGlobals.Capacitor;
+  });
+
+  it('drops "Same host as this page" in the desktop app and keeps "This machine"', async () => {
+    // The app's own page (tauri://localhost, http://tauri.localhost) has no server behind it,
+    // while localhost is still the computer the app runs on.
+    inDesktopApp();
+    reachable();
+    render(<ServerSetup onConnected={jest.fn()} />);
+
+    expect(screen.queryByRole('button', { name: /same host as this page/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /this machine/i }));
+    await waitFor(() => expect(getApiTarget()).toBe('http://localhost:8000'));
+  });
+
+  it('offers neither preset in the Android app, where localhost is the phone', () => {
+    inAndroidApp();
+    render(<ServerSetup onConnected={jest.fn()} />);
+
+    expect(screen.queryByRole('button', { name: /this machine/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /same host as this page/i })).not.toBeInTheDocument();
+    // The copy that sent people to "This machine" says what to type instead.
+    expect(screen.queryByText(/choose .this machine/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/not on this phone/i)).toHaveTextContent(/18831/);
+  });
+
+  it('talks about the app, not the browser, in either app', () => {
+    inDesktopApp();
+    const { unmount } = render(<ServerSetup onConnected={jest.fn()} />);
+    expect(screen.getByText(/remembered in this app only/i)).toBeInTheDocument();
+    expect(screen.queryByText(/this page is static/i)).not.toBeInTheDocument();
+    unmount();
+
+    delete shellGlobals.__TAURI_INTERNALS__;
+    inAndroidApp();
+    render(<ServerSetup onConnected={jest.fn()} />);
+    expect(screen.getByText(/remembered in this app only/i)).toBeInTheDocument();
+  });
+
+  it('warns in the Android app that a typed localhost is the phone itself', () => {
+    inAndroidApp();
+    render(<ServerSetup onConnected={jest.fn()} />);
+    type('http://localhost:8000');
+    expect(screen.getByRole('status')).toHaveTextContent(/phone itself/i);
+  });
+
+  it('connects the Android app to a plain-HTTP address on the network, with no caveat', async () => {
+    // The app allows cleartext and its page is http://localhost, so nothing here is mixed
+    // content and the browser's half-works warning would be wrong.
+    inAndroidApp();
+    reachable();
+    const onConnected = jest.fn();
+    render(<ServerSetup onConnected={onConnected} />);
+
+    type('http://mac-studio.local:8000');
+    expect(screen.getByRole('status')).toHaveTextContent('');
+    fireEvent.click(screen.getByRole('button', { name: /^connect$/i }));
+    await waitFor(() => expect(onConnected).toHaveBeenCalled());
+    expect(getApiTarget()).toBe('http://mac-studio.local:8000');
+  });
+
+  it('leaves the website as it was', () => {
+    render(<ServerSetup onConnected={jest.fn()} />);
+    expect(screen.getByRole('button', { name: /this machine/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /same host as this page/i })).toBeInTheDocument();
+    expect(screen.getByText(/remembered in this browser only/i)).toBeInTheDocument();
+  });
+});
+
+describe('presetsFor', () => {
+  const labels = (shell: Parameters<typeof presetsFor>[0], sameHostUnavailable = false) =>
+    presetsFor(shell, sameHostUnavailable).map((p) => p.label);
+
+  it('offers both presets on the website, and hides same-host where it cannot work', () => {
+    expect(labels(null)).toEqual(['This machine', 'Same host as this page']);
+    expect(labels(null, true)).toEqual(['This machine']);
+  });
+
+  it('keeps only "This machine" on the desktop and nothing on Android', () => {
+    expect(labels('desktop')).toEqual(['This machine']);
+    expect(labels('android')).toEqual([]);
   });
 });

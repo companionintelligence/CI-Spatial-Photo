@@ -168,6 +168,32 @@ describe('describeTarget warnings', () => {
   });
 });
 
+describe('describeTarget inside the apps', () => {
+  it('warns in the Android app that localhost is the phone, not the computer', () => {
+    // The app's page is http://localhost, which to the browser rules looks like the quiet
+    // everything-local setup. On a phone it is not.
+    setPageOrigin('http://localhost/');
+    const info = describeTarget('http://localhost:8000', 'android');
+    expect(info.space).toBe('loopback');
+    expect(info.warnings.join(' ')).toMatch(/phone itself/i);
+  });
+
+  it('has nothing to say in the Android app about plain HTTP on the network', () => {
+    // Cleartext is allowed there and the page is not HTTPS: thumbnails and meshes load.
+    setPageOrigin('http://localhost/');
+    expect(describeTarget('http://mac-studio.local:8000', 'android').warnings).toEqual([]);
+    expect(describeTarget('https://my-server.example.com', 'android').warnings).toEqual([]);
+  });
+
+  it('has nothing to say in the desktop app about this machine or the network', () => {
+    // http://tauri.localhost (Windows) and tauri://localhost (macOS, Linux) are loopback pages,
+    // and neither is HTTPS, so there is no local-network prompt and no mixed content.
+    setPageOrigin('http://tauri.localhost/');
+    expect(describeTarget('http://localhost:8000', 'desktop').warnings).toEqual([]);
+    expect(describeTarget('http://mac-studio.local:8000', 'desktop').warnings).toEqual([]);
+  });
+});
+
 describe('the store', () => {
   it('starts unconfigured, so the app asks instead of guessing', () => {
     // The deployed bundle is built with no REACT_APP_API_BASE precisely so this holds.
@@ -333,6 +359,26 @@ describe('probeServer', () => {
     // The browser withholds the reason, so the message names the candidates instead
     // of inventing one.
     expect(unreachable.error).toMatch(/not running|blocked|CORS/i);
+  });
+
+  it('does not send the Android app to a "This machine" button it does not have', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue(
+      jsonResponse({ error: 'origin_not_configured' }, 503),
+    );
+    const website = await probeServer('https://photo.ci.computer');
+    expect(website.code).toBe('origin_not_configured');
+    expect(website.error).toMatch(/This machine/);
+
+    const shell = window as unknown as { Capacitor?: unknown };
+    shell.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'android' };
+    try {
+      const android = await probeServer('https://photo.ci.computer');
+      expect(android.code).toBe('origin_not_configured');
+      expect(android.error).not.toMatch(/This machine/);
+      expect(android.error).toMatch(/enter its address/i);
+    } finally {
+      delete shell.Capacitor;
+    }
   });
 
   it('refuses to probe a value that is not a valid target', async () => {
