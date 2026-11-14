@@ -116,10 +116,15 @@ allows depends on whether auth is on:
 - **`AUTH_DISABLED=1`** (the default, for local use) — there is no token, so the origin is
   the only gate, and a wildcard would let any web page you visit read everything on a server
   listening on `localhost:8000`. The server therefore allows loopback origins, `https://photo.ci.computer`,
-  the origin of `PUBLIC_BASE_URL`, and whatever you list in `ALLOWED_ORIGINS`
-  (comma-separated). Viewing from `https://photo.ci.computer`, from `localhost`, or from
-  the viewer behind your own `PUBLIC_BASE_URL` needs nothing; a viewer served from some
-  other address — a LAN IP, say — needs that origin in `ALLOWED_ORIGINS`. This is a *read*
+  the desktop and Android apps, the origin of `PUBLIC_BASE_URL`, and whatever you list in
+  `ALLOWED_ORIGINS` (comma-separated). Viewing from `https://photo.ci.computer`, from
+  `localhost`, from either app, or from the viewer behind your own `PUBLIC_BASE_URL` needs
+  nothing; a viewer served from some other address — a LAN IP, say — needs that origin in
+  `ALLOWED_ORIGINS`. The desktop app's origins are `tauri://localhost` (macOS, Linux) and
+  `http://tauri.localhost` (Windows); the Android app's is `http://localhost`, which is
+  loopback. A server built before the desktop app existed (the 2.0.0 image included) does
+  not know the desktop origins: give it
+  `ALLOWED_ORIGINS=tauri://localhost,http://tauri.localhost`. This is a *read*
   gate, not a write gate: the browser enforces CORS on the response, so another page's
   simple cross-origin request (a multipart POST, say) is still sent and processed — that
   page just cannot read the answer. If that matters, turn auth on.

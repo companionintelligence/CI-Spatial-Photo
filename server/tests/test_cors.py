@@ -6,7 +6,7 @@ preflight, that `create_app()` actually applies it.
 """
 
 import pytest
-from app.config import HOSTED_VIEWER_ORIGIN, Settings, get_settings
+from app.config import DESKTOP_APP_ORIGINS, HOSTED_VIEWER_ORIGIN, Settings, get_settings
 from app.main import create_app
 from fastapi.testclient import TestClient
 
@@ -46,7 +46,11 @@ def test_auth_off_allows_the_hosted_viewer_and_the_public_base_url_only_by_name(
     policy = Settings(
         auth_disabled=True, public_base_url="https://viewer.example.org/some/path"
     ).cors_policy
-    assert policy["allow_origins"] == [HOSTED_VIEWER_ORIGIN, "https://viewer.example.org"]
+    assert policy["allow_origins"] == [
+        HOSTED_VIEWER_ORIGIN,
+        *DESKTOP_APP_ORIGINS,
+        "https://viewer.example.org",
+    ]
     assert "*" not in policy["allow_origins"]
 
 
@@ -59,6 +63,7 @@ def test_auth_off_adds_the_operators_extra_origins_without_duplicates():
     ).cors_policy
     assert policy["allow_origins"] == [
         HOSTED_VIEWER_ORIGIN,
+        *DESKTOP_APP_ORIGINS,
         "http://localhost:3000",
         "http://192.168.1.20:3000",
     ]
@@ -67,7 +72,7 @@ def test_auth_off_adds_the_operators_extra_origins_without_duplicates():
 def test_a_malformed_public_base_url_does_not_break_the_policy():
     """A PUBLIC_BASE_URL that is not a URL is skipped rather than raising."""
     policy = Settings(auth_disabled=True, public_base_url="not a url").cors_policy
-    assert policy["allow_origins"] == [HOSTED_VIEWER_ORIGIN]
+    assert policy["allow_origins"] == [HOSTED_VIEWER_ORIGIN, *DESKTOP_APP_ORIGINS]
 
 
 def test_auth_off_preflight_answers_the_allowed_origins_and_refuses_the_rest(monkeypatch):
@@ -90,6 +95,54 @@ def test_auth_off_preflight_answers_the_allowed_origins_and_refuses_the_rest(mon
         "http://localhost.evil.example",
         "http://192.168.1.20:3000",
         "https://photo.ci.computer.evil.example",
+    ):
+        r = _preflight(client, origin)
+        assert r.status_code == 400, origin
+        assert "access-control-allow-origin" not in r.headers, origin
+
+
+def test_auth_off_names_the_desktop_app_on_every_platform():
+    """The Tauri app's bundled viewer: tauri:// on macOS and Linux, tauri.localhost on Windows."""
+    assert DESKTOP_APP_ORIGINS == (
+        "tauri://localhost",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
+    )
+    policy = Settings(auth_disabled=True, public_base_url="http://localhost:3000").cors_policy
+    for origin in DESKTOP_APP_ORIGINS:
+        assert origin in policy["allow_origins"], origin
+
+
+def test_auth_off_preflight_answers_the_desktop_and_android_apps(monkeypatch):
+    """Through create_app(): a stock server (no ALLOWED_ORIGINS) answers both apps.
+
+    The desktop app's origins are listed by exact name. The Android app's page is
+    http://localhost (https://localhost under Capacitor's default scheme), which the
+    loopback rule already admits; it is pinned here so a change to that rule cannot quietly
+    cut the Android app off.
+    """
+    client = _app(
+        monkeypatch, AUTH_DISABLED="1", PUBLIC_BASE_URL="http://localhost:3000", ALLOWED_ORIGINS=""
+    )
+    for origin in (*DESKTOP_APP_ORIGINS, "http://localhost", "https://localhost"):
+        r = _preflight(client, origin)
+        assert r.status_code == 200, origin
+        assert r.headers.get("access-control-allow-origin") == origin, origin
+
+
+def test_auth_off_refuses_lookalikes_of_the_app_origins(monkeypatch):
+    """Exact names only: a host that merely starts or ends like an app origin is refused."""
+    client = _app(
+        monkeypatch, AUTH_DISABLED="1", PUBLIC_BASE_URL="http://localhost:3000", ALLOWED_ORIGINS=""
+    )
+    for origin in (
+        "tauri://evil.example",
+        "tauri://localhost.evil.example",
+        "http://tauri.localhost.evil.example",
+        "https://tauri.localhost.evil.example",
+        "http://evil.example.tauri.localhost.example",
+        "http://tauri.localhost:8080",
+        "capacitor://evil.example",
     ):
         r = _preflight(client, origin)
         assert r.status_code == 400, origin

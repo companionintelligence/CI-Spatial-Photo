@@ -14,7 +14,16 @@ HOSTED_VIEWER_ORIGIN = "https://photo.ci.computer"
 
 # Any loopback origin, any port: a viewer run from `npm start`, docker compose, or a local
 # static server. Loopback cannot be reached by another machine, so allowing it costs nothing.
+# It also covers the Android app, whose bundled viewer is served from http://localhost
+# (mobile/capacitor.config.ts; https://localhost under Capacitor's default scheme).
 LOOPBACK_ORIGIN_REGEX = r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$"
+
+# The desktop app's bundled viewer (desktop/, Tauri 2): tauri://localhost on macOS and Linux,
+# http://tauri.localhost on Windows, and https://tauri.localhost if the app ever turns on
+# Tauri's useHttpsScheme. The same reasoning as loopback: no web page can carry these. The
+# custom scheme exists only inside an installed app, and a browser resolves *.localhost to
+# this machine, so only software already on the user's own machine can present any of them.
+DESKTOP_APP_ORIGINS = ("tauri://localhost", "http://tauri.localhost", "https://tauri.localhost")
 
 
 class Settings(BaseSettings):
@@ -112,9 +121,11 @@ class Settings(BaseSettings):
         happens to visit. With a wildcard, such a page could read every asset and job on a
         server listening on http://localhost:8000, and send it requests that need a CORS
         preflight (a JSON body, a custom header). So the wildcard narrows to the origins a
-        viewer legitimately comes from: loopback, the hosted viewer, PUBLIC_BASE_URL (where
-        share links point, so the viewer the operator runs), and anything listed in
-        ALLOWED_ORIGINS.
+        viewer legitimately comes from: loopback, the hosted viewer, the desktop and Android
+        apps, PUBLIC_BASE_URL (where share links point, so the viewer the operator runs), and
+        anything listed in ALLOWED_ORIGINS. The apps' origins are exact names, not patterns
+        (DESKTOP_APP_ORIGINS; Android's is loopback): software installed on a device presents
+        them, and such software could make the same request without CORS at all.
 
         What this is NOT: a write gate. CORS is enforced by the browser on the response, and a
         "simple" cross-origin request (a form-style or multipart POST with no custom header)
@@ -124,7 +135,7 @@ class Settings(BaseSettings):
         """
         if self.auth_enabled:
             return {"allow_origins": ["*"]}
-        origins: list[str] = [HOSTED_VIEWER_ORIGIN]
+        origins: list[str] = [HOSTED_VIEWER_ORIGIN, *DESKTOP_APP_ORIGINS]
         base = urlsplit(self.public_base_url.strip())
         if base.scheme in ("http", "https") and base.netloc:
             origins.append(f"{base.scheme}://{base.netloc}")
