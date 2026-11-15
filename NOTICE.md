@@ -14,6 +14,26 @@ redistributing this repository or shipping a binary built from it.
 2. [`plyfile`](https://github.com/dranjan/python-plyfile) — **GPL-3.0-or-later** — runtime
 3. [`tqdm`](https://pypi.org/project/tqdm/) — **MPL-2.0 AND MIT** — runtime
 
+<!-- hand-authored: do not regenerate this section -->
+### The desktop and Android apps
+
+The desktop installers and the Android APK each carry their own `THIRD-PARTY-NOTICES.txt`,
+generated from the lockfiles at build time by
+[`scripts/third-party-notices.mjs`](scripts/third-party-notices.mjs). The one attached to a
+GitHub release covers every app in it.
+
+The desktop app's binary links one MPL-2.0 crate, unmodified, on every platform it is built for:
+
+- [`option-ext`](https://github.com/soc/option-ext) — **MPL-2.0** — desktop app, through `dirs-sys`
+
+[`cssparser`](https://github.com/servo/rust-cssparser),
+[`cssparser-macros`](https://github.com/servo/rust-cssparser),
+[`dtoa-short`](https://github.com/upsuper/dtoa-short) and
+[`selectors`](https://github.com/servo/stylo) are MPL-2.0 as well. They run only while the
+desktop app is built, in Tauri's build scripts and macros, and are not linked into it. Its
+notices list them too, with their source.
+<!-- end hand-authored -->
+
 ## Pre-existing notices in this repository
 
 This repository already carried hand-written attribution before this file
