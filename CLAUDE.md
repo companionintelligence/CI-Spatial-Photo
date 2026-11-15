@@ -11,6 +11,8 @@ product picture and `docs/ARCHITECTURE.md` for the design.
 | `server/app/` | The core: FastAPI routes, MCP server, job manager, storage, engines |
 | `server/app/engines/` | Engine protocol + registry/router, TripoSplat, SHARP, photogrammetry, depth |
 | `web-server/client/` | The viewer (CRA — `react-scripts`, not Vite) |
+| `desktop/` | Tauri 2 desktop app around the viewer build (`desktop/README.md`) |
+| `mobile/` | Capacitor 8 Android app around the viewer build (`mobile/README.md`) |
 | `src/sharp/` | Bundled Apple SHARP. Research-licensed weights; treat as vendored |
 | `web-server/backend/` | The original Flask prototype. Superseded by `server/`; don't build on it |
 | `worker/` + `wrangler.toml` | Cloudflare Worker serving photo.ci.computer (static; proxying is opt-in) |
