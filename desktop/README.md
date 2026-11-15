@@ -92,9 +92,14 @@ Every installer carries `LICENSE.txt` (PolyForm Noncommercial 1.0.0; NSIS and MS
 `THIRD-PARTY-NOTICES.txt`, installed next to the app (`bundle.resources`). The notices cover the
 viewer's npm packages and every Rust crate linked into the binary on any desktop target, with
 the source of the MPL-2.0 crates (cssparser, cssparser-macros, dtoa-short, option-ext,
-selectors). They are generated from the lockfiles at build time and never committed. On Linux
-the app uses the distribution's WebKitGTK and GTK (LGPL) through the package's dependencies; an
-AppImage would bundle them, which is why there is none.
+selectors). They also cover what the binary links besides the crates' own code: the Rust
+standard library, and on Windows Microsoft's WebView2 loader, which webview2-com-sys links
+statically (`WebView2LoaderStatic.lib`) and whose licence asks every binary copy to carry
+Microsoft's notice. If webview2-com-sys moves to another WebView2 SDK, collecting the notices
+warns; compare the licence text in the script with that SDK's `LICENSE.txt` then. The notices
+are generated from the lockfiles at build time and never committed. On Linux the app uses the
+distribution's WebKitGTK and GTK (LGPL) through the package's dependencies; an AppImage would
+bundle them, which is why there is none.
 
 ## Publishing
 

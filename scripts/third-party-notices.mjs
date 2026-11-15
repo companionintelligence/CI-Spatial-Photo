@@ -12,7 +12,9 @@
  *            desktop/src-tauri (so Cargo.lock), for every desktop target, following normal
  *            dependencies from the app (build and dev dependencies are not in the binary).
  *            Licence files come from each crate's source in the cargo registry. MPL-2.0
- *            crates get a pointer to their source, as MPL-2.0 section 3.2 asks.
+ *            crates get a pointer to their source, as MPL-2.0 section 3.2 asks. Plus what
+ *            the binary links besides the crates' own code: the Rust standard library, and
+ *            on Windows the WebView2 loader that webview2-com-sys links statically.
  *   android  The libraries in the APK: Capacitor (mobile/package-lock.json) and the Maven
  *            artifacts on the release runtime classpath, as Gradle resolves them, with each
  *            artifact's licence read from its POM in the Gradle cache.
@@ -219,6 +221,51 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 `;
 
+/**
+ * LICENSE.txt of the Microsoft.Web.WebView2 NuGet package, as nuget.org publishes it for
+ * 1.0.3800.47, the SDK that webview2-com-sys 0.39.1 ships (line endings normalised, one trailing
+ * space dropped). WEBVIEW2_SDK_CHECKED is the SDK it was checked against: a collect that finds
+ * another SDK says so, and this text should then be compared with that package's LICENSE.txt.
+ */
+export const WEBVIEW2_SDK_CHECKED = '1.0.3800.47';
+export const WEBVIEW2_SDK_LICENSE = `Copyright (C) Microsoft Corporation. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+   * Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+   * Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the following disclaimer
+in the documentation and/or other materials provided with the
+distribution.
+   * The name of Microsoft Corporation, or the names of its contributors
+may not be used to endorse or promote products derived from this
+software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+`;
+
+/** The FileVersion in a Windows PE file's VS_FIXEDFILEINFO ("1.0.3800.47"), or null. */
+export function peFileVersion(buffer) {
+  const i = buffer.indexOf(Buffer.from([0xbd, 0x04, 0xef, 0xfe])); // dwSignature 0xFEEF04BD
+  if (i < 0 || i + 16 > buffer.length) return null;
+  const ms = buffer.readUInt32LE(i + 8); // dwFileVersionMS
+  const ls = buffer.readUInt32LE(i + 12); // dwFileVersionLS
+  return `${ms >>> 16}.${ms & 0xffff}.${ls >>> 16}.${ls & 0xffff}`;
+}
+
 /** Licence files in a package directory, as {label, text}. */
 function licenseFilesIn(dir) {
   if (!existsSync(dir)) return [];
@@ -318,14 +365,98 @@ export function linkedCrates(metadata) {
   return metadata.packages.filter((p) => seen.has(p.id));
 }
 
-/** The Rust crates linked into the desktop binary, for every desktop target. */
+/** The version of the rustc that cargo uses in `dir` ("1.96.0"), or null. */
+function rustcVersion(dir) {
+  try {
+    const out = execFileSync('rustc', ['--version'], { cwd: dir, stdio: ['ignore', 'pipe', 'ignore'] }).toString();
+    return out.match(/^rustc (\S+)/)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** The WebView2 SDK version of the loader in a webview2-com-sys source directory, or null. */
+function webview2SdkVersion(crateDir) {
+  // The crate ships the SDK's loader as a static library and as a DLL; only the DLL has a version.
+  for (const arch of ['x64', 'arm64', 'x86']) {
+    const dll = join(crateDir, arch, 'WebView2Loader.dll');
+    if (existsSync(dll)) return peFileVersion(readFileSync(dll));
+  }
+  return null;
+}
+
+/**
+ * What the desktop binary links besides the crates' own code:
+ *
+ * - The Rust standard library, on every target.
+ * - Microsoft's WebView2 loader, wherever webview2-com-sys is linked for an MSVC target. The
+ *   crate links WebView2LoaderStatic.lib, from the WebView2 SDK it ships, statically into the
+ *   binary. The crate's MIT licence covers only its Rust bindings; the loader's own licence asks
+ *   binary redistributions to reproduce Microsoft's notice. (A -gnu target would load
+ *   WebView2Loader.dll instead; the release builds none.)
+ *
+ * `crates` are the collected crate entries, each with every target it is linked for.
+ * `webview2Sdk` maps a webview2-com-sys version to the SDK version of the loader it ships.
+ */
+export function nonCrateCode(crates, { targets, rustVersion = null, webview2Sdk = new Map() }) {
+  const entries = [
+    {
+      ecosystem: 'rust-toolchain',
+      name: 'Rust standard library (core, alloc, std)',
+      version: rustVersion ?? 'unknown',
+      license: 'MIT OR Apache-2.0',
+      repository: 'https://github.com/rust-lang/rust',
+      holder: 'The Rust Project Developers',
+      platforms: [...targets],
+      note:
+        'Statically linked into the binary. A few of its files are under other permissive licences ' +
+        '(Unicode-3.0 for its Unicode tables, for one); COPYRIGHT-library.html, which every Rust ' +
+        'toolchain installs, lists them all.',
+      texts: [],
+    },
+  ];
+  for (const crate of crates.filter((c) => c.name === 'webview2-com-sys')) {
+    const msvc = crate.platforms.filter((target) => target.endsWith('-windows-msvc'));
+    if (!msvc.length) continue;
+    const sdk = webview2Sdk.get(crate.version) ?? null;
+    entries.push({
+      ecosystem: 'vendored',
+      name: 'Microsoft WebView2 SDK loader (WebView2LoaderStatic.lib)',
+      version: sdk ?? `from webview2-com-sys ${crate.version}`,
+      license: 'WebView2 SDK licence (BSD-style)',
+      repository: `https://www.nuget.org/packages/Microsoft.Web.WebView2${sdk ? `/${sdk}` : ''}`,
+      holder: 'Microsoft Corporation',
+      platforms: msvc,
+      note:
+        `Statically linked into the Windows binary. It comes inside webview2-com-sys ${crate.version}, ` +
+        'whose MIT licence covers only the Rust bindings.',
+      texts: [{ label: 'LICENSE.txt (Microsoft.Web.WebView2 NuGet package)', text: WEBVIEW2_SDK_LICENSE }],
+    });
+  }
+  return entries;
+}
+
+/** The Rust crates linked into the desktop binary, and the code linked with them, for every desktop target. */
 export function collectDesktop({ manifest = join(TAURI, 'Cargo.toml'), targets = DESKTOP_TARGETS } = {}) {
   const crates = new Map();
+  const webview2Sdk = new Map();
   for (const target of targets) {
     for (const p of linkedCrates(cargoMetadata(manifest, target))) {
       const key = `${p.name}@${p.version}`;
       if (!crates.has(key)) {
         const dir = dirname(p.manifest_path);
+        if (p.name === 'webview2-com-sys') {
+          const sdk = webview2SdkVersion(dir);
+          webview2Sdk.set(p.version, sdk);
+          if (sdk !== WEBVIEW2_SDK_CHECKED) {
+            const message =
+              `webview2-com-sys ${p.version} ships WebView2 SDK ${sdk ?? '(version unreadable)'}, not ` +
+              `${WEBVIEW2_SDK_CHECKED}: compare WEBVIEW2_SDK_LICENSE with that package's LICENSE.txt`;
+            // An annotation on the workflow run, where it would otherwise scroll by unread.
+            if (process.env.GITHUB_ACTIONS) console.log(`::warning::${message}`);
+            else console.warn(`third-party-notices: ${message}`);
+          }
+        }
         const texts = licenseFilesIn(dir);
         if (!p.license && p.license_file && existsSync(join(dir, p.license_file)) && !texts.some((t) => t.label === p.license_file)) {
           texts.push({ label: p.license_file, text: readFileSync(join(dir, p.license_file), 'utf8') });
@@ -348,13 +479,14 @@ export function collectDesktop({ manifest = join(TAURI, 'Cargo.toml'), targets =
       crates.get(key).platforms.push(target);
     }
   }
-  const packages = [...crates.values()].sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
+  const sorted = [...crates.values()].sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
+  const packages = [...nonCrateCode(sorted, { targets, rustVersion: rustcVersion(dirname(manifest)), webview2Sdk }), ...sorted];
   for (const p of packages) {
     if (p.platforms.length === targets.length) p.platforms = ['all'];
   }
   return {
     part: 'desktop',
-    title: 'The desktop app: Rust crates linked into the Tauri binary',
+    title: 'The desktop app: Rust crates and other code linked into the Tauri binary',
     packages,
   };
 }

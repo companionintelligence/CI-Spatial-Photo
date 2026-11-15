@@ -84,9 +84,13 @@ jobs:
 
       # The viewer part reads the build's source maps and the viewer's node_modules; the desktop
       # part runs `cargo metadata --locked` on desktop/src-tauri. Both are only possible here.
+      # The desktop part names the Rust standard library by the rustc it finds, so this job
+      # installs the same stable toolchain as the desktop jobs that link it.
       - name: Third-party notices for the viewer and the desktop app
         run: |
           set -euo pipefail
+          rustup toolchain install stable --profile minimal
+          rustup default stable
           node scripts/third-party-notices.mjs collect viewer --out notices/viewer.json
           node scripts/third-party-notices.mjs collect desktop --out notices/desktop.json
           node scripts/third-party-notices.mjs render --out notices/THIRD-PARTY-NOTICES-desktop.txt \

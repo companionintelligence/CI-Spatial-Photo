@@ -4,13 +4,16 @@ import {
   classifyLicenseText,
   linkedCrates,
   lockKeysForSource,
+  nonCrateCode,
   normalizeRepository,
   parseGradleDependencies,
+  peFileVersion,
   pomLicenses,
   renderNotices,
   requiredNoticeLines,
   spdxForPomLicense,
   spdxIds,
+  WEBVIEW2_SDK_LICENSE,
 } from './third-party-notices.mjs';
 
 test('repository fields become plain https URLs', () => {
@@ -180,6 +183,82 @@ test('rendering: one copy of each text, MPL sources up front, and a text for eve
   assert.match(text, /Copyright \(c\) Mads Marquart/);
   assert.match(text, /Platforms: aarch64-apple-darwin/);
   assert.doesNotMatch(text, /spdx\.org/);
+});
+
+test("a Windows DLL's file version is read from its VS_FIXEDFILEINFO", () => {
+  // dwSignature, dwStrucVersion, dwFileVersionMS, dwFileVersionLS, little-endian.
+  const info = Buffer.alloc(16);
+  info.writeUInt32LE(0xfeef04bd, 0);
+  info.writeUInt32LE(0x00010000, 4);
+  info.writeUInt32LE((1 << 16) | 0, 8);
+  info.writeUInt32LE((3800 << 16) | 47, 12);
+  assert.equal(peFileVersion(Buffer.concat([Buffer.from('MZ and the rest of the file'), info])), '1.0.3800.47');
+  assert.equal(peFileVersion(Buffer.from('MZ with no version resource')), null);
+});
+
+const DESKTOP = ['x86_64-pc-windows-msvc', 'aarch64-apple-darwin', 'x86_64-unknown-linux-gnu'];
+const WEBVIEW2_COM_SYS = { name: 'webview2-com-sys', version: '0.39.1', platforms: ['x86_64-pc-windows-msvc'] };
+const SDK = new Map([['0.39.1', '1.0.3800.47']]);
+
+test('the desktop part also names the standard library and the WebView2 loader the binary links', () => {
+  const crates = [WEBVIEW2_COM_SYS, { name: 'serde', version: '1.0.228', platforms: DESKTOP }];
+  const [std, loader, ...more] = nonCrateCode(crates, { targets: DESKTOP, rustVersion: '1.96.0', webview2Sdk: SDK });
+  assert.deepEqual(more, []);
+
+  assert.equal(std.name, 'Rust standard library (core, alloc, std)');
+  assert.equal(std.version, '1.96.0');
+  assert.equal(std.license, 'MIT OR Apache-2.0');
+  assert.deepEqual(std.platforms, DESKTOP);
+
+  // webview2-com-sys links Microsoft's loader statically on MSVC; its own MIT licence covers
+  // only the bindings, so the loader is credited separately with Microsoft's licence.
+  assert.equal(loader.name, 'Microsoft WebView2 SDK loader (WebView2LoaderStatic.lib)');
+  assert.equal(loader.version, '1.0.3800.47');
+  assert.deepEqual(loader.platforms, ['x86_64-pc-windows-msvc']);
+  assert.equal(loader.repository, 'https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.3800.47');
+  assert.match(loader.note, /inside webview2-com-sys 0\.39\.1/);
+  assert.deepEqual(loader.texts.map((t) => t.text), [WEBVIEW2_SDK_LICENSE]);
+  assert.match(WEBVIEW2_SDK_LICENSE, /^Copyright \(C\) Microsoft Corporation\. All rights reserved\.\n/);
+  assert.match(WEBVIEW2_SDK_LICENSE, /Redistributions in binary form must reproduce the above\ncopyright notice/);
+
+  // With no webview2-com-sys on an MSVC target, no loader is linked and none is listed.
+  const withoutIt = nonCrateCode([{ name: 'serde', version: '1.0.228', platforms: DESKTOP }], { targets: DESKTOP });
+  assert.deepEqual(withoutIt.map((p) => p.name), ['Rust standard library (core, alloc, std)']);
+  const gnuOnly = nonCrateCode([{ ...WEBVIEW2_COM_SYS, platforms: ['x86_64-pc-windows-gnu'] }], { targets: DESKTOP });
+  assert.equal(gnuOnly.length, 1);
+
+  // An SDK version that cannot be read still credits the loader, by the crate it comes in.
+  const [, unread] = nonCrateCode([WEBVIEW2_COM_SYS], { targets: DESKTOP });
+  assert.equal(unread.version, 'from webview2-com-sys 0.39.1');
+  assert.equal(unread.repository, 'https://www.nuget.org/packages/Microsoft.Web.WebView2');
+  assert.equal(nonCrateCode([], { targets: DESKTOP })[0].version, 'unknown');
+});
+
+test("rendering carries Microsoft's notice for the WebView2 loader and the standard library's MIT text", () => {
+  const packages = nonCrateCode([WEBVIEW2_COM_SYS], { targets: DESKTOP, rustVersion: '1.96.0', webview2Sdk: SDK });
+  const text = renderNotices([{ part: 'desktop', title: 'Desktop', packages }]);
+
+  const entry = text.match(
+    new RegExp(
+      [
+        String.raw`^\* Microsoft WebView2 SDK loader \(WebView2LoaderStatic\.lib\) 1\.0\.3800\.47`,
+        String.raw`  Licence: WebView2 SDK licence \(BSD-style\)`,
+        String.raw`  Source: https://www\.nuget\.org/packages/Microsoft\.Web\.WebView2/1\.0\.3800\.47`,
+        String.raw`  Platforms: x86_64-pc-windows-msvc`,
+        String.raw`  Statically linked into the Windows binary\. .*`,
+        String.raw`  Licence text: (T\d+)$`,
+      ].join('\n'),
+      'm',
+    ),
+  );
+  assert.ok(entry, 'the loader is listed with its version, licence, source, platform and a licence text');
+  // Microsoft's notice, conditions and disclaimer, in full, under that number.
+  const used = `[${entry[1]}] used by: Microsoft WebView2 SDK loader (WebView2LoaderStatic.lib) 1.0.3800.47\n`;
+  assert.ok(text.includes(used));
+  assert.ok(text.slice(text.indexOf(used)).includes(WEBVIEW2_SDK_LICENSE.trim()));
+
+  assert.match(text, /^\* Rust standard library \(core, alloc, std\) 1\.96\.0\n  Licence: MIT OR Apache-2\.0$/m);
+  assert.match(text, /^Copyright \(c\) The Rust Project Developers$/m);
 });
 
 test('rendering without the desktop part leaves out the Linux note', () => {
