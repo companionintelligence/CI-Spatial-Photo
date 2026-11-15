@@ -144,7 +144,7 @@ jobs:
             target-dir: release
           - name: macOS
             os: macos-latest
-            build-args: --target universal-apple-darwin --bundles dmg
+            build-args: --target universal-apple-darwin --bundles app,dmg
             target-dir: universal-apple-darwin/release
           - name: Linux
             os: ubuntu-22.04
