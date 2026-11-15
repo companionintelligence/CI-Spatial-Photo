@@ -40,6 +40,7 @@ jobs:
   viewer:
     name: Viewer and notices
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -69,6 +70,12 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: web-server/client/package-lock.json
+
+      # The root suite: both apps' native configuration, the third-party notices, the viewer
+      # check, the Worker and the viewer's build scripts. It reads only committed files and needs
+      # no install, so it runs first and a broken config fails here, before the platform builds.
+      - name: Root tests (native config, notices)
+        run: npm test
 
       - name: Install the viewer's dependencies
         working-directory: web-server/client
@@ -111,6 +118,7 @@ jobs:
   desktop:
     name: Desktop (${{ matrix.name }})
     needs: viewer
+    timeout-minutes: 60
     permissions:
       contents: read
     strategy:
@@ -260,6 +268,7 @@ jobs:
     needs: viewer
     if: inputs.android_signing != 'skip'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
     steps:
@@ -391,6 +400,7 @@ jobs:
       !cancelled() && needs.viewer.result == 'success' && needs.desktop.result == 'success' &&
       (needs.android.result == 'success' || needs.android.result == 'skipped')
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
