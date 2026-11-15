@@ -85,6 +85,8 @@ test('links out of the app open in the system browser', () => {
   assert.match(mainRs, /\.on_navigation\(/);
   assert.match(mainRs, /\.on_new_window\(/);
   assert.match(mainRs, /\.opener\(\)\.open_url\(/);
+  // The plugin's click script would take target="_blank" links away from on_new_window.
+  assert.match(mainRs, /open_js_links_on_click\(false\)/);
   assert.ok(cargoRequirement('tauri-plugin-opener'), 'tauri-plugin-opener is a dependency');
 });
 
