@@ -365,8 +365,11 @@ jobs:
           grep -q "package: name='com.companionintelligence.photo'" badging.txt
           grep -q "application-label:'Photo Time Machine'" badging.txt
           if grep -q 'application-debuggable' badging.txt; then echo "::error::the APK is debuggable"; exit 1; fi
-          unzip -l "$apk" | grep -q 'assets/public/THIRD-PARTY-NOTICES.txt'
-          unzip -l "$apk" | grep -q 'assets/public/LICENSE.txt'
+          # Listed into a file, not piped: `grep -q` stops reading at its first match, unzip then
+          # dies of SIGPIPE on its next write, and pipefail would fail the step on a good APK.
+          unzip -l "$apk" > apk-contents.txt
+          grep -Eq '[[:space:]]assets/public/THIRD-PARTY-NOTICES\.txt$' apk-contents.txt
+          grep -Eq '[[:space:]]assets/public/LICENSE\.txt$' apk-contents.txt
           mkdir -p dist
           cp "$apk" "dist/photo-time-machine-$TAG-android-$LABEL.apk"
           cp notices/android.json dist/
