@@ -19,8 +19,9 @@ on:
         required: true
       android_signing:
         description: >-
-          auto: the keystore secrets when they are set, otherwise a throwaway key.
-          keystore: require the secrets. throwaway: a key made for this run. skip: no APK.
+          auto: the keystore secrets when they are set, a throwaway key when none are (only some
+          set is an error). keystore: require the secrets. throwaway: a key made for this run.
+          skip: no APK.
         type: choice
         options: [auto, keystore, throwaway, skip]
         default: auto
@@ -341,20 +342,36 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
+          # Three secrets are required for the keystore; ANDROID_KEY_PASSWORD is optional.
+          missing=()
+          [ -n "$KEYSTORE_BASE64" ] || missing+=(ANDROID_KEYSTORE_BASE64)
+          [ -n "$KEYSTORE_PASSWORD" ] || missing+=(ANDROID_KEYSTORE_PASSWORD)
+          [ -n "$KEY_ALIAS" ] || missing+=(ANDROID_KEY_ALIAS)
           have_secrets=false
-          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ]; then have_secrets=true; fi
+          if [ "${#missing[@]}" -eq 0 ]; then have_secrets=true; fi
+          some_secrets=false
+          if [ -n "$KEYSTORE_BASE64$KEYSTORE_PASSWORD$KEY_ALIAS$KEY_PASSWORD" ]; then some_secrets=true; fi
           mode="$MODE"
           if [ "$mode" = auto ]; then
-            if [ "$have_secrets" = true ]; then mode=keystore; else mode=throwaway; fi
+            if [ "$have_secrets" = true ]; then
+              mode=keystore
+            elif [ "$some_secrets" = true ]; then
+              # Half a keystore is a mistake, not a choice: falling back to a throwaway key would
+              # publish an APK that cannot update, or be updated by, a release-signed one.
+              echo "::error::android_signing=auto found some of the Android keystore secrets but not ${missing[*]}. Set ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD and ANDROID_KEY_ALIAS (ANDROID_KEY_PASSWORD is optional), or delete all four to sign with a throwaway key, or run with android_signing=throwaway."
+              exit 1
+            else
+              mode=throwaway
+            fi
+          fi
+          if [ "$mode" = keystore ] && [ "$have_secrets" != true ]; then
+            echo "::error::android_signing=keystore needs the ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD and ANDROID_KEY_ALIAS secrets; not set: ${missing[*]}"
+            exit 1
           fi
           keydir="$RUNNER_TEMP/android-signing"
           mkdir -p "$keydir" && chmod 700 "$keydir"
           export ANDROID_KEYSTORE_FILE="$keydir/release.keystore"
           if [ "$mode" = keystore ]; then
-            if [ "$have_secrets" != true ]; then
-              echo "::error::android_signing=keystore needs the ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD and ANDROID_KEY_ALIAS secrets"
-              exit 1
-            fi
             printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_FILE"
             export ANDROID_KEYSTORE_PASSWORD="$KEYSTORE_PASSWORD"
             export ANDROID_KEY_ALIAS="$KEY_ALIAS"

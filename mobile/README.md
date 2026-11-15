@@ -112,7 +112,7 @@ The release workflow (`.github/workflows/native-release.yml`, input `android_sig
 
 | Mode | Key |
 | --- | --- |
-| `auto` (default) | the keystore secrets when they are set, otherwise `throwaway` |
+| `auto` (default) | the keystore secrets when they are set, `throwaway` when none are. Only some of them set fails the run, naming the missing ones |
 | `keystore` | `ANDROID_KEYSTORE_BASE64` (decoded into the runner's temp directory), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` (defaults to the store password) |
 | `throwaway` | a key made with `keytool` for that run and deleted after it |
 | `skip` | no APK |
