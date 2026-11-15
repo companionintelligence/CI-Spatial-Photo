@@ -46,23 +46,35 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
 
-      - name: Check the tag is new
-        env:
-          GH_TOKEN: ${{ github.token }}
+      # The tag names the version the apps were built as: v2.1.0, or v2.1.0-rc.1 (any
+      # pre-release suffix) for a candidate of that same version. The release is titled by the
+      # tag while the apps report their own version, so a tag for any other version is refused.
+      - name: Check the tag is the apps' version
         run: |
           set -euo pipefail
           if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
             echo "::error::'$TAG' is not a tag of the form v1.2.3 or v1.2.3-rc.1"; exit 1
           fi
+          version="${TAG#v}"
+          version="${version%%-*}"
+          desktop=$(node -p "require('./desktop/src-tauri/tauri.conf.json').version")
+          android=$(sed -n 's/^[[:space:]]*versionName "\([^"]*\)".*$/\1/p' mobile/android/app/build.gradle)
+          if [ "$desktop" != "$version" ] || [ "$android" != "$version" ]; then
+            echo "::error::the tag $TAG is for version $version, but the desktop app is version ${desktop:-unknown} (desktop/src-tauri/tauri.conf.json) and the Android app ${android:-unknown} (mobile/android/app/build.gradle). Tag the apps' version, with a suffix such as -rc.1 for a pre-release of it, or change the apps' version first."
+            exit 1
+          fi
+          echo "$TAG is version $version, which both apps are"
+
+      - name: Check the tag is new
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "::error::a release named $TAG already exists"; exit 1
           fi
           if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
             echo "::error::the tag $TAG already exists and points somewhere else; choose a new one"; exit 1
-          fi
-          version=$(node -p "require('./desktop/src-tauri/tauri.conf.json').version")
-          if [ "v$version" != "${TAG%%-*}" ]; then
-            echo "::warning::the apps say version $version, and the tag is $TAG"
           fi
 
       - uses: actions/setup-node@v7.1.0
