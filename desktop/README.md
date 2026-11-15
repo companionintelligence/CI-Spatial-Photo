@@ -103,9 +103,12 @@ standard library, and on Windows Microsoft's WebView2 loader, which webview2-com
 statically (`WebView2LoaderStatic.lib`) and whose licence asks every binary copy to carry
 Microsoft's notice. If webview2-com-sys moves to another WebView2 SDK, collecting the notices
 warns; compare the licence text in the script with that SDK's `LICENSE.txt` then. The notices
-are generated from the lockfiles at build time and never committed. On Linux the app uses the
-distribution's WebKitGTK and GTK (LGPL) through the package's dependencies; an AppImage would
-bundle them, which is why there is none.
+are generated from the lockfiles at build time and never committed. They cover the viewer and
+this app only: the APK carries the viewer's and the Android app's notices instead, and only the
+`THIRD-PARTY-NOTICES.txt` attached to a release, which the release workflow renders from every
+part it built, lists all of them. On Linux the app uses the distribution's WebKitGTK and GTK
+(LGPL) through the package's dependencies; an AppImage would bundle them, which is why there is
+none.
 
 ## Publishing
 

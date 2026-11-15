@@ -138,7 +138,10 @@ came back.
 The APK carries `LICENSE.txt` (PolyForm Noncommercial 1.0.0) and `THIRD-PARTY-NOTICES.txt` in its
 assets; inside the app they are at `http://localhost/LICENSE.txt` and
 `http://localhost/THIRD-PARTY-NOTICES.txt`. The notices list the viewer's npm packages, Capacitor
-(MIT) and the AndroidX, Kotlin and Cordova libraries (Apache-2.0), with their licence texts.
+(MIT) and the AndroidX, Kotlin and Cordova libraries (Apache-2.0), with their licence texts. They
+cover the viewer and this app only. The desktop installers carry the viewer's and the desktop
+app's notices instead, and only the `THIRD-PARTY-NOTICES.txt` attached to a release, which the
+release workflow renders from every part it built, lists all of them.
 
 ## Verified, and not
 

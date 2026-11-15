@@ -69,6 +69,9 @@ until the Hub listing is updated.
 ## Licence and checksums
 
 Photo Time Machine is licensed under the PolyForm Noncommercial License 1.0.0 (`LICENSE`).
-`THIRD-PARTY-NOTICES.txt` lists the third-party software inside each app, with the source of the
-MPL-2.0 components. The same files are installed with the desktop app and packaged in the APK.
-`SHA256SUMS.txt` has the SHA-256 checksum of every file in this release.
+`THIRD-PARTY-NOTICES.txt` lists the third-party software in every app in this release, with the
+source of the MPL-2.0 components. Each app also carries `LICENSE.txt` and a
+`THIRD-PARTY-NOTICES.txt` that covers only that app: the desktop installers put the viewer's and
+the desktop app's notices beside the app, and the APK has the viewer's and the Android app's in
+its assets. Only the file attached here has all of them. `SHA256SUMS.txt` has the SHA-256
+checksum of every file in this release.
