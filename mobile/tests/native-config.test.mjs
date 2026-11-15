@@ -69,8 +69,27 @@ test('scheme and cleartext: an http://localhost page that can reach a plain-HTTP
 test('permissions: the network, and the camera for head tracking', () => {
   assert.deepEqual(permissions.sort(), ['android.permission.CAMERA', 'android.permission.INTERNET']);
   assert.match(manifest, /<uses-feature android:name="android\.hardware\.camera" android:required="false" \/>/);
-  assert.match(manifest, /android:allowBackup="false"/);
   assert.doesNotMatch(manifest, /android:debuggable/);
+});
+
+test('no cloud backup and no device-to-device transfer of the app data', () => {
+  // The WebView's storage holds the server address and, with auth on, its bearer token.
+  // allowBackup="false" covers both kinds on Android 11 and earlier. For an app targeting API 31
+  // or later it stops cloud backup but, on some devices, not device-to-device transfers, so the
+  // data extraction rules exclude every domain from both. mobile/README.md, "Permissions".
+  assert.match(manifest, /android:allowBackup="false"/);
+  assert.match(manifest, /android:dataExtractionRules="@xml\/data_extraction_rules"/);
+  const rules = read(res, 'xml', 'data_extraction_rules.xml').replace(/<!--[\s\S]*?-->/g, '');
+  // An <include> would turn "everything but the excludes" into "only what is included".
+  assert.doesNotMatch(rules, /<include\b/);
+  const domains = ['database', 'device_database', 'device_file', 'device_root', 'device_sharedpref', 'external', 'file', 'root', 'sharedpref'];
+  // A section that is missing means "everything" for that kind of transfer.
+  for (const section of ['cloud-backup', 'device-transfer']) {
+    const body = rules.match(new RegExp(`<${section}>([\\s\\S]*?)</${section}>`))?.[1];
+    assert.ok(body, `<${section}> is there`);
+    const excluded = [...body.matchAll(/<exclude domain="([^"]+)" path="\."\s*\/>/g)].map((m) => m[1]);
+    assert.deepEqual(excluded.sort(), domains, section);
+  }
 });
 
 test('release builds are not debuggable and are signed only from the environment', () => {

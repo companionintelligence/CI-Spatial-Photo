@@ -60,7 +60,8 @@ until the Hub listing is updated.
   it is switched on, as the website does. No video leaves the device.
 - WebXR immersive AR is not available inside the apps; use the website in a browser that has it.
 - No analytics, no crash reporting and no automatic updates. The server address is stored only
-  inside the app.
+  inside the app. The Android app keeps its data out of backups and out of transfers to a new
+  phone, so enter your server again there.
 - External links (ci.computer, the docs) open in your browser.
 
 ## Licence and checksums

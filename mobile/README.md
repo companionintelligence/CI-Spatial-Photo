@@ -89,9 +89,16 @@ Hub) or an HTTPS address, and warns that a typed `localhost` is the phone itself
 | `CAMERA` | the XR button's webcam head tracking (front camera, video only), asked for when it is switched on. The camera is not a required feature, so devices without one can install the app |
 
 Android adds `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`, the app's own signature permission from
-AndroidX. Backups are off (`allowBackup="false"`): the WebView's storage holds the server address
-and, when the server has auth on, its bearer token. Links out of the app (ci.computer, the docs)
-open in the browser: Capacitor hands any page that is not the app's own to the system.
+AndroidX. Links out of the app (ci.computer, the docs) open in the browser: Capacitor hands any
+page that is not the app's own to the system.
+
+The app's data is neither backed up nor transferred to another device, because the WebView's
+storage holds the server address and, when the server has auth on, its bearer token.
+`allowBackup="false"` does that alone on Android 11 and earlier. From Android 12 on, for an app
+that targets API 31 or later, it stops cloud backup but, on some manufacturers' devices, not
+device-to-device transfers. So `android:dataExtractionRules` points at
+`res/xml/data_extraction_rules.xml`, which excludes every data domain from both cloud backup and
+device transfer and includes nothing. On a new phone, people enter their server again.
 
 ## Signing
 
@@ -139,11 +146,14 @@ Verified on Windows with the Android SDK (local build): `cap sync android` and
 `./gradlew assembleRelease` with a throwaway key made outside the clone; `apksigner verify` (v2
 scheme, one signer); `aapt2 dump badging` (package, label "Photo Time Machine", versionName
 2.1.0, versionCode 210, INTERNET and CAMERA, minSdk 24, targetSdk 36, not debuggable); the
-notices and licence in the APK's assets. On an Android 15 emulator (WebView 124, software
-rendering), the release APK showed the setup card without presets and with the phone's copy,
-connected to a plain-HTTP server on the host, loaded a gallery thumbnail and rendered a splat,
-and the footer's Docs link opened Chrome. Not run: a physical device, the camera prompt and head
-tracking, an HTTPS server, and Android versions before 15.
+notices and licence in the APK's assets; `aapt2 dump xmltree` of the merged manifest
+(`allowBackup` false, `dataExtractionRules` pointing at the rules) and of the compiled rules
+(all nine domains excluded from both cloud backup and device transfer). On an Android 15
+emulator (WebView 124, software rendering), the release APK showed the setup card without
+presets and with the phone's copy, connected to a plain-HTTP server on the host, loaded a
+gallery thumbnail and rendered a splat, and the footer's Docs link opened Chrome. Not run: a
+physical device, the camera prompt and head tracking, an HTTPS server, Android versions before
+15, and a real cloud backup or device-to-device transfer.
 
 ## Before a store build
 
