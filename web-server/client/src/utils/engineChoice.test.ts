@@ -31,9 +31,9 @@ const preview = wire({
   intents: ['auto', 'scene'],
   output_kind: 'splat',
   output_formats: ['ply'],
-  commercial: true,
+  commercial: false,
   requires_gpu: false,
-  license: 'MIT (this project)',
+  license: 'PolyForm Noncommercial 1.0.0 (this project)',
   available: true,
   unavailable_reason: null,
 });
@@ -239,7 +239,7 @@ describe('explicitEngineBlocker', () => {
 describe('engineMetaLine', () => {
   it('leads with the facts that survive truncation in a 296px column', () => {
     expect(engineMetaLine(preview)).toBe(
-      'Runs on CPU · splat (ply) · MIT (this project) · Commercial OK',
+      'Runs on CPU · splat (ply) · PolyForm Noncommercial 1.0.0 (this project) · Non-commercial',
     );
     // SHARP's own capabilities row says requires_gpu=False (CPU/MPS/CUDA; only
     // the video render needs CUDA), so the badge follows the server, not the

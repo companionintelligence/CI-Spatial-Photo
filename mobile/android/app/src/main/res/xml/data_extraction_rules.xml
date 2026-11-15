@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 and later: none of the app's data goes into a cloud backup or a device-to-device
+     transfer. For an app that targets API 31 or later, android:allowBackup="false" stops cloud
+     backup but, on some manufacturers' devices, not device-to-device transfers, and a section
+     missing here would let that kind of transfer take everything. So both sections exclude
+     every domain whole ("." is the domain's own directory), and nothing is included. The
+     WebView's storage, which holds the server address and, when the server has auth on, its
+     bearer token, is in the root domain. mobile/README.md, "Permissions". -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+        <exclude domain="device_root" path="." />
+        <exclude domain="device_file" path="." />
+        <exclude domain="device_database" path="." />
+        <exclude domain="device_sharedpref" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+        <exclude domain="device_root" path="." />
+        <exclude domain="device_file" path="." />
+        <exclude domain="device_database" path="." />
+        <exclude domain="device_sharedpref" path="." />
+    </device-transfer>
+</data-extraction-rules>

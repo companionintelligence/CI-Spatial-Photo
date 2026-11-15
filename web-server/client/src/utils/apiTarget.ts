@@ -23,6 +23,8 @@
  * common ancestor is App, which should not own it.
  */
 
+import { NativeShell, nativeShell } from './nativeShell';
+
 /*
   `targetAddressSpace` is part of the Local Network Access spec and is not in
   TypeScript's DOM lib yet. Declared here rather than cast at the call site, so the one
@@ -195,7 +197,7 @@ function crossesIntoMorePrivateSpace(targetSpace: Exclude<AddressSpace, 'same-or
  * splats (fetched) still load. A viewer that shows splats but no thumbnails and no
  * meshes is a confusing thing to debug from scratch, so it is stated up front.
  */
-export function describeTarget(target: string): TargetInfo {
+export function describeTarget(target: string, shell: NativeShell | null = nativeShell()): TargetInfo {
   if (target === SAME_ORIGIN) {
     return { target, base: '', space: 'same-origin', secure: true, warnings: [] };
   }
@@ -204,6 +206,19 @@ export function describeTarget(target: string): TargetInfo {
   const space = classifyHost(url.hostname);
   const secure = url.protocol === 'https:';
   const warnings: string[] = [];
+
+  /*
+    The Android app's page is http://localhost, so to the browser rules below this looks like
+    the quiet everything-local setup. It is not: the page lives on the phone, and so does
+    "localhost". The app allows plain HTTP (mobile/README.md), so a LAN address needs no
+    warning there; this one does.
+  */
+  if (shell === 'android' && space === 'loopback') {
+    warnings.push(
+      'On this phone, "localhost" is the phone itself, not your computer. Enter the address ' +
+        'your computer has on your network, or its tunnel address.',
+    );
+  }
 
   if (crossesIntoMorePrivateSpace(space)) {
     warnings.push(
@@ -413,8 +428,11 @@ export async function probeServer(rawTarget: string): Promise<ProbeResult> {
           ok: false,
           code: 'origin_not_configured',
           error:
-            'That address is a static page with no server behind it. Run your own server, ' +
-            'then choose “This machine” or enter its tunnel address.',
+            nativeShell() === 'android'
+              ? 'That address is a static page with no server behind it. Run your own server, ' +
+                'then enter its address.'
+              : 'That address is a static page with no server behind it. Run your own server, ' +
+                'then choose “This machine” or enter its tunnel address.',
         };
       }
       return {

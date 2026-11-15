@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Merged into the macOS bundle's Info.plist by the Tauri CLI (it reads Info.plist from this
+  directory). Only what the viewer actually uses.
+-->
+<plist version="1.0">
+<dict>
+	<!-- The XR button's webcam head tracking (getUserMedia, video only). macOS ends an app
+	     that opens the camera without this string. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Photo Time Machine uses the camera for head tracking while XR is on. Video stays on this Mac.</string>
+	<!-- The processing server is often another computer on the same network. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Photo Time Machine connects to the Photo Time Machine server you choose, which can be on your local network.</string>
+	<!-- "This machine" is http://localhost:8000, and a server on the LAN is often plain HTTP.
+	     Allow plain HTTP to local addresses only; everything else keeps App Transport Security. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

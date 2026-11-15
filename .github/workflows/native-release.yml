@@ -1,0 +1,510 @@
+name: Native release
+
+# Builds the desktop installers and the Android APK from one viewer build and publishes them as
+# a GitHub pre-release. Manual only, like every workflow in this repo (docs/CI.md):
+#
+#   gh workflow run native-release.yml --repo companionintelligence/CI-Spatial-Photo \
+#     --ref main -f tag=v2.1.0 -f android_signing=auto
+#
+# Nothing here is a store build. Windows and Linux builds are unsigned and macOS is ad hoc signed
+# (desktop/README.md). The APK is signed with the release keystore when its secrets are set,
+# otherwise with a key made for this run and thrown away (mobile/README.md). No API key, server
+# address or analytics ID goes into any build: the binaries are public and anyone can unpack them.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag for the new pre-release, e.g. v2.1.0. It must not exist yet."
+        type: string
+        required: true
+      android_signing:
+        description: >-
+          auto: the keystore secrets when they are set, a throwaway key when none are (only some
+          set is an error). keystore: require the secrets. throwaway: a key made for this run.
+          skip: no APK.
+        type: choice
+        options: [auto, keystore, throwaway, skip]
+        default: auto
+
+permissions:
+  contents: write
+
+concurrency:
+  group: native-release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  # Inputs reach scripts through the environment, never by interpolation into a script.
+  TAG: ${{ inputs.tag }}
+
+jobs:
+  viewer:
+    name: Viewer and notices
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      # The tag names the version the apps were built as: v2.1.0, or v2.1.0-rc.1 (any
+      # pre-release suffix) for a candidate of that same version. The release is titled by the
+      # tag while the apps report their own version, so a tag for any other version is refused.
+      - name: Check the tag is the apps' version
+        run: |
+          set -euo pipefail
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$TAG' is not a tag of the form v1.2.3 or v1.2.3-rc.1"; exit 1
+          fi
+          version="${TAG#v}"
+          version="${version%%-*}"
+          desktop=$(node -p "require('./desktop/src-tauri/tauri.conf.json').version")
+          android=$(sed -n 's/^[[:space:]]*versionName "\([^"]*\)".*$/\1/p' mobile/android/app/build.gradle)
+          if [ "$desktop" != "$version" ] || [ "$android" != "$version" ]; then
+            echo "::error::the tag $TAG is for version $version, but the desktop app is version ${desktop:-unknown} (desktop/src-tauri/tauri.conf.json) and the Android app ${android:-unknown} (mobile/android/app/build.gradle). Tag the apps' version, with a suffix such as -rc.1 for a pre-release of it, or change the apps' version first."
+            exit 1
+          fi
+          echo "$TAG is version $version, which both apps are"
+
+      - name: Check the tag is new
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::a release named $TAG already exists"; exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "::error::the tag $TAG already exists and points somewhere else; choose a new one"; exit 1
+          fi
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web-server/client/package-lock.json
+
+      # The root suite: both apps' native configuration, the third-party notices, the viewer
+      # check, the Worker and the viewer's build scripts. It reads only committed files and needs
+      # no install, so it runs first and a broken config fails here, before the platform builds.
+      - name: Root tests (native config, notices)
+        run: npm test
+
+      - name: Install the viewer's dependencies
+        working-directory: web-server/client
+        run: npm ci --no-audit --no-fund
+
+      # Built once, here, and handed to every app job. The root build unsets REACT_APP_API_BASE,
+      # so the bundle asks for a server; GA_MEASUREMENT_ID is unset too, so it has no analytics.
+      - name: Build the viewer
+        run: env -u REACT_APP_API_BASE -u GA_MEASUREMENT_ID -u REACT_APP_GA_MEASUREMENT_ID npm run build
+
+      - name: Check it carries no server address and no analytics
+        run: node scripts/check-app-viewer.mjs
+
+      # The viewer part reads the build's source maps and the viewer's node_modules; the desktop
+      # part runs `cargo metadata --locked` on desktop/src-tauri. Both are only possible here.
+      # The desktop part names the Rust standard library by the rustc it finds, so this job
+      # installs the same stable toolchain as the desktop jobs that link it.
+      - name: Third-party notices for the viewer and the desktop app
+        run: |
+          set -euo pipefail
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          node scripts/third-party-notices.mjs collect viewer --out notices/viewer.json
+          node scripts/third-party-notices.mjs collect desktop --out notices/desktop.json
+          node scripts/third-party-notices.mjs render --out notices/THIRD-PARTY-NOTICES-desktop.txt \
+            notices/viewer.json notices/desktop.json
+
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: viewer-build
+          path: web-server/client/build
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: notices
+          path: notices
+          if-no-files-found: error
+
+  desktop:
+    name: Desktop (${{ matrix.name }})
+    needs: viewer
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            build-args: --bundles nsis,msi
+            target-dir: release
+          - name: macOS
+            os: macos-latest
+            build-args: --target universal-apple-darwin --bundles dmg
+            target-dir: universal-apple-darwin/release
+          - name: Linux
+            os: ubuntu-22.04
+            build-args: --bundles deb,rpm
+            target-dir: release
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      TARGET_DIR: desktop/src-tauri/target/${{ matrix.target-dir }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: viewer-build
+          path: web-server/client/build
+
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: notices
+          path: notices
+
+      - name: Put the notices where the bundle takes them from
+        run: |
+          mkdir -p desktop/src-tauri/notices
+          cp notices/THIRD-PARTY-NOTICES-desktop.txt desktop/src-tauri/notices/THIRD-PARTY-NOTICES.txt
+
+      # deb and rpm only: no AppImage, which would bundle the LGPL WebKitGTK and GTK libraries.
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf \
+            libxdo-dev libssl-dev build-essential file xvfb
+
+      - name: Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          if [ "$RUNNER_OS" = macOS ]; then rustup target add aarch64-apple-darwin x86_64-apple-darwin; fi
+          rustc --version
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Install the Tauri CLI
+        working-directory: desktop
+        run: npm ci --no-audit --no-fund
+
+      - name: Icons from assets/icon.svg
+        working-directory: desktop
+        run: npm run icons
+
+      # The viewer is already built (above), so this is `tauri build` alone, not `npm run build`.
+      - name: Build
+        working-directory: desktop
+        run: npx tauri build --ci ${{ matrix.build-args }}
+
+      - name: Collect the installers
+        run: |
+          set -euo pipefail
+          bundle="$TARGET_DIR/bundle"
+          mkdir -p dist
+          case "$RUNNER_OS" in
+            Windows)
+              cp "$bundle"/nsis/*-setup.exe "dist/photo-time-machine-$TAG-windows-x64-setup.exe"
+              cp "$bundle"/msi/*.msi "dist/photo-time-machine-$TAG-windows-x64.msi" ;;
+            macOS)
+              cp "$bundle"/dmg/*.dmg "dist/photo-time-machine-$TAG-macos-universal.dmg" ;;
+            Linux)
+              cp "$bundle"/deb/*.deb "dist/photo-time-machine-$TAG-linux-amd64.deb"
+              cp "$bundle"/rpm/*.rpm "dist/photo-time-machine-$TAG-linux-x86_64.rpm" ;;
+          esac
+          ls -la dist
+
+      # Smoke tests: the bundle is what the README promises, and the app starts and stays up.
+      - name: Check the macOS bundle
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          app=$(ls -d "$TARGET_DIR"/bundle/macos/*.app)
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv "$app" 2>&1 | tee codesign.txt
+          grep -q 'Signature=adhoc' codesign.txt
+          /usr/libexec/PlistBuddy -c 'Print :NSCameraUsageDescription' "$app/Contents/Info.plist"
+          archs=$(lipo -archs "$app"/Contents/MacOS/*)
+          [[ "$archs" == *x86_64* && "$archs" == *arm64* ]] || { echo "::error::not universal: $archs"; exit 1; }
+          test -f "$app/Contents/Resources/THIRD-PARTY-NOTICES.txt"
+          test -f "$app/Contents/Resources/LICENSE.txt"
+          hdiutil verify dist/*.dmg
+
+      - name: Check the Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          deb=$(ls dist/*.deb)
+          dpkg-deb --info "$deb"
+          dpkg-deb --contents "$deb" | tee deb-contents.txt
+          grep -q 'THIRD-PARTY-NOTICES.txt' deb-contents.txt
+          grep -q 'LICENSE.txt' deb-contents.txt
+
+      - name: Start the app and check it stays up for 15 seconds
+        run: |
+          set -euo pipefail
+          case "$RUNNER_OS" in
+            Windows) exe="$TARGET_DIR/photo-time-machine.exe" ;;
+            Linux) exe="$TARGET_DIR/photo-time-machine" ;;
+            macOS) exe=$(ls "$TARGET_DIR"/bundle/macos/*.app/Contents/MacOS/* | head -n 1) ;;
+          esac
+          if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a "$exe" & else "$exe" & fi
+          pid=$!
+          sleep 15
+          if ! kill -0 "$pid" 2>/dev/null; then
+            wait "$pid" || true
+            echo "::error::the app exited within 15 seconds of starting"
+            exit 1
+          fi
+          echo "still running after 15 seconds"
+          if [ "$RUNNER_OS" = Windows ]; then taskkill //F //T //IM photo-time-machine.exe || true; else pkill -f photo-time-machine || true; fi
+
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: desktop-${{ matrix.name }}
+          path: dist
+          if-no-files-found: error
+
+  android:
+    name: Android (${{ inputs.android_signing }})
+    needs: viewer
+    if: inputs.android_signing != 'skip'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: viewer-build
+          path: web-server/client/build
+
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: notices
+          path: notices
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v6.3.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install Capacitor
+        working-directory: mobile
+        run: npm ci --no-audit --no-fund
+
+      - name: Copy the viewer into the app
+        working-directory: mobile
+        run: npm run copy:web && npx cap sync android
+
+      # The Android part needs the synced Gradle project; the notices then go into www/ and are
+      # copied into the APK's assets with the viewer.
+      - name: Third-party notices for the Android app
+        working-directory: mobile
+        run: |
+          set -euo pipefail
+          chmod +x android/gradlew
+          node ../scripts/third-party-notices.mjs collect android --out ../notices/android.json
+          node ../scripts/third-party-notices.mjs render --out www/THIRD-PARTY-NOTICES.txt \
+            ../notices/viewer.json ../notices/android.json
+          npx cap copy android
+
+      # The key lives in the runner's temp directory for this step only: decoded from the
+      # keystore secret, or made here and never stored. app/build.gradle signs with it only
+      # because all four ANDROID_KEY* variables are set.
+      - name: Build the release APK
+        id: apk
+        working-directory: mobile/android
+        env:
+          MODE: ${{ inputs.android_signing }}
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # Three secrets are required for the keystore; ANDROID_KEY_PASSWORD is optional.
+          missing=()
+          [ -n "$KEYSTORE_BASE64" ] || missing+=(ANDROID_KEYSTORE_BASE64)
+          [ -n "$KEYSTORE_PASSWORD" ] || missing+=(ANDROID_KEYSTORE_PASSWORD)
+          [ -n "$KEY_ALIAS" ] || missing+=(ANDROID_KEY_ALIAS)
+          have_secrets=false
+          if [ "${#missing[@]}" -eq 0 ]; then have_secrets=true; fi
+          some_secrets=false
+          if [ -n "$KEYSTORE_BASE64$KEYSTORE_PASSWORD$KEY_ALIAS$KEY_PASSWORD" ]; then some_secrets=true; fi
+          mode="$MODE"
+          if [ "$mode" = auto ]; then
+            if [ "$have_secrets" = true ]; then
+              mode=keystore
+            elif [ "$some_secrets" = true ]; then
+              # Half a keystore is a mistake, not a choice: falling back to a throwaway key would
+              # publish an APK that cannot update, or be updated by, a release-signed one.
+              echo "::error::android_signing=auto found some of the Android keystore secrets but not ${missing[*]}. Set ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD and ANDROID_KEY_ALIAS (ANDROID_KEY_PASSWORD is optional), or delete all four to sign with a throwaway key, or run with android_signing=throwaway."
+              exit 1
+            else
+              mode=throwaway
+            fi
+          fi
+          if [ "$mode" = keystore ] && [ "$have_secrets" != true ]; then
+            echo "::error::android_signing=keystore needs the ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD and ANDROID_KEY_ALIAS secrets; not set: ${missing[*]}"
+            exit 1
+          fi
+          keydir="$RUNNER_TEMP/android-signing"
+          mkdir -p "$keydir" && chmod 700 "$keydir"
+          export ANDROID_KEYSTORE_FILE="$keydir/release.keystore"
+          if [ "$mode" = keystore ]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_FILE"
+            export ANDROID_KEYSTORE_PASSWORD="$KEYSTORE_PASSWORD"
+            export ANDROID_KEY_ALIAS="$KEY_ALIAS"
+            export ANDROID_KEY_PASSWORD="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
+            label=release-signed
+          else
+            password=$(openssl rand -hex 24)
+            echo "::add-mask::$password"
+            keytool -genkeypair -keystore "$ANDROID_KEYSTORE_FILE" -storetype PKCS12 -alias throwaway \
+              -keyalg RSA -keysize 3072 -validity 3650 -noprompt \
+              -dname "CN=Photo Time Machine pre-release (throwaway key)" \
+              -storepass "$password" -keypass "$password"
+            export ANDROID_KEYSTORE_PASSWORD="$password" ANDROID_KEY_ALIAS=throwaway ANDROID_KEY_PASSWORD="$password"
+            label=throwaway-signed
+          fi
+          ./gradlew --no-daemon assembleRelease
+          rm -rf "$keydir"
+          echo "label=$label" >> "$GITHUB_OUTPUT"
+
+      - name: Remove the signing key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/android-signing"
+
+      - name: Check the APK
+        env:
+          LABEL: ${{ steps.apk.outputs.label }}
+        run: |
+          set -euo pipefail
+          tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
+          apk=mobile/android/app/build/outputs/apk/release/app-release.apk
+          "$tools/apksigner" verify --verbose --print-certs "$apk"
+          "$tools/aapt2" dump badging "$apk" | tee badging.txt
+          grep -q "package: name='com.companionintelligence.photo'" badging.txt
+          grep -q "application-label:'Photo Time Machine'" badging.txt
+          if grep -q 'application-debuggable' badging.txt; then echo "::error::the APK is debuggable"; exit 1; fi
+          # Listed into a file, not piped: `grep -q` stops reading at its first match, unzip then
+          # dies of SIGPIPE on its next write, and pipefail would fail the step on a good APK.
+          unzip -l "$apk" > apk-contents.txt
+          grep -Eq '[[:space:]]assets/public/THIRD-PARTY-NOTICES\.txt$' apk-contents.txt
+          grep -Eq '[[:space:]]assets/public/LICENSE\.txt$' apk-contents.txt
+          mkdir -p dist
+          cp "$apk" "dist/photo-time-machine-$TAG-android-$LABEL.apk"
+          cp notices/android.json dist/
+
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: android
+          path: dist
+          if-no-files-found: error
+
+  publish:
+    name: Publish the pre-release
+    needs: [viewer, desktop, android]
+    if: >-
+      !cancelled() && needs.viewer.result == 'success' && needs.desktop.result == 'success' &&
+      (needs.android.result == 'success' || needs.android.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "22"
+
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          path: artifacts
+
+      - name: Assemble the release files
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          cp artifacts/desktop-*/* release/
+          parts="artifacts/notices/viewer.json artifacts/notices/desktop.json"
+          if [ -d artifacts/android ]; then
+            cp artifacts/android/*.apk release/
+            parts="$parts artifacts/android/android.json"
+          fi
+          cp LICENSE release/LICENSE
+          node scripts/third-party-notices.mjs render --out release/THIRD-PARTY-NOTICES.txt $parts
+          (cd release && sha256sum -- * > SHA256SUMS.txt)
+          ls -la release
+          cat release/SHA256SUMS.txt
+
+      - name: Release notes
+        run: |
+          set -euo pipefail
+          apk=$(ls release/*.apk 2>/dev/null | head -n 1 || true)
+          node - "$apk" > notes.md <<'EOF'
+          const fs = require('fs');
+          const path = require('path');
+          const apk = process.argv[2] ? path.basename(process.argv[2]) : '';
+          const version = require('./desktop/src-tauri/tauri.conf.json').version;
+          let android;
+          if (!apk) {
+            android = 'No Android build in this release.';
+          } else {
+            const throwaway = apk.includes('throwaway-signed');
+            android = [
+              `\`${apk}\` is a release (not debuggable) build for Android 7 and later. To install it,`,
+              'open the file on the phone and allow your browser or file manager to install unknown apps',
+              'when Android asks (Settings > Apps > Special app access > Install unknown apps).',
+              'Camera access is asked for only when you switch on head tracking.',
+              '',
+              throwaway
+                ? '**Signing:** this APK is signed with a key that was made for this build and then thrown away. ' +
+                  'A later build signed with any other key will not install over it: uninstall this one first, ' +
+                  'which also clears the server address it remembers.'
+                : '**Signing:** this APK is signed with the project\'s release key. A build signed with a ' +
+                  'different key (an earlier throwaway-signed pre-release, for example) will not install over it, ' +
+                  'or it over that: uninstall the other one first.',
+            ].join('\n');
+          }
+          const notes = fs.readFileSync('.github/native-release/notes.md', 'utf8')
+            .replaceAll('{{TAG}}', process.env.TAG)
+            .replaceAll('{{VERSION}}', version)
+            .replaceAll('{{COMMIT}}', process.env.GITHUB_SHA)
+            .replaceAll('{{ANDROID}}', android);
+          process.stdout.write(notes);
+          EOF
+          cat notes.md
+
+      - name: Create the pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Photo Time Machine $TAG (pre-release)" \
+            --notes-file notes.md

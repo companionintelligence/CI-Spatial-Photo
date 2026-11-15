@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Drawn from assets/icon.svg by mobile/scripts/native-art.mjs: the tile's gradient behind,
+     the two frames in front, inside the safe zone. The frames double as the themed
+     (monochrome) icon on Android 13 and later. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+    <monochrome android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>

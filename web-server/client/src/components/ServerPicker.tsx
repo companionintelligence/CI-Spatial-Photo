@@ -9,6 +9,7 @@ import {
   probeServer,
   setApiTarget,
 } from '../utils/apiTarget';
+import { NativeShell, nativeShell } from '../utils/nativeShell';
 import { DOCS_URL, HOSTED_VIEWER_HOST } from '../siteLinks';
 import { CompanionCallouts } from './SiteLinks';
 
@@ -40,11 +41,13 @@ function isStaticHostedViewer(): boolean {
   return typeof window !== 'undefined' && window.location.hostname === HOSTED_VIEWER_HOST;
 }
 
+const THIS_MACHINE = 'http://localhost:8000';
+
 /** The answers that are worth one click each. */
 const PRESETS: { label: string; value: string; hint: string }[] = [
   {
     label: 'This machine',
-    value: 'http://localhost:8000',
+    value: THIS_MACHINE,
     hint: 'A server running on the same computer as this browser',
   },
   {
@@ -60,7 +63,18 @@ const PRESETS: { label: string; value: string; hint: string }[] = [
   `origin_not_configured` by design — so offering the preset there is a button whose only
   possible outcome is an error. It is hidden from the start on that host, and hidden after
   the fact on any other host whose probe comes back with the same answer.
+
+  Inside the desktop or Android app the page comes from the app itself (utils/nativeShell.ts),
+  so "Same host" is hidden there too. And in the Android app "This machine" would be the
+  phone, which runs no server, so that preset goes as well and the address field is the way in.
 */
+export function presetsFor(shell: NativeShell | null, sameHostUnavailable: boolean) {
+  return PRESETS.filter((preset) => {
+    if (preset.value === SAME_ORIGIN) return shell === null && !sameHostUnavailable;
+    if (preset.value === THIS_MACHINE) return shell !== 'android';
+    return true;
+  });
+}
 
 interface ServerFormProps {
   /** Pre-fill, for the "change it later" case. */
@@ -89,7 +103,7 @@ const ServerForm: React.FC<ServerFormProps> = ({
   */
   const [info, setInfo] = useState<TargetInfo | null>(null);
   const [sameHostUnavailable, setSameHostUnavailable] = useState(isStaticHostedViewer);
-  const presets = PRESETS.filter((p) => p.value !== SAME_ORIGIN || !sameHostUnavailable);
+  const presets = presetsFor(nativeShell(), sameHostUnavailable);
   useEffect(() => {
     const normalized = normalizeTarget(value);
     setInfo(normalized === null ? null : describeTarget(normalized));
@@ -260,9 +274,13 @@ export const ServerSetup: React.FC<{ onConnected: () => void; sharedLink?: boole
       )}
 
       <p className="mb-4 text-xs leading-relaxed text-gray-400">
-        Photos are turned into 3D on a machine you control — this page is static and never
-        handles them. Give it the address of your Photo Time Machine server and it is
-        remembered in this browser only.
+        {nativeShell() === null
+          ? 'Photos are turned into 3D on a machine you control — this page is static and never ' +
+            'handles them. Give it the address of your Photo Time Machine server and it is ' +
+            'remembered in this browser only.'
+          : 'Photos are turned into 3D on a machine you control — this app never handles them. ' +
+            'Give it the address of your Photo Time Machine server and it is remembered in this ' +
+            'app only.'}
       </p>
 
       <ServerForm
@@ -271,9 +289,25 @@ export const ServerSetup: React.FC<{ onConnected: () => void; sharedLink?: boole
         footer={
           <div className="space-y-3 border-t border-gray-800 pt-3">
             <p className="text-xs leading-snug text-gray-400">
-              No server yet? It runs on a computer you control: start it there, then choose
-              &ldquo;This machine&rdquo;. To reach it from a phone or a headset it needs an HTTPS
-              address, and a tunnel is the usual way. The{' '}
+              {nativeShell() === 'android' ? (
+                /*
+                  "This machine" is not offered here (presetsFor), so the copy that points at it
+                  says what to type instead. The app allows plain HTTP, so an address on the
+                  same network works; the two ports are docker compose's and the Hub's.
+                */
+                <>
+                  No server yet? It runs on a computer you control, not on this phone. On the
+                  same network, enter that computer&rsquo;s address and the server&rsquo;s port
+                  (8000 with docker compose, 18831 on a Companion Hub). Anywhere else it needs
+                  an HTTPS address, and a tunnel is the usual way. The{' '}
+                </>
+              ) : (
+                <>
+                  No server yet? It runs on a computer you control: start it there, then choose
+                  &ldquo;This machine&rdquo;. To reach it from a phone or a headset it needs an
+                  HTTPS address, and a tunnel is the usual way. The{' '}
+                </>
+              )}
               <a
                 href={DOCS_URL}
                 className="text-primary-200 underline underline-offset-2 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-400"

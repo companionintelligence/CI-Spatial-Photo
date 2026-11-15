@@ -1,0 +1,12 @@
+# Installed here, not in the root workspace.
+node_modules/
+
+# The viewer build, copied in by `npm run copy:web`.
+www/
+
+# Release signing: never commit keys or their passwords. The release workflow decodes or
+# makes its key in the runner's temp directory, outside the checkout.
+*.jks
+*.keystore
+*.p12
+keystore.properties

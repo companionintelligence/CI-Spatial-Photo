@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Desktop and Android apps, as pre-releases.** The viewer as a Tauri 2 app for Windows, macOS
+  and Linux (`desktop/`: NSIS and MSI installers, a universal DMG, deb and rpm, never an
+  AppImage) and as a Capacitor 8 app for Android 7 and later (`mobile/`: a sideloaded APK). Both
+  bundle the same build as photo.ci.computer, with no server address and no analytics, and ask
+  for your server on first start. The server picker knows when it is inside an app: it hides
+  the presets that cannot work there and says what to enter instead. They are not store builds:
+  the Windows and Linux installers are unsigned, the macOS app is ad hoc signed, and the APK is
+  signed with the release keystore only when its secrets are set, otherwise with a throwaway
+  key. The Android app keeps its data out of backups and device-to-device transfers.
+- **A dispatch-only release workflow** (`native-release.yml`) that runs the root tests, builds
+  the viewer once, builds every desktop installer and the APK from it, and publishes them as a
+  GitHub pre-release with `SHA256SUMS.txt`. It refuses a tag that is not the apps' version (a
+  pre-release suffix such as `-rc.1` is fine) and half-set keystore secrets.
+- **Third-party notices in the apps**, generated from the lockfiles by
+  `scripts/third-party-notices.mjs`: each app carries `LICENSE.txt` and the notices for what is
+  inside it, and each release attaches one file with the notices for every app in it.
 - **Links back to Companion Intelligence** on every screen of the hosted viewer: the logo in
   the header, a footer, and "Buy Companion Core" / "Download Companion" callouts in the
   first-run card and the empty-state hero, plus Docs. The same links are in the no-JavaScript
@@ -33,6 +49,11 @@ All notable changes to this project are documented here. The format follows
 - **CORS with auth off** (`AUTH_DISABLED=1`, the default) now allows loopback origins,
   `https://photo.ci.computer`, the origin of `PUBLIC_BASE_URL` and `ALLOWED_ORIGINS`, instead of
   every origin. With auth on it is unchanged (any origin; the bearer token is the gate).
+- **CORS with auth off accepts the desktop app**: `tauri://localhost` (macOS and Linux),
+  `http://tauri.localhost` (Windows) and `https://tauri.localhost`, by exact name; lookalikes
+  are refused. The Android app's `http://localhost` is loopback and was already allowed. A
+  2.0.0 server refuses the desktop app until it is started with
+  `ALLOWED_ORIGINS=tauri://localhost,http://tauri.localhost`.
 - The server-address placeholder and doc examples use `my-server.example.com`, a host that
   cannot exist, instead of two invented `ci.computer` names that did not resolve.
 - The viewer's share-link copy now says the link points at your own server.
@@ -44,6 +65,10 @@ All notable changes to this project are documented here. The format follows
   nginx passes `/api/` and `/healthz` to the processing server at `API_UPSTREAM` (default
   `http://server:8000`, the compose service). Uploads through the proxy are unbuffered and
   unlimited, as they are on the server's own port.
+- **The preview engine advertises this project's licence.** It still reported "MIT (this
+  project)" and commercial use allowed, from before the move to PolyForm Noncommercial 1.0.0,
+  and the Create panel showed "Commercial OK" under it. It now reports "PolyForm Noncommercial
+  1.0.0 (this project)", which the panel shows as "Non-commercial". Routing is unchanged.
 - The empty-state hero's "Buy Companion Core" and "Download Companion" buttons took focus
   and showed a Tab ring but ignored mouse clicks: the HUD overlay is `pointer-events-none`
   and the hero never re-enabled them, so the click fell through to the 3D scene. The

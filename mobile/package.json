@@ -1,0 +1,29 @@
+{
+  "name": "photo-time-machine-mobile",
+  "version": "2.1.0",
+  "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "description": "Photo Time Machine Android app (Capacitor 8). A standalone npm project, not a workspace: it ships a copy of the viewer build from www/ and never imports the viewer's code.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build:web": "cd .. && npm run build",
+    "copy:web": "node scripts/copy-web.mjs",
+    "sync": "cap sync android",
+    "notices": "node ../scripts/third-party-notices.mjs build android --out www/THIRD-PARTY-NOTICES.txt",
+    "build": "npm run build:web && npm run copy:web && npm run sync && npm run notices && cap copy android",
+    "open:android": "cap open android",
+    "art": "node scripts/native-art.mjs",
+    "test:native": "node --test \"tests/*.test.mjs\""
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2",
+    "@resvg/resvg-js": "^2.6.2",
+    "typescript": "^5.9.3"
+  }
+}

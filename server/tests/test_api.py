@@ -22,6 +22,18 @@ def test_list_engines_includes_preview_and_triposplat():
     assert {"preview", "triposplat", "sharp", "photogrammetry"} <= names
 
 
+def test_preview_engine_advertises_this_projects_licence():
+    """The preview engine is this project's own code, so it carries the project's licence.
+
+    It said "MIT (this project)" and commercial use OK until #70 moved the project to PolyForm
+    Noncommercial, and the Create panel shows both fields for the one engine every server has.
+    """
+    r = client.get("/api/v1/engines")
+    preview = next(e for e in r.json()["engines"] if e["name"] == "preview")
+    assert preview["license"] == "PolyForm Noncommercial 1.0.0 (this project)"
+    assert preview["commercial"] is False
+
+
 def test_create_job_requires_input():
     r = client.post("/api/v1/jobs")
     assert r.status_code == 400

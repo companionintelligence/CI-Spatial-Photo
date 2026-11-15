@@ -15,6 +15,8 @@ from ..models import EngineCapabilities, EngineResult, JobInput
 from ..plywriter import image_to_flat_gaussian_ply
 from .base import Engine, EngineError
 
+PREVIEW_LICENSE = "PolyForm Noncommercial 1.0.0 (this project)"
+
 
 class PreviewEngine(Engine):
     name = "preview"
@@ -28,9 +30,12 @@ class PreviewEngine(Engine):
             intents=["auto", "scene"],
             output_kind="splat",
             output_formats=["ply"],
-            commercial=True,
+            # This engine is the project's own code, so it carries the project's licence:
+            # PolyForm Noncommercial 1.0.0 since #70 (LICENSE). The Create panel shows both
+            # fields for the one engine every server has.
+            commercial=False,
             requires_gpu=False,
-            license="MIT (this project)",
+            license=PREVIEW_LICENSE,
             available=True,
         )
 

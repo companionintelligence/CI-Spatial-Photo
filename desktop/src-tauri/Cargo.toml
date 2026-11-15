@@ -1,0 +1,24 @@
+[package]
+name = "photo-time-machine"
+version = "2.1.0"
+description = "Photo Time Machine desktop app: a Tauri 2 shell around the viewer"
+authors = ["Companion Intelligence"]
+license = "PolyForm-Noncommercial-1.0.0"
+repository = "https://github.com/companionintelligence/CI-Spatial-Photo"
+edition = "2021"
+rust-version = "1.90"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.5", features = [] }
+tauri-plugin-opener = "2.7.3"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

@@ -6,7 +6,7 @@
   "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
     "build": "cd web-server/client && env -u REACT_APP_API_BASE CI=false npm run build",
-    "test": "node --test \"worker/*.test.mjs\" \"web-server/client/scripts/*.test.mjs\"",
+    "test": "node --test \"worker/*.test.mjs\" \"web-server/client/scripts/*.test.mjs\" \"scripts/*.test.mjs\" \"desktop/tests/*.test.mjs\" \"mobile/tests/*.test.mjs\"",
     "deploy": "scripts/deploy-cloudflare.sh",
     "deploy:staging": "scripts/deploy-cloudflare.sh --env staging",
     "deploy:dry-run": "scripts/deploy-cloudflare.sh --dry-run"

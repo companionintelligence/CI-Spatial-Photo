@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Plain HTTP is allowed because a processing server on the user's own network is usually
+         plain HTTP (the Hub's server port, docker compose's :8000). mobile/README.md, "Scheme and
+         cleartext". No backups and no device-to-device transfers: the WebView's storage holds the
+         server address and, when the server has auth on, its bearer token. allowBackup="false"
+         covers both on Android 11 and earlier. From Android 12 on, for an app targeting API 31
+         or later, it stops cloud backup but, on some manufacturers' devices, not device-to-device
+         transfers, so the data extraction rules exclude everything from both.
+         mobile/README.md, "Permissions". Lint's DataExtractionRules check also asks for
+         android:fullBackupContent, the rules for Android 11 and earlier; there allowBackup="false"
+         already stops every backup and transfer, so those rules would never be read. -->
+    <application
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        tools:ignore="DataExtractionRules"
+        android:usesCleartextTraffic="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+    <!-- Permissions -->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- The XR button's webcam head tracking (getUserMedia, front camera, video only). Asked
+         for at runtime, when XR is switched on. No microphone: the stream has no audio. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- The rest of the app works without a camera, so it must not keep the app off devices
+         that have none. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
+</manifest>
