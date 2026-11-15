@@ -169,6 +169,28 @@ npm run deploy:staging     # the same thing on workers.dev, domain untouched
 
 Deployment itself: [`docs/DEPLOY-CLOUDFLARE.md`](docs/DEPLOY-CLOUDFLARE.md).
 
+## Desktop and Android apps
+
+The viewer also ships as a desktop app for Windows, macOS and Linux (Tauri 2,
+[`desktop/`](desktop/README.md)) and as an Android app (Capacitor 8, [`mobile/`](mobile/README.md)).
+Both bundle the same build as photo.ci.computer, with no server address and no analytics, so
+like the website they ask for your server on first start and do nothing without one. On the
+desktop, **This machine** reaches a server on the same computer. On a phone, enter the
+computer's address on your network with the server's port (`8000` with docker compose, `18831`
+on a Companion Hub), or its HTTPS tunnel address. Server images up to 2.0.0 need
+`ALLOWED_ORIGINS=tauri://localhost,http://tauri.localhost` before the desktop app can connect.
+
+They are published as GitHub pre-releases by a workflow that only runs when dispatched:
+
+```bash
+gh workflow run native-release.yml --ref main -f tag=v2.1.0 -f android_signing=auto
+```
+
+These are not store builds: the Windows and Linux installers are unsigned, the macOS app is ad
+hoc signed, and the APK is signed with the release keystore only when its secrets are set
+(otherwise with a throwaway key). Every release carries `LICENSE`, a `THIRD-PARTY-NOTICES.txt`
+generated from the lockfiles by `scripts/third-party-notices.mjs`, and `SHA256SUMS.txt`.
+
 ## Repository layout
 
 ```
@@ -178,13 +200,15 @@ server/                 FastAPI 3D processing server + MCP + engines (the new co
                         depth-image/depth-video + the depth model catalog
     main.py routes.py mcp_server.py jobs.py storage.py memory.py auth.py models.py config.py
 web-server/client/      React + Three.js + Spark web viewer (kept, evolved: /view/:id, meshes)
+desktop/                Tauri 2 desktop app around the viewer build
+mobile/                 Capacitor 8 Android app around the viewer build
 src/sharp/              Apple SHARP engine (bundled; research‑licensed weights)
 docs/                   UI-GUIDE.md, API.md, ARCHITECTURE.md, RESEARCH.md + screenshots
 worker/ wrangler.toml   Cloudflare Worker behind photo.ci.computer (viewer + API proxy)
 companion-app.json      Companion Hub / Marketplace manifest
 docker-compose.yml      Viewer + server stack
 .claude/                SessionStart hook for Claude Code on the web (see CLAUDE.md)
-.github/workflows/      CI: server tests + client build; gated Cloudflare deploy
+.github/workflows/      CI: server tests + client build; gated Cloudflare deploy; native release
 ```
 
 ## Configuration
