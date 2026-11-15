@@ -185,6 +185,21 @@ test("no PNG in the Android project is one of Capacitor's placeholders", () => {
   }
 });
 
+test('the APK carries the licence and the third-party notices', () => {
+  // Both land in www/, which `cap copy` puts in the APK's assets (served at /LICENSE.txt and
+  // /THIRD-PARTY-NOTICES.txt inside the app). The notices need the synced Gradle project, so
+  // they are written after `cap sync` and copied in again.
+  assert.ok(
+    read(mobile, 'scripts', 'copy-web.mjs').includes("cpSync(join(repo, 'LICENSE'), join(www, 'LICENSE.txt'));"),
+    'copy-web.mjs copies LICENSE into www',
+  );
+  assert.equal(pkg.scripts.notices, 'node ../scripts/third-party-notices.mjs build android --out www/THIRD-PARTY-NOTICES.txt');
+  assert.equal(
+    pkg.scripts.build,
+    'npm run build:web && npm run copy:web && npm run sync && npm run notices && cap copy android',
+  );
+});
+
 test('build outputs and generated files stay out of git', () => {
   const ignore = read(android, '.gitignore');
   for (const entry of ['build/', 'app/src/main/assets/public', 'capacitor-cordova-android-plugins', 'local.properties']) {

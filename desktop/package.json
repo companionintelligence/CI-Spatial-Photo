@@ -11,8 +11,9 @@
     "tauri": "tauri",
     "build:web": "cd .. && npm run build && node scripts/check-app-viewer.mjs",
     "icons": "tauri icon ../assets/icon.svg --output src-tauri/icons",
+    "notices": "node ../scripts/third-party-notices.mjs build desktop --out src-tauri/notices/THIRD-PARTY-NOTICES.txt",
     "dev": "tauri dev",
-    "build": "npm run build:web && npm run icons && tauri build",
+    "build": "npm run build:web && npm run notices && npm run icons && tauri build",
     "test:native": "node --test \"tests/*.test.mjs\""
   },
   "devDependencies": {

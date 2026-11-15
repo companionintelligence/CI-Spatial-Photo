@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Fills mobile/www, the Capacitor webDir, with a copy of the viewer build.
+ * Fills mobile/www, the Capacitor webDir, with a copy of the viewer build and the project's
+ * licence (www/LICENSE.txt, which PolyForm requires every copy to carry).
  *
  * The app ships the viewer exactly as the root `npm run build` makes it in
  * web-server/client/build: no rebuild and no second set of build flags. The build is checked
@@ -9,7 +10,8 @@
  *
  *   node scripts/copy-web.mjs [viewer-build-dir]
  *
- * `cap sync android` then copies www/ into the Android project's assets.
+ * `cap sync android` then copies www/ into the Android project's assets. The third-party
+ * notices join them there (`npm run notices`, which needs the synced Gradle project).
  */
 import { cpSync, existsSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -30,4 +32,5 @@ if (problems.length) {
 
 if (existsSync(www)) rmSync(www, { recursive: true, force: true });
 cpSync(build, www, { recursive: true });
-console.log(`copy-web: ${build} -> ${www}`);
+cpSync(join(repo, 'LICENSE'), join(www, 'LICENSE.txt'));
+console.log(`copy-web: ${build} and LICENSE -> ${www}`);

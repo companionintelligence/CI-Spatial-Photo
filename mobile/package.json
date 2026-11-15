@@ -11,7 +11,8 @@
     "build:web": "cd .. && npm run build",
     "copy:web": "node scripts/copy-web.mjs",
     "sync": "cap sync android",
-    "build": "npm run build:web && npm run copy:web && npm run sync",
+    "notices": "node ../scripts/third-party-notices.mjs build android --out www/THIRD-PARTY-NOTICES.txt",
+    "build": "npm run build:web && npm run copy:web && npm run sync && npm run notices && cap copy android",
     "open:android": "cap open android",
     "art": "node scripts/native-art.mjs",
     "test:native": "node --test \"tests/*.test.mjs\""

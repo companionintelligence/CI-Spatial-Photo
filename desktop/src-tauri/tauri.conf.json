@@ -35,6 +35,11 @@
     "homepage": "https://photo.ci.computer",
     "copyright": "Copyright LifeScope INC, DBA Companion Intelligence (https://ci.computer)",
     "license": "PolyForm-Noncommercial-1.0.0",
+    "licenseFile": "../../LICENSE",
+    "resources": {
+      "../../LICENSE": "LICENSE.txt",
+      "notices/THIRD-PARTY-NOTICES.txt": "THIRD-PARTY-NOTICES.txt"
+    },
     "category": "Photography",
     "shortDescription": "Turn a photo or a video into a 3D memory",
     "longDescription": "Photo Time Machine turns a photo, a photo set or a video into a 3D Gaussian splat or mesh that you can orbit, view with webcam head tracking and share. The processing runs on a Photo Time Machine server you run yourself; this app asks for its address on first start.",

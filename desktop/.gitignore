@@ -4,3 +4,5 @@ src-tauri/target/
 src-tauri/gen/
 # Generated from assets/icon.svg by `npm run icons` (tauri icon) before every build.
 src-tauri/icons/
+# Generated from the lockfiles by `npm run notices` before every build.
+src-tauri/notices/

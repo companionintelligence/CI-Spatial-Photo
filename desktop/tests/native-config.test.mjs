@@ -48,7 +48,7 @@ test('it bundles the viewer that the root `npm run build` makes, not a remote pa
   // The viewer is built by the root script (which unsets REACT_APP_API_BASE) and then checked
   // for a server address or an analytics tag before it is bundled.
   assert.match(pkg.scripts['build:web'], /^cd \.\. && npm run build && node scripts\/check-app-viewer\.mjs$/);
-  assert.match(pkg.scripts.build, /^npm run build:web && npm run icons && tauri build$/);
+  assert.match(pkg.scripts.build, /^npm run build:web && npm run notices && npm run icons && tauri build$/);
   // Tauri itself never rebuilds it: the release workflow builds the viewer once and hands the
   // same files to every job.
   assert.equal(config.build.beforeBuildCommand, undefined);
@@ -111,6 +111,22 @@ test('macOS: ad hoc signed, with the camera allowed for head tracking', () => {
   assert.match(plist, /<key>NSCameraUsageDescription<\/key>/);
   assert.match(plist, /<key>NSAllowsLocalNetworking<\/key>\s*<true\/>/);
   assert.doesNotMatch(plist, /NSAllowsArbitraryLoads/);
+});
+
+test('every installer carries the licence and the third-party notices', () => {
+  // PolyForm's notice rule, and the MIT, BSD, Apache-2.0 and MPL-2.0 notices of what is inside.
+  assert.equal(path.resolve(tauriDir, config.bundle.licenseFile), path.join(repo, 'LICENSE'));
+  const resources = Object.fromEntries(
+    Object.entries(config.bundle.resources).map(([from, to]) => [path.resolve(tauriDir, from), to]),
+  );
+  assert.equal(resources[path.join(repo, 'LICENSE')], 'LICENSE.txt');
+  assert.equal(resources[path.join(tauriDir, 'notices', 'THIRD-PARTY-NOTICES.txt')], 'THIRD-PARTY-NOTICES.txt');
+  // Generated from the lockfiles before every build, never committed.
+  assert.equal(
+    pkg.scripts.notices,
+    'node ../scripts/third-party-notices.mjs build desktop --out src-tauri/notices/THIRD-PARTY-NOTICES.txt',
+  );
+  assert.match(read(path.join(desktop, '.gitignore')), /^src-tauri\/notices\/$/m);
 });
 
 test('icons are generated from the app icon with tauri icon', () => {
