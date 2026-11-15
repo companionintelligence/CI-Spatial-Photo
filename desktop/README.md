@@ -54,9 +54,15 @@ port 3000), which you start first.
   `tauri-plugin-opener`, and the window stays where it was.
 - **Files can be dropped.** `dragDropEnabled` is off, because Tauri's own drop handler would
   otherwise swallow file drops on Windows and the Create panel's dropzone is HTML5 drag and drop.
-- **The camera works for head tracking.** `Info.plist` adds `NSCameraUsageDescription` (macOS
-  ends an app that opens the camera without it) and `Entitlements.plist` the camera entitlement
-  the hardened runtime asks for. WebView2 and WebKitGTK ask for permission themselves.
+- **The camera, for head tracking: not on Linux yet, untested elsewhere.** `Info.plist` adds
+  `NSCameraUsageDescription` (macOS ends an app that opens the camera without it) and
+  `Entitlements.plist` the camera entitlement the hardened runtime asks for. With no permission
+  handler in `main.rs`, WebView2 shows its own prompt on Windows, and on macOS wry grants the
+  page's request and macOS asks for the camera once. WebKitGTK does not ask: it refuses every
+  camera request the app does not answer, so on Linux head tracking cannot start. Making it work
+  needs a Linux-only `on_permission_request` that allows the camera, possibly WebKitGTK's
+  `enable-media-stream` setting as well (wry does not turn it on), and a test on a Linux machine
+  with a webcam. Until then the release notes say it does not work in the Linux app.
 - **Plain HTTP on the local network is allowed on macOS.** `NSAllowsLocalNetworking` lets the app
   reach `http://localhost:8000` and a LAN server; everything else keeps App Transport Security.
 - **Zoom.** Ctrl and Cmd plus and minus zoom the page (`zoomHotkeysEnabled`).

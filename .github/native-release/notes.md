@@ -52,10 +52,12 @@ until the Hub listing is updated.
 
 ## What the apps can and cannot do
 
-- Create, browse and orbit splats and meshes, and use the webcam head-tracked window (the XR
-  button), exactly as on the website, against your server.
-- Webcam head tracking downloads its model and runtime from Google's and jsDelivr's CDNs the
-  first time it is switched on, as the website does. No video leaves the device.
+- Create, browse and orbit splats and meshes against your server, as on the website.
+- Webcam head tracking (the XR button) does not work in the Linux app yet: its webview refuses
+  the camera. It has not been tried in the Windows, macOS and Android apps. Where it does not
+  start, use the website in a browser.
+- Head tracking downloads its model and runtime from Google's and jsDelivr's CDNs the first time
+  it is switched on, as the website does. No video leaves the device.
 - WebXR immersive AR is not available inside the apps; use the website in a browser that has it.
 - No analytics, no crash reporting and no automatic updates. The server address is stored only
   inside the app.
