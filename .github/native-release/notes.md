@@ -15,8 +15,10 @@ only), or install Photo Time Machine on a Companion Hub. See
 - **Desktop:** choose **This machine** for a server on the same computer (`http://localhost:8000`),
   or enter another address.
 - **Android:** on the same network, enter the computer's address and the server's port: `8000` for
-  docker compose, `18831` on a Companion Hub, starting with `http://`. Anywhere else use the
-  server's HTTPS address (a tunnel, or the Hub's public address).
+  docker compose, `18831` on a Companion Hub, starting with `http://`. Anywhere else use an HTTPS
+  address that reaches the server, such as a tunnel. A Companion Hub's public address does not
+  work for this yet: it serves the Hub's 2.0.0 viewer, which does not pass `/api` through to the
+  server.
 
 **Servers from before this release refuse the desktop app.** Server images up to and including
 2.0.0 accept the Android app but not the desktop app's origin. Until you update the server, start
